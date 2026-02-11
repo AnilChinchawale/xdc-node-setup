@@ -1125,11 +1125,11 @@ print_summary() {
     echo -e "${GREEN}${BOLD}✅ XDC Node Setup Complete!${NC}"
     echo ""
     echo -e "   ${BOLD}Network:${NC}    $NETWORK (Chain ID: $CHAIN_ID)"
-    echo -e "   ${BOLD}Node Type:${NC}  ${NODE_TYPE^} Node"
+    echo -e "   ${BOLD}Node Type:${NC}  $(echo "$NODE_TYPE" | awk '{print toupper(substr($0,1,1)) substr($0,2)}') Node"
     echo -e "   ${BOLD}Data Dir:${NC}   $DATA_DIR"
     echo -e "   ${BOLD}RPC:${NC}        http://127.0.0.1:$RPC_PORT"
     echo -e "   ${BOLD}P2P:${NC}        $P2P_PORT"
-    echo -e "   ${BOLD}Status:${NC}     ${sync_status^}..."
+    echo -e "   ${BOLD}Status:${NC}     $(echo "$sync_status" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')..."
     echo ""
     
     if [[ "$ENABLE_MONITORING" == "true" ]]; then
