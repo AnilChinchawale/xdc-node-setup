@@ -222,7 +222,7 @@ rolling_restart_test_first() {
         else
             prod_nodes+=("$host")
         fi
-    done <<( echo "$nodes" | jq -c '.[]' 2>/dev/null || echo "[]")
+    done < <(echo "$nodes" | jq -c '.[]' 2>/dev/null || echo "[]")
     
     if [[ -z "$test_node" && ${#prod_nodes[@]} -gt 0 ]]; then
         # No test node, use first prod node as test

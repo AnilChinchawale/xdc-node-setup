@@ -420,7 +420,7 @@ perform_pruning() {
     echo "    - Delete chaindata directory: rm -rf ${XDC_DATADIR}/XDC/chaindata"
     echo "    - Download fresh snapshot: ./scripts/snapshot-manager.sh download mainnet-full"
     echo ""
-    echo "  Option 2: Ancient data prune (if using XDC v2.5+)")
+    echo "  Option 2: Ancient data prune (if using XDC v2.5+)"
     echo "    - XDC supports --datadir.ancient flag for ancient storage"
     echo "    - See: https://docs.xdc.community"
     echo ""
