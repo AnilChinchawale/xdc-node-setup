@@ -4,8 +4,37 @@ import { queryPrometheus, PROMETHEUS_QUERIES } from '@/lib/prometheus';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+const RPC_URL = process.env.RPC_URL || 'http://127.0.0.1:38545';
+
+async function rpcCall(method: string, params: unknown[] = []): Promise<unknown> {
+  try {
+    const res = await fetch(RPC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', method, params, id: 1 }),
+      signal: AbortSignal.timeout(3000),
+    });
+    const data = await res.json();
+    return data.result;
+  } catch { return null; }
+}
+
 export async function GET() {
   try {
+    // Query coinbase and node info via RPC (parallel with Prometheus)
+    const [coinbaseResult, nodeInfoResult] = await Promise.all([
+      rpcCall('eth_coinbase'),
+      rpcCall('admin_nodeInfo'),
+    ]);
+
+    const coinbase = (coinbaseResult as string) || '';
+    const nodeInfo = nodeInfoResult as Record<string, unknown> || {};
+    
+    // Extract ethstats name: prefer NODE_NAME env, fallback to node name
+    const nodeName = process.env.NODE_NAME || '';
+    const clientName = (nodeInfo.name as string) || '';
+    const ethstatsName = nodeName || '';
+
     // Query all metrics in parallel
     const results = await Promise.all([
       // Blockchain
@@ -99,6 +128,9 @@ export async function GET() {
         peersOutbound: Math.floor(peersOutbound || 0),
         uptime: uptime || 0,
         chainId: '50',
+        coinbase: coinbase ? coinbase.replace('0x', 'xdc') : '',
+        ethstatsName,
+        clientVersion: clientName,
       },
       consensus: {
         epoch: Math.floor(epoch || 0),

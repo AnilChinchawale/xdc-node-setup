@@ -26,6 +26,9 @@ const defaultMetrics: MetricsData = {
     peersOutbound: 0,
     uptime: 0,
     chainId: '50',
+    coinbase: '',
+    ethstatsName: '',
+    clientVersion: '',
   },
   consensus: {
     epoch: 0,
@@ -262,6 +265,8 @@ export default function Home() {
         blockHeight={metrics.blockchain.blockHeight}
         peers={metrics.blockchain.peers}
         isSyncing={metrics.blockchain.isSyncing}
+        coinbase={metrics.blockchain.coinbase}
+        ethstatsName={metrics.blockchain.ethstatsName}
       />
 
       <Dock />

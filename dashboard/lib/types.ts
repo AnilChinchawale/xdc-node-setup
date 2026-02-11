@@ -8,6 +8,9 @@ export interface BlockchainData {
   peersOutbound: number;
   uptime: number;
   chainId: string;
+  coinbase: string;
+  ethstatsName: string;
+  clientVersion: string;
 }
 
 export interface ConsensusData {

@@ -11,6 +11,8 @@ interface HeaderProps {
   blockHeight?: number;
   peers?: number;
   isSyncing?: boolean;
+  coinbase?: string;
+  ethstatsName?: string;
 }
 
 export default function Header({ 
@@ -21,6 +23,8 @@ export default function Header({
   blockHeight = 0,
   peers = 0,
   isSyncing = false,
+  coinbase = '',
+  ethstatsName = '',
 }: HeaderProps) {
   const [isSpinning, setIsSpinning] = useState(false);
 
@@ -46,9 +50,22 @@ export default function Header({
             <h1 className="text-lg lg:text-xl font-semibold text-[#F9FAFB]" style={{ fontFamily: 'var(--font-fira-sans)' }}>
               Node Dashboard
             </h1>
-            <div className="hidden sm:flex items-center gap-2 text-xs">
-              <span className="text-[#6B7280]">Mainnet</span>
-              <span className="text-[#1E90FF]">Chain ID: 50</span>
+            <div className="hidden sm:flex items-center gap-2 text-xs flex-wrap">
+              {ethstatsName && (
+                <>
+                  <span className="text-[#10B981] font-medium">{ethstatsName}</span>
+                  <span className="text-[#6B7280]">·</span>
+                </>
+              )}
+              <span className="text-[#6B7280]">XDC Mainnet</span>
+              {coinbase && (
+                <>
+                  <span className="text-[#6B7280]">·</span>
+                  <span className="text-[#9CA3AF] font-mono text-[10px]" title={coinbase}>
+                    {coinbase.slice(0, 8)}...{coinbase.slice(-6)}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>

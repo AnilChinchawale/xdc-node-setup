@@ -115,6 +115,27 @@ export default function HeroSection({ data }: HeroSectionProps) {
             </span>
           </div>
           
+          {/* Coinbase Address */}
+          {data.coinbase && (
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-[10px] uppercase tracking-wider text-[#6B7280]">Coinbase</span>
+              <span className="font-mono text-xs text-[#1E90FF] bg-[rgba(30,144,255,0.08)] px-2 py-0.5 rounded" title={data.coinbase}>
+                {data.coinbase}
+              </span>
+            </div>
+          )}
+          
+          {/* Ethstats Name */}
+          {data.ethstatsName && (
+            <div className="mt-1 flex items-center gap-2">
+              <span className="text-[10px] uppercase tracking-wider text-[#6B7280]">Ethstats</span>
+              <span className="text-xs text-[#10B981] font-medium bg-[rgba(16,185,129,0.08)] px-2 py-0.5 rounded flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
+                {data.ethstatsName}
+              </span>
+            </div>
+          )}
+          
           {/* Sparkline */}
           <div className="mt-4">
             <Sparkline data={sparklineData} color={syncColor} />
