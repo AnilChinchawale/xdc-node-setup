@@ -1,0 +1,144 @@
+version: '3.8'
+
+services:
+  xdc-node:
+    image: xinfinorg/xdposchain:latest
+    container_name: xdc-node
+    restart: unless-stopped
+    ports:
+      - "30303:30303"
+      - "30303:30303/udp"
+      - "8545:8545"
+      - "8546:8546"
+    volumes:
+      - /root/xdcchain:/xdcchain
+      - /opt/xdc-node/configs/node.env:/.env:ro
+    environment:
+      - NETWORK=${NETWORK:-mainnet}
+      - SYNC_MODE=${SYNC_MODE:-full}
+    command: >
+      --datadir /xdcchain/XDC
+      --syncmode ${SYNC_MODE:-full}
+      --rpc
+      --rpcaddr 0.0.0.0
+      --rpcport 8545
+      --rpcapi eth,net,web3,XDPoS
+      --rpcvhosts "*"
+      --ws
+      --wsaddr 0.0.0.0
+      --wsport 8546
+      --wsorigins "*"
+      --port 30303
+      --nat any
+    networks:
+      - xdc-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8545", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: xdc-prometheus
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - /opt/xdc-node/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    networks:
+      - xdc-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: xdc-node-exporter
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - xdc-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: xdc-grafana
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:3000}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - /opt/xdc-node/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - /opt/xdc-node/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - xdc-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: xdc-cadvisor
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /dev/disk/:/dev/disk:ro
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks:
+      - xdc-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  xdc-network:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:

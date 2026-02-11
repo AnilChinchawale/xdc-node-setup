@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "lastChecked": null,
+  "checkIntervalHours": 6,
+  "clients": {
+    "XDPoSChain": {
+      "repo": "XinFinOrg/XDPoSChain",
+      "current": "v2.6.0",
+      "latest": null,
+      "autoUpdate": false,
+      "binary": "XDC"
+    },
+    "erigon-xdc": {
+      "repo": "AnilChinchawale/erigon-xdc",
+      "current": "0.1.0-alpha",
+      "latest": null,
+      "autoUpdate": false
+    }
+  },
+  "infrastructure": {
+    "docker": {
+      "minVersion": "24.0"
+    },
+    "ubuntu": {
+      "supported": ["20.04", "22.04", "24.04"]
+    }
+  }
+}

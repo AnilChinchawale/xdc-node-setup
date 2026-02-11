@@ -1,0 +1,92 @@
+groups:
+  - name: xdc-node-alerts
+    rules:
+      # Node down alert
+      - alert: XDCNodeDown
+        expr: up{job="xdc-node"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "XDC Node is down"
+          description: "XDC node has been down for more than 5 minutes on {{ $labels.instance }}"
+
+      # High disk usage
+      - alert: HighDiskUsage
+        expr: (node_filesystem_avail_bytes{mountpoint="/root/xdcchain"} / node_filesystem_size_bytes{mountpoint="/root/xdcchain"}) < 0.15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High disk usage on XDC node"
+          description: "Disk usage is above 85% on {{ $labels.instance }}"
+
+      # Critical disk usage
+      - alert: CriticalDiskUsage
+        expr: (node_filesystem_avail_bytes{mountpoint="/root/xdcchain"} / node_filesystem_size_bytes{mountpoint="/root/xdcchain"}) < 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical disk usage on XDC node"
+          description: "Disk usage is above 95% on {{ $labels.instance }}. Immediate action required."
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is above 90% on {{ $labels.instance }}"
+
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is above 90% on {{ $labels.instance }} for more than 15 minutes"
+
+      # Node exporter down
+      - alert: NodeExporterDown
+        expr: up{job="node-exporter"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Node exporter is down"
+          description: "Node exporter has been down for more than 5 minutes on {{ $labels.instance }}"
+
+      # High load average
+      - alert: HighLoadAverage
+        expr: node_load15 > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High load average"
+          description: "Load average is high on {{ $labels.instance }}: {{ $value }}"
+
+      # Low peer count
+      - alert: XDCPeerCountLow
+        expr: xdpos_peers < 3
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "XDC peer count is low"
+          description: "XDC node has less than 3 peers on {{ $labels.instance }}"
+
+      # No peers
+      - alert: XDCPeerCountZero
+        expr: xdpos_peers == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "XDC has no peers"
+          description: "XDC node has no peers on {{ $labels.instance }}. Check network connectivity."
