@@ -644,9 +644,23 @@ setup_docker_compose() {
     log "Downloading XDC node configuration files..."
     local base_url="https://raw.githubusercontent.com/XinFinOrg/XinFin-Node/master/mainnet"
     
-    curl -sSL "$base_url/genesis.json" -o "$network_dir/genesis.json" 2>/dev/null || warn "Failed to download genesis.json"
-    curl -sSL "$base_url/start-node.sh" -o "$network_dir/start-node.sh" 2>/dev/null || warn "Failed to download start-node.sh"
-    curl -sSL "$base_url/bootnodes.list" -o "$network_dir/bootnodes.list" 2>/dev/null || warn "Failed to download bootnodes.list"
+    # First try bundled files from the repo, then fall back to download
+    local script_base="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local bundled_dir="$script_base/docker/mainnet"
+    
+    for f in genesis.json start-node.sh bootnodes.list; do
+        if [[ -f "$bundled_dir/$f" ]]; then
+            cp "$bundled_dir/$f" "$network_dir/$f"
+            log "Using bundled $f"
+        else
+            if ! curl -fsSL --connect-timeout 10 "$base_url/$f" -o "$network_dir/$f" 2>/dev/null; then
+                warn "Failed to download $f — check your internet connection"
+                warn "You can manually place $f in $network_dir/"
+            else
+                log "Downloaded $f"
+            fi
+        fi
+    done
     chmod +x "$network_dir/start-node.sh" 2>/dev/null || true
     
     # Create .env file

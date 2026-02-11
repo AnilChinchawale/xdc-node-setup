@@ -1,6 +1,22 @@
-# Standalone NetOwn Agent
-# For adding monitoring to an existing XDC node
-# Usage: docker compose -f netown-agent-standalone.yml up -d
+#==============================================================================
+# Standalone NetOwn Agent - Docker Compose
+#
+# For adding XDCNetOwn fleet monitoring to an existing XDC node that was NOT
+# deployed via the XDC-Node-Setup docker-compose.yml (which has a built-in
+# netown profile). Use this for nodes running natively or via other setups.
+#
+# Prerequisites:
+#   1. Copy netown-agent.sh to the same directory as this file
+#   2. Copy your netown.conf (with API keys) to the same directory
+#   3. Ensure the XDC node RPC is accessible at the URL in netown.conf
+#
+# Usage:
+#   docker compose -f netown-agent-standalone.yml up -d
+#   docker logs -f netown-agent
+#
+# To stop:
+#   docker compose -f netown-agent-standalone.yml down
+#==============================================================================
 
 services:
   netown-agent:
@@ -11,18 +27,32 @@ services:
     volumes:
       - ./netown-agent.sh:/agent.sh:ro
       - ./netown.conf:/etc/xdc-node/netown.conf:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /etc/ssh/sshd_config:/host/sshd_config:ro
-      - /proc:/host/proc:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro   # Docker stats collection
+      - /etc/ssh/sshd_config:/host/sshd_config:ro      # Security audit checks
+      - /proc:/host/proc:ro                              # System metrics
     environment:
       - NETOWN_CONF=/etc/xdc-node/netown.conf
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
         apk add --no-cache bash curl jq bc procps >/dev/null 2>&1
-        chmod +x /agent.sh
         echo "NetOwn Agent started - reporting every 60s"
         while true; do
-          /agent.sh 2>/dev/null
+          /agent.sh 2>/dev/null && echo "[$(date '+%H:%M:%S')] heartbeat ok" || echo "[$(date '+%H:%M:%S')] heartbeat failed"
           sleep 60
         done
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'sleep 60' || exit 1"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      com.xdc-node-setup.service: "netown-agent"
+      com.xdc-node-setup.version: "1.0.0"
+      com.xdc-node-setup.description: "XDCNetOwn fleet monitoring sidecar"
