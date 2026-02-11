@@ -56,17 +56,23 @@ function ETACountdown({ eta }: { eta: number }) {
   const hours = Math.floor(eta / 60);
   const minutes = Math.floor(eta % 60);
   
+  const formatETA = () => {
+    if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
+    if (hours > 0) return `${hours}h`;
+    if (minutes > 0) return `${minutes}m`;
+    return '< 1m';
+  };
+  
   return (
     <div className="flex items-center gap-3 p-4 rounded-xl bg-[rgba(30,144,255,0.05)] border border-[rgba(30,144,255,0.15)]">
-      <div className="w-12 h-12 rounded-full border-4 border-[#1E90FF] border-t-transparent animate-spin">
+      <div className="relative w-12 h-12">
+        <div className="w-12 h-12 rounded-full border-4 border-[#1E90FF] border-t-transparent animate-spin" />
         <Clock className="w-5 h-5 text-[#1E90FF] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
       </div>
       <div>
         <div className="section-header mb-1">Estimated Time to Sync</div>
         <div className="text-2xl font-bold font-mono-nums text-[#1E90FF]">
-          {hours > 0 && <span>{hours}h </span>}
-          {minutes > 0 && <span>{minutes}m</span>}
-          {hours === 0 && minutes === 0 && <span>< 1m</span>}
+          {formatETA()}
         </div>
       </div>
     </div>

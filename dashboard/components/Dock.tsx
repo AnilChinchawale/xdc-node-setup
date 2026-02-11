@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Link2, 
   Crown, 
@@ -11,13 +11,13 @@ import {
   Globe 
 } from 'lucide-react';
 
-interface DockItem {
+interface DockItemType {
   id: string;
   label: string;
   icon: React.ReactNode;
 }
 
-const dockItems: DockItem[] = [
+const dockItems: DockItemType[] = [
   { id: 'blockchain', label: 'Blockchain', icon: <Link2 className="w-6 h-6" /> },
   { id: 'consensus', label: 'Consensus', icon: <Crown className="w-6 h-6" /> },
   { id: 'sync', label: 'Sync', icon: <RefreshCw className="w-6 h-6" /> },
@@ -29,11 +29,42 @@ const dockItems: DockItem[] = [
 
 export default function Dock() {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [activeSection, setActiveSection] = useState<string>('blockchain');
+  
+  // Track active section based on scroll position
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY + window.innerHeight / 2;
+      
+      for (const item of dockItems) {
+        const element = document.getElementById(item.id);
+        if (element) {
+          const { offsetTop, offsetHeight } = element;
+          if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
+            setActiveSection(item.id);
+            break;
+          }
+        }
+      }
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    handleScroll(); // Initial check
+    
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleClick = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const offset = 100; // Account for header
+      const elementPosition = element.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - offset;
+      
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
     }
   };
 
@@ -59,7 +90,7 @@ export default function Dock() {
       {dockItems.map((item, index) => (
         <button
           key={item.id}
-          className="dock-item"
+          className={`dock-item ${activeSection === item.id ? 'active' : ''}`}
           onClick={() => handleClick(item.id)}
           onMouseEnter={() => setHoveredIndex(index)}
           onMouseLeave={() => setHoveredIndex(null)}
@@ -68,7 +99,7 @@ export default function Dock() {
           }}
           aria-label={item.label}
         >
-          <span className="dock-icon text-[#1E90FF]">{item.icon}</span>
+          <span className="dock-icon">{item.icon}</span>
           <span className="dock-label">{item.label}</span>
         </button>
       ))}

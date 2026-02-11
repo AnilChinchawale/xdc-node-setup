@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import Header from '@/components/Header';
 import Dock from '@/components/Dock';
-import BlockchainCard from '@/components/BlockchainCard';
+import HeroSection from '@/components/HeroSection';
+import StatsGrid from '@/components/StatsGrid';
 import ConsensusPanel from '@/components/ConsensusPanel';
 import SyncPanel from '@/components/SyncPanel';
 import TxPoolPanel from '@/components/TxPoolPanel';
@@ -27,55 +28,55 @@ const defaultMetrics: MetricsData = {
     chainId: '50',
   },
   consensus: {
-    epoch: 98000,
-    epochProgress: 65,
-    masternodeStatus: 'Active',
-    signingRate: 98.5,
-    stakeAmount: 10000000,
-    walletBalance: 10500000,
-    totalRewards: 500000,
+    epoch: 0,
+    epochProgress: 0,
+    masternodeStatus: 'Inactive',
+    signingRate: 0,
+    stakeAmount: 0,
+    walletBalance: 0,
+    totalRewards: 0,
     penalties: 0,
   },
   sync: {
-    syncRate: 125,
-    reorgsAdd: 12,
-    reorgsDrop: 3,
+    syncRate: 0,
+    reorgsAdd: 0,
+    reorgsDrop: 0,
   },
   txpool: {
-    pending: 150,
-    queued: 45,
-    slots: 8000,
-    valid: 1200,
-    invalid: 5,
-    underpriced: 8,
+    pending: 0,
+    queued: 0,
+    slots: 0,
+    valid: 0,
+    invalid: 0,
+    underpriced: 0,
   },
   server: {
-    cpuUsage: 35,
-    memoryUsed: 8 * 1024 * 1024 * 1024,
+    cpuUsage: 0,
+    memoryUsed: 0,
     memoryTotal: 16 * 1024 * 1024 * 1024,
-    diskUsed: 250 * 1024 * 1024 * 1024,
+    diskUsed: 0,
     diskTotal: 500 * 1024 * 1024 * 1024,
-    goroutines: 1250,
-    sysLoad: 2.5,
-    procLoad: 1.8,
+    goroutines: 0,
+    sysLoad: 0,
+    procLoad: 0,
   },
   storage: {
-    chainDataSize: 120 * 1024 * 1024 * 1024,
-    diskReadRate: 15 * 1024 * 1024,
-    diskWriteRate: 8 * 1024 * 1024,
-    compactTime: 0.5,
-    trieCacheHitRate: 92.5,
-    trieCacheMiss: 1250,
+    chainDataSize: 0,
+    diskReadRate: 0,
+    diskWriteRate: 0,
+    compactTime: 0,
+    trieCacheHitRate: 0,
+    trieCacheMiss: 0,
   },
   network: {
-    totalPeers: 25,
-    inboundTraffic: 5 * 1024 * 1024,
-    outboundTraffic: 3 * 1024 * 1024,
-    dialSuccess: 45,
-    dialTotal: 50,
-    eth100Traffic: 50 * 1024 * 1024,
-    eth63Traffic: 20 * 1024 * 1024,
-    connectionErrors: 2,
+    totalPeers: 0,
+    inboundTraffic: 0,
+    outboundTraffic: 0,
+    dialSuccess: 0,
+    dialTotal: 0,
+    eth100Traffic: 0,
+    eth63Traffic: 0,
+    connectionErrors: 0,
   },
   timestamp: new Date().toISOString(),
 };
@@ -85,6 +86,110 @@ const defaultPeers: PeersData = {
   countries: {},
   totalPeers: 0,
 };
+
+// Skeleton loading component
+function Skeleton({ className }: { className?: string }) {
+  return <div className={`skeleton ${className || ''}`} />;
+}
+
+function LoadingState() {
+  return (
+    <div className="min-h-screen bg-[#0A0E1A]">
+      {/* Header skeleton */}
+      <header className="header-obsidian sticky top-0 z-50">
+        <div className="max-w-[1440px] mx-auto flex items-center justify-between px-4 lg:px-6 py-3">
+          <div className="flex items-center gap-3">
+            <Skeleton className="w-10 h-10 rounded-full" />
+            <div>
+              <Skeleton className="w-32 h-6 mb-1" />
+              <Skeleton className="w-24 h-4" />
+            </div>
+          </div>
+          <Skeleton className="w-40 h-10 rounded-full hidden md:block" />
+          <div className="flex items-center gap-4">
+            <Skeleton className="w-20 h-8 rounded-lg" />
+          </div>
+        </div>
+      </header>
+      
+      <main className="max-w-[1440px] mx-auto px-4 lg:px-6 py-6">
+        {/* Hero skeleton */}
+        <div className="card-hero mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div>
+              <Skeleton className="w-32 h-4 mb-3" />
+              <Skeleton className="w-48 h-12 mb-2" />
+              <Skeleton className="w-36 h-4" />
+            </div>
+            <div className="flex justify-center">
+              <Skeleton className="w-32 h-32 rounded-full" />
+            </div>
+            <div className="space-y-4">
+              <Skeleton className="w-full h-20 rounded-xl" />
+              <div className="grid grid-cols-2 gap-4">
+                <Skeleton className="h-16 rounded-xl" />
+                <Skeleton className="h-16 rounded-xl" />
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Stats grid skeleton */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="card-xdc">
+              <Skeleton className="w-10 h-10 rounded-xl mb-3" />
+              <Skeleton className="w-20 h-4 mb-2" />
+              <Skeleton className="w-28 h-8" />
+            </div>
+          ))}
+        </div>
+        
+        {/* Panels skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="card-xdc">
+            <div className="flex items-center gap-3 mb-5">
+              <Skeleton className="w-10 h-10 rounded-xl" />
+              <div>
+                <Skeleton className="w-32 h-5 mb-1" />
+                <Skeleton className="w-24 h-4" />
+              </div>
+            </div>
+            <Skeleton className="w-full h-4 rounded-full mb-6" />
+            <div className="grid grid-cols-2 gap-4">
+              <Skeleton className="h-24 rounded-xl" />
+              <Skeleton className="h-24 rounded-xl" />
+            </div>
+          </div>
+          <div className="card-xdc">
+            <div className="flex items-center gap-3 mb-5">
+              <Skeleton className="w-10 h-10 rounded-xl" />
+              <div>
+                <Skeleton className="w-32 h-5 mb-1" />
+                <Skeleton className="w-24 h-4" />
+              </div>
+            </div>
+            <Skeleton className="w-full h-40 rounded-xl" />
+          </div>
+        </div>
+        
+        {/* Map skeleton */}
+        <div className="card-xdc">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <Skeleton className="w-10 h-10 rounded-xl" />
+              <div>
+                <Skeleton className="w-40 h-5 mb-1" />
+                <Skeleton className="w-32 h-4" />
+              </div>
+            </div>
+          </div>
+          <Skeleton className="w-full h-[400px] rounded-xl" />
+        </div>
+      </main>
+    </div>
+  );
+}
 
 export default function Home() {
   const [metrics, setMetrics] = useState<MetricsData>(defaultMetrics);
@@ -144,30 +249,26 @@ export default function Home() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0B1120] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-[#1E90FF] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-[#8B8CA7]">Connecting to XDC node...</p>
-        </div>
-      </div>
-    );
+    return <LoadingState />;
   }
 
   return (
-    <div className="min-h-screen bg-[#0B1120]">
+    <div className="min-h-screen bg-[#0A0E1A]">
       <Header
         lastUpdated={metrics.timestamp}
         connected={connected}
         nextRefresh={countdown}
         refreshInterval={REFRESH_INTERVAL}
+        blockHeight={metrics.blockchain.blockHeight}
+        peers={metrics.blockchain.peers}
+        isSyncing={metrics.blockchain.isSyncing}
       />
 
       <Dock />
 
-      <main className="px-3 py-4 sm:px-4 lg:px-6">
+      <main className="max-w-[1440px] mx-auto px-4 lg:px-6 py-6">
         {error && (
-          <div className="mb-6 p-4 rounded-xl bg-[#FF4560]/10 border border-[#FF4560]/30 text-[#FF4560] animate-fade-in">
+          <div className="mb-6 p-4 rounded-xl bg-[rgba(239,68,68,0.1)] border border-[rgba(239,68,68,0.3)] text-[#EF4444] animate-fade-in">
             <div className="flex items-center gap-2">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -177,49 +278,52 @@ export default function Home() {
           </div>
         )}
 
-        {/* Grid Layout - Mobile-first, Blockchain Data First, World Map Last */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-6">
+        {/* Grid Layout */}
+        <div className="space-y-8">
           {/* 1. Hero - Blockchain Status */}
-          <div className="md:col-span-12">
-            <BlockchainCard data={metrics.blockchain} />
-          </div>
+          <section id="blockchain">
+            <HeroSection data={metrics.blockchain} />
+          </section>
 
-          {/* 2. XDPoS Consensus */}
-          <div className="md:col-span-12 xl:col-span-8">
-            <ConsensusPanel data={metrics.consensus} />
-          </div>
+          {/* 2. Stats Grid */}
+          <section>
+            <StatsGrid metrics={metrics} />
+          </section>
 
-          {/* 3. Sync & Performance */}
-          <div className="md:col-span-12 xl:col-span-4">
-            <SyncPanel data={metrics.sync} blockchain={metrics.blockchain} />
-          </div>
+          {/* 3. Consensus + Sync */}
+          <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <div className="xl:col-span-2">
+              <ConsensusPanel data={metrics.consensus} />
+            </div>
+            <div className="xl:col-span-1">
+              <SyncPanel data={metrics.sync} blockchain={metrics.blockchain} />
+            </div>
+          </section>
 
-          {/* 4. Transaction Pool */}
-          <div className="md:col-span-12 lg:col-span-6 xl:col-span-5">
+          {/* 4. Transaction Pool + Server Stats */}
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <TxPoolPanel data={metrics.txpool} />
-          </div>
-
-          {/* 5. Server Stats */}
-          <div className="md:col-span-12 lg:col-span-6 xl:col-span-7">
             <ServerStats data={metrics.server} />
-          </div>
+          </section>
 
-          {/* 6. Storage & Database */}
-          <div className="md:col-span-12">
+          {/* 5. Storage */}
+          <section>
             <StoragePanel data={metrics.storage} />
-          </div>
+          </section>
 
-          {/* 7. World Peer Map - LAST (Full Width) */}
-          <div className="md:col-span-12">
+          {/* 6. World Peer Map - LAST */}
+          <section>
             <PeerMap peers={peers} />
-          </div>
+          </section>
         </div>
       </main>
 
-      <footer className="border-t border-[#2a3352] mt-8 py-6">
-        <div className="px-4 text-center text-sm text-[#8B8CA7]">
+      <footer className="border-t border-[rgba(255,255,255,0.06)] mt-8 py-6">
+        <div className="max-w-[1440px] mx-auto px-4 text-center text-sm text-[#6B7280]">
           <p>XDC Node Dashboard &copy; {new Date().getFullYear()}</p>
-          <p className="mt-1">Built with Next.js 14 + ECharts &middot; Auto-refresh every {REFRESH_INTERVAL}s</p>
+          <p className="mt-1">
+            Built with Next.js 14 &middot; Auto-refresh every {REFRESH_INTERVAL}s
+          </p>
         </div>
       </footer>
     </div>

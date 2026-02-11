@@ -51,7 +51,7 @@ export default function PeerMapChart({ peers }: PeerMapChartProps) {
             name: `${p.city}, ${p.country}`,
             value: [p.lon, p.lat, p.inbound ? 1 : 0],
             itemStyle: {
-              color: p.inbound ? '#00E396' : '#1E90FF',
+              color: p.inbound ? '#10B981' : '#1E90FF',
             },
           }));
 
@@ -59,10 +59,11 @@ export default function PeerMapChart({ peers }: PeerMapChartProps) {
           backgroundColor: 'transparent',
           tooltip: {
             trigger: 'item' as const,
-            backgroundColor: 'rgba(11, 17, 32, 0.95)',
-            borderColor: '#2a3352',
+            backgroundColor: 'rgba(17, 24, 39, 0.95)',
+            borderColor: 'rgba(255, 255, 255, 0.06)',
             textStyle: {
-              color: '#E8E8F0',
+              color: '#F9FAFB',
+              fontFamily: 'var(--font-fira-sans)',
             },
             formatter: (params: any) => {
               if (params.seriesType === 'effectScatter') {
@@ -71,10 +72,10 @@ export default function PeerMapChart({ peers }: PeerMapChartProps) {
                 );
                 if (peer) {
                   return [
-                    `<div style="font-weight: 600; margin-bottom: 4px;">${peer.city}, ${peer.country}</div>`,
-                    `<div style="font-size: 12px; color: #8B8CA7;">IP: ${peer.ip}</div>`,
-                    `<div style="font-size: 12px; color: #8B8CA7;">ISP: ${peer.isp}</div>`,
-                    `<div style="font-size: 12px; color: ${peer.inbound ? '#00E396' : '#1E90FF'};">`,
+                    `<div style="font-weight: 600; margin-bottom: 4px; color: #F9FAFB;">${peer.city}, ${peer.country}</div>`,
+                    `<div style="font-size: 12px; color: #6B7280;">IP: ${peer.ip}</div>`,
+                    `<div style="font-size: 12px; color: #6B7280;">ISP: ${peer.isp}</div>`,
+                    `<div style="font-size: 12px; color: ${peer.inbound ? '#10B981' : '#1E90FF'};">`,
                     `  ${peer.inbound ? '↘ Inbound' : '↗ Outbound'}`,
                     `</div>`,
                   ].join('');
@@ -82,7 +83,7 @@ export default function PeerMapChart({ peers }: PeerMapChartProps) {
               }
               if (params.seriesType === 'map') {
                 const count = params.value || 0;
-                return `${params.name}<br/>Peers: <b>${count}</b>`;
+                return `<div style="color: #F9FAFB; font-weight: 500;">${params.name}</div><div style="color: #6B7280;">Peers: <b style="color: #1E90FF;">${count}</b></div>`;
               }
               return params.name;
             },
@@ -92,7 +93,7 @@ export default function PeerMapChart({ peers }: PeerMapChartProps) {
             min: 0,
             max: Math.max(1, ...countryData.map((d: any) => d.value)),
             inRange: {
-              color: ['#1a2035', '#2a3352', '#1E90FF'],
+              color: ['#111827', '#1a2332', '#1E90FF'],
             },
           },
           geo: {
@@ -101,13 +102,13 @@ export default function PeerMapChart({ peers }: PeerMapChartProps) {
             zoom: 1.2,
             center: [10, 30] as [number, number],
             itemStyle: {
-              areaColor: '#1a2035',
-              borderColor: '#2a3352',
+              areaColor: '#111827',
+              borderColor: 'rgba(255, 255, 255, 0.06)',
               borderWidth: 0.5,
             },
             emphasis: {
               itemStyle: {
-                areaColor: '#2a3352',
+                areaColor: '#1a2332',
               },
               label: {
                 show: false,
@@ -128,12 +129,13 @@ export default function PeerMapChart({ peers }: PeerMapChartProps) {
               type: 'effectScatter' as const,
               coordinateSystem: 'geo' as const,
               data: peerData,
-              symbolSize: 12,
+              symbolSize: 10,
               showEffectOn: 'render' as const,
               rippleEffect: {
                 brushType: 'stroke' as const,
                 scale: 3,
                 period: 4,
+                color: (params: any) => params.data.itemStyle?.color,
               },
               label: {
                 show: false,
