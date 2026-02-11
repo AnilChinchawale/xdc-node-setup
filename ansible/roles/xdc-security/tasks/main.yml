@@ -1,0 +1,220 @@
+---
+# XDC Security Role - Security hardening for XDC nodes
+# Implements CIS benchmark recommendations
+
+# =========================================================================
+# SSH Hardening
+# =========================================================================
+- name: Install SSH hardening packages
+  ansible.builtin.apt:
+    name:
+      - openssh-server
+      - libpam-google-authenticator
+    state: present
+  tags: [ssh]
+
+- name: Backup SSH configuration
+  ansible.builtin.copy:
+    src: /etc/ssh/sshd_config
+    dest: /etc/ssh/sshd_config.backup
+    remote_src: yes
+    force: no
+  tags: [ssh]
+
+- name: Apply SSH hardening configuration
+  ansible.builtin.blockinfile:
+    path: /etc/ssh/sshd_config
+    marker: "# {mark} ANSIBLE MANAGED - SSH HARDENING"
+    block: |
+      # Protocol and Authentication
+      Protocol 2
+      PermitRootLogin prohibit-password
+      PasswordAuthentication no
+      PermitEmptyPasswords no
+      ChallengeResponseAuthentication no
+      PubkeyAuthentication yes
+      
+      # Security Options
+      X11Forwarding no
+      AllowAgentForwarding no
+      AllowTcpForwarding no
+      PermitTunnel no
+      
+      # Session Limits
+      MaxAuthTries 3
+      MaxSessions 3
+      LoginGraceTime 60
+      
+      # Idle Timeout
+      ClientAliveInterval 300
+      ClientAliveCountMax 2
+      
+      # Logging
+      LogLevel VERBOSE
+      
+      # Cryptography
+      KexAlgorithms curve25519-sha256@libssh.org,diffie-hellman-group-exchange-sha256
+      Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr
+      MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256
+      HostKeyAlgorithms ssh-ed25519,rsa-sha2-512,rsa-sha2-256
+    validate: 'sshd -t -f %s'
+  notify: Restart SSH
+  tags: [ssh]
+
+# =========================================================================
+# Firewall Configuration
+# =========================================================================
+- name: Install UFW
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+  tags: [firewall]
+
+- name: Set UFW default policies
+  community.general.ufw:
+    direction: "{{ item.direction }}"
+    policy: "{{ item.policy }}"
+  loop:
+    - { direction: 'incoming', policy: 'deny' }
+    - { direction: 'outgoing', policy: 'allow' }
+  tags: [firewall]
+
+- name: Allow SSH through UFW
+  community.general.ufw:
+    rule: allow
+    port: "{{ ansible_port | default(22) }}"
+    proto: tcp
+    comment: SSH
+  tags: [firewall]
+
+- name: Allow XDC P2P ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ p2p_port | default(30303) }}"
+    proto: "{{ item }}"
+    comment: XDC P2P
+  loop:
+    - tcp
+    - udp
+  tags: [firewall]
+
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled
+    logging: 'on'
+  tags: [firewall]
+
+# =========================================================================
+# Fail2ban
+# =========================================================================
+- name: Install fail2ban
+  ansible.builtin.apt:
+    name: fail2ban
+    state: present
+  tags: [fail2ban]
+
+- name: Configure fail2ban
+  ansible.builtin.template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    mode: '0644'
+  notify: Restart fail2ban
+  tags: [fail2ban]
+
+- name: Enable fail2ban
+  ansible.builtin.systemd:
+    name: fail2ban
+    state: started
+    enabled: yes
+  tags: [fail2ban]
+
+# =========================================================================
+# Auditd
+# =========================================================================
+- name: Install auditd
+  ansible.builtin.apt:
+    name:
+      - auditd
+      - audispd-plugins
+    state: present
+  tags: [auditd]
+
+- name: Configure audit rules
+  ansible.builtin.template:
+    src: audit-rules.j2
+    dest: /etc/audit/rules.d/xdc-node.rules
+    mode: '0640'
+  notify: Restart auditd
+  tags: [auditd]
+
+- name: Enable auditd
+  ansible.builtin.systemd:
+    name: auditd
+    state: started
+    enabled: yes
+  tags: [auditd]
+
+# =========================================================================
+# Additional Security Measures
+# =========================================================================
+- name: Disable unnecessary services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: no
+  loop:
+    - cups
+    - avahi-daemon
+    - bluetooth
+  failed_when: false
+  tags: [services]
+
+- name: Remove unnecessary packages
+  ansible.builtin.apt:
+    name:
+      - telnet
+      - rsh-client
+      - rsh-redone-client
+    state: absent
+    purge: yes
+  tags: [packages]
+
+- name: Set secure file permissions
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    mode: "{{ item.mode }}"
+    owner: "{{ item.owner | default('root') }}"
+    group: "{{ item.group | default('root') }}"
+  loop:
+    - { path: '/etc/passwd', mode: '0644' }
+    - { path: '/etc/shadow', mode: '0640', group: 'shadow' }
+    - { path: '/etc/group', mode: '0644' }
+    - { path: '/etc/gshadow', mode: '0640', group: 'shadow' }
+    - { path: '/etc/ssh/sshd_config', mode: '0600' }
+    - { path: '/boot/grub/grub.cfg', mode: '0600' }
+  failed_when: false
+  tags: [permissions]
+
+- name: Configure login banner
+  ansible.builtin.copy:
+    dest: /etc/issue.net
+    mode: '0644'
+    content: |
+      **************************************************************************
+      *                                                                        *
+      *  AUTHORIZED ACCESS ONLY                                                *
+      *                                                                        *
+      *  This system is for authorized users only. All activities on this      *
+      *  system are logged and monitored. Unauthorized access will be          *
+      *  prosecuted to the full extent of the law.                             *
+      *                                                                        *
+      **************************************************************************
+  tags: [banner]
+
+- name: Enable SSH banner
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?Banner'
+    line: 'Banner /etc/issue.net'
+  notify: Restart SSH
+  tags: [banner]

@@ -1,0 +1,190 @@
+---
+# XDC Monitoring Role - Monitoring setup for XDC nodes
+# Deploys Prometheus, Grafana, and exporters
+
+- name: Set monitoring variables
+  ansible.builtin.set_fact:
+    monitoring_dir: "{{ monitoring_dir | default('/opt/monitoring') }}"
+    prometheus_port: "{{ prometheus_port | default(9090) }}"
+    grafana_port: "{{ grafana_port | default(3000) }}"
+    node_exporter_port: "{{ node_exporter_port | default(9100) }}"
+  tags: [vars]
+
+# =========================================================================
+# Install Docker
+# =========================================================================
+- name: Check if Docker is installed
+  ansible.builtin.command: docker --version
+  register: docker_version
+  changed_when: false
+  failed_when: false
+  tags: [docker]
+
+- name: Install Docker prerequisites
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+    state: present
+    update_cache: yes
+  when: docker_version.rc != 0
+  tags: [docker]
+
+- name: Add Docker GPG key
+  ansible.builtin.apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+  when: docker_version.rc != 0
+  tags: [docker]
+
+- name: Add Docker repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    state: present
+    filename: docker
+  when: docker_version.rc != 0
+  tags: [docker]
+
+- name: Install Docker
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-compose-plugin
+    state: present
+    update_cache: yes
+  when: docker_version.rc != 0
+  tags: [docker]
+
+- name: Start and enable Docker
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: yes
+  tags: [docker]
+
+# =========================================================================
+# Create Monitoring Directories
+# =========================================================================
+- name: Create monitoring directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ monitoring_dir }}"
+    - "{{ monitoring_dir }}/prometheus"
+    - "{{ monitoring_dir }}/prometheus/alerts"
+    - "{{ monitoring_dir }}/grafana"
+    - "{{ monitoring_dir }}/grafana/provisioning"
+    - "{{ monitoring_dir }}/grafana/provisioning/datasources"
+    - "{{ monitoring_dir }}/grafana/provisioning/dashboards"
+    - "{{ monitoring_dir }}/grafana/dashboards"
+    - "{{ monitoring_dir }}/alertmanager"
+  tags: [setup]
+
+# =========================================================================
+# Deploy Configurations
+# =========================================================================
+- name: Deploy docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ monitoring_dir }}/docker-compose.yml"
+    mode: '0644'
+  notify: Restart monitoring stack
+  tags: [config]
+
+- name: Deploy Prometheus configuration
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: "{{ monitoring_dir }}/prometheus/prometheus.yml"
+    mode: '0644'
+  notify: Restart monitoring stack
+  tags: [prometheus]
+
+- name: Deploy Prometheus alert rules
+  ansible.builtin.template:
+    src: xdc-alerts.yml.j2
+    dest: "{{ monitoring_dir }}/prometheus/alerts/xdc-alerts.yml"
+    mode: '0644'
+  notify: Restart monitoring stack
+  tags: [prometheus]
+
+- name: Deploy Grafana datasource
+  ansible.builtin.template:
+    src: grafana-datasources.yml.j2
+    dest: "{{ monitoring_dir }}/grafana/provisioning/datasources/datasources.yml"
+    mode: '0644'
+  tags: [grafana]
+
+- name: Deploy Grafana dashboard provisioner
+  ansible.builtin.copy:
+    dest: "{{ monitoring_dir }}/grafana/provisioning/dashboards/dashboards.yml"
+    mode: '0644'
+    content: |
+      apiVersion: 1
+      providers:
+        - name: 'XDC Dashboards'
+          orgId: 1
+          folder: 'XDC Node'
+          type: file
+          disableDeletion: false
+          updateIntervalSeconds: 10
+          options:
+            path: /var/lib/grafana/dashboards
+  tags: [grafana]
+
+- name: Deploy Alertmanager configuration
+  ansible.builtin.template:
+    src: alertmanager.yml.j2
+    dest: "{{ monitoring_dir }}/alertmanager/alertmanager.yml"
+    mode: '0644'
+  notify: Restart monitoring stack
+  tags: [alertmanager]
+
+# =========================================================================
+# Start Monitoring Stack
+# =========================================================================
+- name: Start monitoring stack
+  ansible.builtin.command:
+    cmd: docker compose up -d
+    chdir: "{{ monitoring_dir }}"
+  register: compose_up
+  changed_when: "'Created' in compose_up.stdout or 'Started' in compose_up.stdout"
+  tags: [start]
+
+# =========================================================================
+# Verify Services
+# =========================================================================
+- name: Wait for Prometheus
+  ansible.builtin.uri:
+    url: "http://localhost:{{ prometheus_port }}/-/ready"
+    status_code: 200
+  register: prometheus_ready
+  retries: 30
+  delay: 5
+  until: prometheus_ready.status == 200
+  tags: [verify]
+
+- name: Wait for Grafana
+  ansible.builtin.uri:
+    url: "http://localhost:{{ grafana_port }}/api/health"
+    status_code: 200
+  register: grafana_ready
+  retries: 30
+  delay: 5
+  until: grafana_ready.status == 200
+  tags: [verify]
+
+- name: Display monitoring URLs
+  ansible.builtin.debug:
+    msg: |
+      Monitoring stack deployed:
+      - Prometheus: http://localhost:{{ prometheus_port }}
+      - Grafana: http://localhost:{{ grafana_port }}
+      - Node Exporter: http://localhost:{{ node_exporter_port }}
+  tags: [verify]

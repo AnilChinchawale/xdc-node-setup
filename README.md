@@ -30,6 +30,7 @@
 - 🏥 **Health Monitoring** — Continuous health checks with Telegram notifications
 - 💾 **Backup & Recovery** — Incremental backups with GPG encryption and retention policies
 - 📋 **Compliance Reporting** — Security scorecard and compliance matrix
+- 🌐 **Web Dashboard** — Modern UI for monitoring and management
 - 🚀 **One-Line Setup** — Deploy a production-ready XDC node in minutes
 
 ---
@@ -59,6 +60,7 @@
 | Alert Rules | ✅ Implemented | `alerts.yml` |
 | Alertmanager | ✅ Implemented | `alertmanager.yml` |
 | Cron Jobs | ✅ Implemented | `setup-crons.sh` |
+| Web Dashboard | ✅ Implemented | `dashboard/` |
 
 ---
 
@@ -426,6 +428,65 @@ Each deployment is scored on a 100-point scale:
 - **System Metrics**: CPU, RAM, disk, network
 - **Container Metrics**: Docker resource usage
 - **Alerts History**: Alert timeline and status
+
+---
+
+## 🖥️ Web Dashboard
+
+The XDC Node Dashboard provides a modern web interface for monitoring and managing your XDC nodes.
+
+![Dashboard Screenshot](docs/images/dashboard-overview.png)
+
+### Features
+
+- **Overview** — Summary cards, network stats, and recent alerts at a glance
+- **Node Management** — View all nodes with status, metrics, and filtering
+- **Security Dashboard** — Fleet-wide security scores and recommendations
+- **Version Management** — Track client versions with auto-update support
+- **Alert System** — Timeline view with acknowledge/dismiss functionality
+- **Settings** — Notification config, node registration, and API keys
+
+### Quick Start
+
+```bash
+# Navigate to dashboard
+cd dashboard
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### Docker Deployment
+
+```bash
+# From the root directory
+docker-compose up dashboard
+```
+
+Or build standalone:
+
+```bash
+cd dashboard
+docker build -t xdc-dashboard .
+docker run -p 3000:3000 -v $(pwd)/../reports:/app/reports:ro xdc-dashboard
+```
+
+### CLI Integration
+
+```bash
+# Start dashboard via CLI
+xdc-node dashboard
+
+# Start with custom port
+xdc-node dashboard --port 8080
+```
+
+See [dashboard/README.md](dashboard/README.md) for full documentation.
 
 ---
 

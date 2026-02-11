@@ -267,6 +267,45 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  #--------------------------------------------------------------------------
+  # Dashboard - Web UI for monitoring
+  #--------------------------------------------------------------------------
+  dashboard:
+    build:
+      context: ../dashboard
+      dockerfile: Dockerfile
+    image: xdc-dashboard:latest
+    container_name: xdc-dashboard
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - ../reports:/app/reports:ro
+      - ../configs:/app/configs:ro
+      - /var/lib/xdc-node:/app/var:rw
+    environment:
+      - NODE_ENV=production
+      - API_KEY=${DASHBOARD_API_KEY:-}
+      - REPORTS_DIR=/app/reports
+      - CONFIGS_DIR=/app/configs
+    networks:
+      - xdc-monitoring
+    depends_on:
+      - xdc-node
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/nodes || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+    profiles:
+      - dashboard
+
 #==============================================================================
 # Networks
 #==============================================================================

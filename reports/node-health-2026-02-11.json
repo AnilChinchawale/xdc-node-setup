@@ -1,0 +1,363 @@
+{
+  "timestamp": "2026-02-11T05:30:00Z",
+  "version": "2.0.0",
+  "networkBlockHeight": 78542190,
+  "nodes": [
+    {
+      "id": "node-mn-01",
+      "hostname": "xdc-mn-prod-01",
+      "ip": "192.168.1.10",
+      "role": "masternode",
+      "clientType": "XDC",
+      "clientVersion": "v2.6.0",
+      "latestVersion": "v2.6.0",
+      "network": "mainnet",
+      "status": "healthy",
+      "metrics": {
+        "cpuUsage": 35.2,
+        "ramUsage": 62.8,
+        "diskUsage": 45.3,
+        "blockHeight": 78542188,
+        "peerCount": 28,
+        "syncProgress": 99.99
+      },
+      "historicalMetrics": [
+        { "timestamp": "2026-02-10T06:00:00Z", "blockHeight": 78512000, "peerCount": 25, "cpuUsage": 32.1, "ramUsage": 60.5, "diskUsage": 44.8 },
+        { "timestamp": "2026-02-10T12:00:00Z", "blockHeight": 78522000, "peerCount": 27, "cpuUsage": 38.5, "ramUsage": 61.2, "diskUsage": 44.9 },
+        { "timestamp": "2026-02-10T18:00:00Z", "blockHeight": 78532000, "peerCount": 26, "cpuUsage": 34.8, "ramUsage": 62.0, "diskUsage": 45.1 },
+        { "timestamp": "2026-02-11T00:00:00Z", "blockHeight": 78538000, "peerCount": 28, "cpuUsage": 36.2, "ramUsage": 62.5, "diskUsage": 45.2 },
+        { "timestamp": "2026-02-11T05:30:00Z", "blockHeight": 78542188, "peerCount": 28, "cpuUsage": 35.2, "ramUsage": 62.8, "diskUsage": 45.3 }
+      ],
+      "securityScore": 95,
+      "securityChecks": [
+        { "name": "SSH Hardening", "passed": true, "description": "SSH configured with key-only auth, no root login" },
+        { "name": "Firewall Active", "passed": true, "description": "UFW firewall enabled with restricted ports" },
+        { "name": "Fail2ban", "passed": true, "description": "Fail2ban protecting SSH and RPC ports" },
+        { "name": "Audit Logging", "passed": true, "description": "auditd service running with XDC rules" },
+        { "name": "Sysctl Hardening", "passed": true, "description": "Kernel parameters hardened" },
+        { "name": "Unattended Updates", "passed": true, "description": "Automatic security updates enabled" },
+        { "name": "RPC Authentication", "passed": true, "description": "RPC endpoints require authentication" },
+        { "name": "TLS Enabled", "passed": true, "description": "TLS configured for RPC connections" },
+        { "name": "Disk Encryption", "passed": false, "description": "LUKS encryption not detected on data volume" },
+        { "name": "AppArmor", "passed": true, "description": "AppArmor profiles loaded" },
+        { "name": "Log Rotation", "passed": true, "description": "Log rotation configured properly" }
+      ],
+      "uptime": 2592000,
+      "lastSeen": "2026-02-11T05:30:00Z",
+      "alerts": []
+    },
+    {
+      "id": "node-mn-02",
+      "hostname": "xdc-mn-prod-02",
+      "ip": "192.168.1.11",
+      "role": "masternode",
+      "clientType": "XDC",
+      "clientVersion": "v2.6.0",
+      "latestVersion": "v2.6.0",
+      "network": "mainnet",
+      "status": "healthy",
+      "metrics": {
+        "cpuUsage": 38.5,
+        "ramUsage": 58.2,
+        "diskUsage": 52.1,
+        "blockHeight": 78542189,
+        "peerCount": 32,
+        "syncProgress": 99.99
+      },
+      "historicalMetrics": [
+        { "timestamp": "2026-02-10T06:00:00Z", "blockHeight": 78512001, "peerCount": 30, "cpuUsage": 35.0, "ramUsage": 57.0, "diskUsage": 51.5 },
+        { "timestamp": "2026-02-10T12:00:00Z", "blockHeight": 78522001, "peerCount": 31, "cpuUsage": 40.2, "ramUsage": 58.0, "diskUsage": 51.7 },
+        { "timestamp": "2026-02-10T18:00:00Z", "blockHeight": 78532001, "peerCount": 29, "cpuUsage": 37.1, "ramUsage": 57.5, "diskUsage": 51.9 },
+        { "timestamp": "2026-02-11T00:00:00Z", "blockHeight": 78538001, "peerCount": 32, "cpuUsage": 39.0, "ramUsage": 58.1, "diskUsage": 52.0 },
+        { "timestamp": "2026-02-11T05:30:00Z", "blockHeight": 78542189, "peerCount": 32, "cpuUsage": 38.5, "ramUsage": 58.2, "diskUsage": 52.1 }
+      ],
+      "securityScore": 91,
+      "securityChecks": [
+        { "name": "SSH Hardening", "passed": true, "description": "SSH configured with key-only auth, no root login" },
+        { "name": "Firewall Active", "passed": true, "description": "UFW firewall enabled with restricted ports" },
+        { "name": "Fail2ban", "passed": true, "description": "Fail2ban protecting SSH and RPC ports" },
+        { "name": "Audit Logging", "passed": true, "description": "auditd service running with XDC rules" },
+        { "name": "Sysctl Hardening", "passed": true, "description": "Kernel parameters hardened" },
+        { "name": "Unattended Updates", "passed": true, "description": "Automatic security updates enabled" },
+        { "name": "RPC Authentication", "passed": true, "description": "RPC endpoints require authentication" },
+        { "name": "TLS Enabled", "passed": false, "description": "TLS not configured for RPC connections" },
+        { "name": "Disk Encryption", "passed": false, "description": "LUKS encryption not detected on data volume" },
+        { "name": "AppArmor", "passed": true, "description": "AppArmor profiles loaded" },
+        { "name": "Log Rotation", "passed": true, "description": "Log rotation configured properly" }
+      ],
+      "uptime": 1728000,
+      "lastSeen": "2026-02-11T05:30:00Z",
+      "alerts": []
+    },
+    {
+      "id": "node-sb-01",
+      "hostname": "xdc-standby-01",
+      "ip": "192.168.1.20",
+      "role": "standby",
+      "clientType": "XDC2",
+      "clientVersion": "v2.5.0",
+      "latestVersion": "v2.6.0",
+      "network": "mainnet",
+      "status": "syncing",
+      "metrics": {
+        "cpuUsage": 72.5,
+        "ramUsage": 78.3,
+        "diskUsage": 38.2,
+        "blockHeight": 78540000,
+        "peerCount": 18,
+        "syncProgress": 97.22
+      },
+      "historicalMetrics": [
+        { "timestamp": "2026-02-10T06:00:00Z", "blockHeight": 78480000, "peerCount": 15, "cpuUsage": 85.0, "ramUsage": 82.0, "diskUsage": 36.0 },
+        { "timestamp": "2026-02-10T12:00:00Z", "blockHeight": 78500000, "peerCount": 17, "cpuUsage": 80.2, "ramUsage": 80.5, "diskUsage": 36.8 },
+        { "timestamp": "2026-02-10T18:00:00Z", "blockHeight": 78520000, "peerCount": 16, "cpuUsage": 75.8, "ramUsage": 79.0, "diskUsage": 37.5 },
+        { "timestamp": "2026-02-11T00:00:00Z", "blockHeight": 78532000, "peerCount": 18, "cpuUsage": 73.5, "ramUsage": 78.8, "diskUsage": 38.0 },
+        { "timestamp": "2026-02-11T05:30:00Z", "blockHeight": 78540000, "peerCount": 18, "cpuUsage": 72.5, "ramUsage": 78.3, "diskUsage": 38.2 }
+      ],
+      "securityScore": 82,
+      "securityChecks": [
+        { "name": "SSH Hardening", "passed": true, "description": "SSH configured with key-only auth, no root login" },
+        { "name": "Firewall Active", "passed": true, "description": "UFW firewall enabled with restricted ports" },
+        { "name": "Fail2ban", "passed": true, "description": "Fail2ban protecting SSH and RPC ports" },
+        { "name": "Audit Logging", "passed": false, "description": "auditd service not running" },
+        { "name": "Sysctl Hardening", "passed": true, "description": "Kernel parameters hardened" },
+        { "name": "Unattended Updates", "passed": true, "description": "Automatic security updates enabled" },
+        { "name": "RPC Authentication", "passed": true, "description": "RPC endpoints require authentication" },
+        { "name": "TLS Enabled", "passed": false, "description": "TLS not configured for RPC connections" },
+        { "name": "Disk Encryption", "passed": false, "description": "LUKS encryption not detected on data volume" },
+        { "name": "AppArmor", "passed": true, "description": "AppArmor profiles loaded" },
+        { "name": "Log Rotation", "passed": true, "description": "Log rotation configured properly" }
+      ],
+      "uptime": 86400,
+      "lastSeen": "2026-02-11T05:30:00Z",
+      "alerts": [
+        {
+          "id": "alert-sb01-001",
+          "nodeId": "node-sb-01",
+          "nodeName": "xdc-standby-01",
+          "level": "warning",
+          "message": "Client version outdated (v2.5.0 → v2.6.0 available)",
+          "timestamp": "2026-02-11T04:00:00Z",
+          "acknowledged": false
+        },
+        {
+          "id": "alert-sb01-002",
+          "nodeId": "node-sb-01",
+          "nodeName": "xdc-standby-01",
+          "level": "info",
+          "message": "Node is syncing - 97.22% complete",
+          "timestamp": "2026-02-11T05:30:00Z",
+          "acknowledged": false
+        }
+      ]
+    },
+    {
+      "id": "node-full-01",
+      "hostname": "xdc-full-node-01",
+      "ip": "192.168.1.30",
+      "role": "full",
+      "clientType": "XDC",
+      "clientVersion": "v2.6.0",
+      "latestVersion": "v2.6.0",
+      "network": "mainnet",
+      "status": "healthy",
+      "metrics": {
+        "cpuUsage": 22.1,
+        "ramUsage": 45.6,
+        "diskUsage": 68.9,
+        "blockHeight": 78542190,
+        "peerCount": 45,
+        "syncProgress": 100.0
+      },
+      "historicalMetrics": [
+        { "timestamp": "2026-02-10T06:00:00Z", "blockHeight": 78512002, "peerCount": 42, "cpuUsage": 20.5, "ramUsage": 44.0, "diskUsage": 68.2 },
+        { "timestamp": "2026-02-10T12:00:00Z", "blockHeight": 78522002, "peerCount": 44, "cpuUsage": 23.8, "ramUsage": 45.2, "diskUsage": 68.4 },
+        { "timestamp": "2026-02-10T18:00:00Z", "blockHeight": 78532002, "peerCount": 43, "cpuUsage": 21.2, "ramUsage": 44.8, "diskUsage": 68.6 },
+        { "timestamp": "2026-02-11T00:00:00Z", "blockHeight": 78538002, "peerCount": 45, "cpuUsage": 22.5, "ramUsage": 45.4, "diskUsage": 68.8 },
+        { "timestamp": "2026-02-11T05:30:00Z", "blockHeight": 78542190, "peerCount": 45, "cpuUsage": 22.1, "ramUsage": 45.6, "diskUsage": 68.9 }
+      ],
+      "securityScore": 100,
+      "securityChecks": [
+        { "name": "SSH Hardening", "passed": true, "description": "SSH configured with key-only auth, no root login" },
+        { "name": "Firewall Active", "passed": true, "description": "UFW firewall enabled with restricted ports" },
+        { "name": "Fail2ban", "passed": true, "description": "Fail2ban protecting SSH and RPC ports" },
+        { "name": "Audit Logging", "passed": true, "description": "auditd service running with XDC rules" },
+        { "name": "Sysctl Hardening", "passed": true, "description": "Kernel parameters hardened" },
+        { "name": "Unattended Updates", "passed": true, "description": "Automatic security updates enabled" },
+        { "name": "RPC Authentication", "passed": true, "description": "RPC endpoints require authentication" },
+        { "name": "TLS Enabled", "passed": true, "description": "TLS configured for RPC connections" },
+        { "name": "Disk Encryption", "passed": true, "description": "LUKS encryption active on data volume" },
+        { "name": "AppArmor", "passed": true, "description": "AppArmor profiles loaded" },
+        { "name": "Log Rotation", "passed": true, "description": "Log rotation configured properly" }
+      ],
+      "uptime": 5184000,
+      "lastSeen": "2026-02-11T05:30:00Z",
+      "alerts": []
+    },
+    {
+      "id": "node-full-02",
+      "hostname": "xdc-full-node-02",
+      "ip": "192.168.1.31",
+      "role": "full",
+      "clientType": "XDC2",
+      "clientVersion": "v2.6.0",
+      "latestVersion": "v2.6.0",
+      "network": "mainnet",
+      "status": "degraded",
+      "metrics": {
+        "cpuUsage": 88.5,
+        "ramUsage": 92.1,
+        "diskUsage": 85.3,
+        "blockHeight": 78542185,
+        "peerCount": 3,
+        "syncProgress": 99.99
+      },
+      "historicalMetrics": [
+        { "timestamp": "2026-02-10T06:00:00Z", "blockHeight": 78511998, "peerCount": 12, "cpuUsage": 45.0, "ramUsage": 65.0, "diskUsage": 84.0 },
+        { "timestamp": "2026-02-10T12:00:00Z", "blockHeight": 78521998, "peerCount": 8, "cpuUsage": 62.5, "ramUsage": 78.0, "diskUsage": 84.5 },
+        { "timestamp": "2026-02-10T18:00:00Z", "blockHeight": 78531998, "peerCount": 5, "cpuUsage": 78.2, "ramUsage": 85.0, "diskUsage": 84.9 },
+        { "timestamp": "2026-02-11T00:00:00Z", "blockHeight": 78537998, "peerCount": 4, "cpuUsage": 85.0, "ramUsage": 90.0, "diskUsage": 85.1 },
+        { "timestamp": "2026-02-11T05:30:00Z", "blockHeight": 78542185, "peerCount": 3, "cpuUsage": 88.5, "ramUsage": 92.1, "diskUsage": 85.3 }
+      ],
+      "securityScore": 73,
+      "securityChecks": [
+        { "name": "SSH Hardening", "passed": true, "description": "SSH configured with key-only auth, no root login" },
+        { "name": "Firewall Active", "passed": true, "description": "UFW firewall enabled with restricted ports" },
+        { "name": "Fail2ban", "passed": false, "description": "Fail2ban service not running" },
+        { "name": "Audit Logging", "passed": false, "description": "auditd service not running" },
+        { "name": "Sysctl Hardening", "passed": true, "description": "Kernel parameters hardened" },
+        { "name": "Unattended Updates", "passed": false, "description": "Automatic security updates disabled" },
+        { "name": "RPC Authentication", "passed": true, "description": "RPC endpoints require authentication" },
+        { "name": "TLS Enabled", "passed": true, "description": "TLS configured for RPC connections" },
+        { "name": "Disk Encryption", "passed": false, "description": "LUKS encryption not detected on data volume" },
+        { "name": "AppArmor", "passed": true, "description": "AppArmor profiles loaded" },
+        { "name": "Log Rotation", "passed": true, "description": "Log rotation configured properly" }
+      ],
+      "uptime": 604800,
+      "lastSeen": "2026-02-11T05:30:00Z",
+      "alerts": [
+        {
+          "id": "alert-full02-001",
+          "nodeId": "node-full-02",
+          "nodeName": "xdc-full-node-02",
+          "level": "critical",
+          "message": "High resource usage: CPU 88.5%, RAM 92.1%, Disk 85.3%",
+          "timestamp": "2026-02-11T05:00:00Z",
+          "acknowledged": false
+        },
+        {
+          "id": "alert-full02-002",
+          "nodeId": "node-full-02",
+          "nodeName": "xdc-full-node-02",
+          "level": "warning",
+          "message": "Low peer count: 3 peers (minimum recommended: 5)",
+          "timestamp": "2026-02-11T05:15:00Z",
+          "acknowledged": false
+        }
+      ]
+    },
+    {
+      "id": "node-archive-01",
+      "hostname": "xdc-archive-01",
+      "ip": "192.168.1.40",
+      "role": "archive",
+      "clientType": "XDC",
+      "clientVersion": "v2.6.0",
+      "latestVersion": "v2.6.0",
+      "network": "mainnet",
+      "status": "healthy",
+      "metrics": {
+        "cpuUsage": 15.8,
+        "ramUsage": 72.4,
+        "diskUsage": 78.5,
+        "blockHeight": 78542190,
+        "peerCount": 22,
+        "syncProgress": 100.0
+      },
+      "historicalMetrics": [
+        { "timestamp": "2026-02-10T06:00:00Z", "blockHeight": 78512003, "peerCount": 20, "cpuUsage": 14.2, "ramUsage": 71.0, "diskUsage": 78.0 },
+        { "timestamp": "2026-02-10T12:00:00Z", "blockHeight": 78522003, "peerCount": 21, "cpuUsage": 16.5, "ramUsage": 71.8, "diskUsage": 78.2 },
+        { "timestamp": "2026-02-10T18:00:00Z", "blockHeight": 78532003, "peerCount": 22, "cpuUsage": 15.1, "ramUsage": 72.0, "diskUsage": 78.3 },
+        { "timestamp": "2026-02-11T00:00:00Z", "blockHeight": 78538003, "peerCount": 22, "cpuUsage": 16.0, "ramUsage": 72.2, "diskUsage": 78.4 },
+        { "timestamp": "2026-02-11T05:30:00Z", "blockHeight": 78542190, "peerCount": 22, "cpuUsage": 15.8, "ramUsage": 72.4, "diskUsage": 78.5 }
+      ],
+      "securityScore": 91,
+      "securityChecks": [
+        { "name": "SSH Hardening", "passed": true, "description": "SSH configured with key-only auth, no root login" },
+        { "name": "Firewall Active", "passed": true, "description": "UFW firewall enabled with restricted ports" },
+        { "name": "Fail2ban", "passed": true, "description": "Fail2ban protecting SSH and RPC ports" },
+        { "name": "Audit Logging", "passed": true, "description": "auditd service running with XDC rules" },
+        { "name": "Sysctl Hardening", "passed": true, "description": "Kernel parameters hardened" },
+        { "name": "Unattended Updates", "passed": true, "description": "Automatic security updates enabled" },
+        { "name": "RPC Authentication", "passed": true, "description": "RPC endpoints require authentication" },
+        { "name": "TLS Enabled", "passed": true, "description": "TLS configured for RPC connections" },
+        { "name": "Disk Encryption", "passed": false, "description": "LUKS encryption not detected on data volume" },
+        { "name": "AppArmor", "passed": true, "description": "AppArmor profiles loaded" },
+        { "name": "Log Rotation", "passed": true, "description": "Log rotation configured properly" }
+      ],
+      "uptime": 7776000,
+      "lastSeen": "2026-02-11T05:30:00Z",
+      "alerts": []
+    },
+    {
+      "id": "node-test-01",
+      "hostname": "xdc-testnet-01",
+      "ip": "192.168.1.50",
+      "role": "full",
+      "clientType": "XDC",
+      "clientVersion": "v2.6.0",
+      "latestVersion": "v2.6.0",
+      "network": "testnet",
+      "status": "offline",
+      "metrics": {
+        "cpuUsage": 0,
+        "ramUsage": 0,
+        "diskUsage": 42.1,
+        "blockHeight": 45123000,
+        "peerCount": 0,
+        "syncProgress": 0
+      },
+      "historicalMetrics": [
+        { "timestamp": "2026-02-10T06:00:00Z", "blockHeight": 45120000, "peerCount": 15, "cpuUsage": 25.0, "ramUsage": 40.0, "diskUsage": 41.5 },
+        { "timestamp": "2026-02-10T12:00:00Z", "blockHeight": 45121000, "peerCount": 12, "cpuUsage": 22.5, "ramUsage": 38.0, "diskUsage": 41.7 },
+        { "timestamp": "2026-02-10T18:00:00Z", "blockHeight": 45122000, "peerCount": 8, "cpuUsage": 18.2, "ramUsage": 35.0, "diskUsage": 41.9 },
+        { "timestamp": "2026-02-11T00:00:00Z", "blockHeight": 45123000, "peerCount": 0, "cpuUsage": 0, "ramUsage": 0, "diskUsage": 42.1 },
+        { "timestamp": "2026-02-11T05:30:00Z", "blockHeight": 45123000, "peerCount": 0, "cpuUsage": 0, "ramUsage": 0, "diskUsage": 42.1 }
+      ],
+      "securityScore": 64,
+      "securityChecks": [
+        { "name": "SSH Hardening", "passed": true, "description": "SSH configured with key-only auth, no root login" },
+        { "name": "Firewall Active", "passed": true, "description": "UFW firewall enabled with restricted ports" },
+        { "name": "Fail2ban", "passed": false, "description": "Fail2ban service not running" },
+        { "name": "Audit Logging", "passed": false, "description": "auditd service not running" },
+        { "name": "Sysctl Hardening", "passed": false, "description": "Kernel parameters not hardened" },
+        { "name": "Unattended Updates", "passed": false, "description": "Automatic security updates disabled" },
+        { "name": "RPC Authentication", "passed": true, "description": "RPC endpoints require authentication" },
+        { "name": "TLS Enabled", "passed": false, "description": "TLS not configured for RPC connections" },
+        { "name": "Disk Encryption", "passed": false, "description": "LUKS encryption not detected on data volume" },
+        { "name": "AppArmor", "passed": true, "description": "AppArmor profiles loaded" },
+        { "name": "Log Rotation", "passed": true, "description": "Log rotation configured properly" }
+      ],
+      "uptime": 0,
+      "lastSeen": "2026-02-11T00:00:00Z",
+      "alerts": [
+        {
+          "id": "alert-test01-001",
+          "nodeId": "node-test-01",
+          "nodeName": "xdc-testnet-01",
+          "level": "critical",
+          "message": "Node is offline - no response from RPC endpoint",
+          "timestamp": "2026-02-11T00:15:00Z",
+          "acknowledged": false
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total": 7,
+    "healthy": 4,
+    "warning": 2,
+    "critical": 1,
+    "avgSyncProgress": 85.03
+  }
+}
