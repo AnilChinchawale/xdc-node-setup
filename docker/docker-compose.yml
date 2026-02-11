@@ -9,35 +9,24 @@ services:
   # XDC Node - Main blockchain client
   #--------------------------------------------------------------------------
   xdc-node:
-    image: xinfinorg/xdposchain:latest
+    image: xinfinorg/xdposchain:v2.6.8
     container_name: xdc-node
-    restart: unless-stopped
-    # P2P ports exposed on host network for discovery
+    restart: always
     ports:
       - "30303:30303"
       - "30303:30303/udp"
-    # RPC ports only accessible via internal network (security)
-    expose:
-      - "8545"
-      - "8546"
-      - "6060"
+      - "8545:8545"
+      - "8546:8546"
     volumes:
-      - /root/xdcchain:/xdcchain
-      - /opt/xdc-node/configs/node.env:/.env:ro
-    environment:
-      - NETWORK=${NETWORK:-mainnet}
-      - SYNC_MODE=${SYNC_MODE:-full}
-    command: >
-      --datadir /xdcchain/XDC
-      --syncmode ${SYNC_MODE:-full}
-      --gcmode ${GCMODE:-full}
-      --rpc
-      --rpcaddr 0.0.0.0
-      --rpcport 8545
-      --rpcapi eth,net,web3,XDPoS,admin,debug
-      --rpcvhosts "*"
-      --ws
-      --wsaddr 0.0.0.0
+      - ./mainnet/xdcchain:/work/xdcchain
+      - ./mainnet/genesis.json:/work/genesis.json
+      - ./mainnet/start-node.sh:/work/start.sh
+      - ./mainnet/bootnodes.list:/work/bootnodes.list
+      - ./mainnet/.pwd:/work/.pwd
+      - /etc/localtime:/etc/localtime:ro
+    env_file:
+      - ./mainnet/.env
+    entrypoint: /work/start.sh
       --wsport 8546
       --wsorigins "*"
       --wsapi eth,net,web3,XDPoS

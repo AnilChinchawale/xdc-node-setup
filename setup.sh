@@ -629,31 +629,47 @@ setup_docker_compose() {
     mkdir -p "$INSTALL_DIR/docker"
     
     # Determine Docker image and flags based on node type
-    local xdc_image="xinfinorg/xinfinnetwork:v1.4.7"
-    local extra_flags=""
+    local xdc_image="xinfinorg/xdposchain:v2.6.8"
+    local docker_dir="$INSTALL_DIR/docker"
+    local network_dir="$docker_dir/mainnet"
     
-    case "$NODE_TYPE" in
-        archive)
-            extra_flags="--gcmode archive --syncmode full"
-            ;;
-        rpc)
-            extra_flags="--rpc --rpcaddr 0.0.0.0 --rpcvhosts * --rpccorsdomain *"
-            ;;
-        masternode)
-            extra_flags="--mine --gasprice 1"
-            ;;
-        *)
-            extra_flags=""
-            ;;
-    esac
+    mkdir -p "$network_dir"
+    
+    # Download official XDC node files from XinFinOrg
+    log "Downloading XDC node configuration files..."
+    local base_url="https://raw.githubusercontent.com/XinFinOrg/XinFin-Node/master/mainnet"
+    
+    curl -sSL "$base_url/genesis.json" -o "$network_dir/genesis.json" 2>/dev/null || warn "Failed to download genesis.json"
+    curl -sSL "$base_url/start-node.sh" -o "$network_dir/start-node.sh" 2>/dev/null || warn "Failed to download start-node.sh"
+    curl -sSL "$base_url/bootnodes.list" -o "$network_dir/bootnodes.list" 2>/dev/null || warn "Failed to download bootnodes.list"
+    chmod +x "$network_dir/start-node.sh" 2>/dev/null || true
+    
+    # Create .env file
+    cat > "$network_dir/.env" << ENVEOF
+INSTANCE_NAME=XDC_Node
+CONTACT_DETAILS=admin@localhost
+SYNC_MODE=${SYNC_MODE}
+GC_MODE=full
+NETWORK=${NETWORK}
+PRIVATE_KEY=0000000000000000000000000000000000000000000000000000000000000000
+LOG_LEVEL=2
+ENABLE_RPC=true
+ENABLE_WS=true
+RPC_API=eth,net,web3,XDPoS
+ENVEOF
+
+    # Create password file
+    if [[ ! -f "$network_dir/.pwd" ]]; then
+        openssl rand -base64 32 > "$network_dir/.pwd" 2>/dev/null || echo "xdc-node-password" > "$network_dir/.pwd"
+    fi
     
     # Create docker-compose.yml
-    cat > "$INSTALL_DIR/docker/docker-compose.yml" << EOF
+    cat > "$docker_dir/docker-compose.yml" << EOF
 services:
   xdc-node:
     image: $xdc_image
     container_name: xdc-node
-    restart: unless-stopped
+    restart: always
     ports:
       - "${RPC_PORT}:8545"
       - "${WS_PORT}:8546"
@@ -661,17 +677,14 @@ services:
       - "${P2P_PORT}:30303/udp"
     volumes:
       - ${DATA_DIR}:/work/xdcchain
-    environment:
-      - NETWORK=${NETWORK}
-    command: >
-      --${NETWORK}
-      --syncmode ${SYNC_MODE}
-      --datadir /work/xdcchain
-      --rpc
-      --rpcaddr 0.0.0.0
-      --rpcport 8545
-      --rpcvhosts *
-      --rpccorsdomain *
+      - ./mainnet/genesis.json:/work/genesis.json
+      - ./mainnet/start-node.sh:/work/start.sh
+      - ./mainnet/bootnodes.list:/work/bootnodes.list
+      - ./mainnet/.pwd:/work/.pwd
+      - /etc/localtime:/etc/localtime:ro
+    env_file:
+      - ./mainnet/.env
+    entrypoint: /work/start.sh
       --ws
       --wsaddr 0.0.0.0
       --wsport 8546
