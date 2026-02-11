@@ -1,0 +1,47 @@
+---
+# XDC Node Role - Default Variables
+
+# Client Configuration
+client: XDPoSChain
+xdc_client_version: ""
+xdc_network: mainnet
+node_role: full
+
+# Paths
+xdc_data_dir: /xdc-data
+xdc_logs_dir: /var/log/xdc
+
+# Network Configuration
+rpc_port: 8545
+ws_port: 8546
+p2p_port: 30303
+metrics_port: 6060
+rpc_api: "eth,net,web3,txpool"
+ws_api: "eth,net,web3"
+
+# Sync Mode
+sync_mode: snap
+pruning_mode: default
+
+# Resource Limits
+xdc_memory_limit: "8G"
+xdc_cpu_limit: "4"
+
+# Flags
+enable_rpc: true
+enable_ws: false
+enable_metrics: true
+enable_discovery: true
+
+# Bootnodes
+bootnodes: ""
+
+# Gas and Mining
+gas_target: ""
+gas_limit: ""
+
+# Genesis
+skip_genesis_init: false
+
+# Build
+force_rebuild: false

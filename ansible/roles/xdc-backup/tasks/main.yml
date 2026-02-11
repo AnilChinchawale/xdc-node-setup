@@ -1,0 +1,52 @@
+---
+# XDC Backup Role - Backup tasks
+
+- name: Create backup directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0750'
+    owner: root
+    group: root
+  loop:
+    - "{{ backup_dir }}"
+    - "{{ backup_scripts_dir }}"
+    - "{{ backup_log_dir }}"
+  tags: [backup, setup]
+
+- name: Install backup dependencies
+  ansible.builtin.apt:
+    name: "{{ backup_packages }}"
+    state: present
+  tags: [backup, packages]
+
+- name: Deploy backup script
+  ansible.builtin.template:
+    src: backup.sh.j2
+    dest: "{{ backup_scripts_dir }}/backup.sh"
+    mode: '0750'
+    owner: root
+    group: root
+  tags: [backup, config]
+
+- name: Setup backup cron job
+  ansible.builtin.cron:
+    name: "{{ item.name }}"
+    minute: "{{ item.schedule.split()[0] }}"
+    hour: "{{ item.schedule.split()[1] }}"
+    day: "{{ item.schedule.split()[2] }}"
+    month: "{{ item.schedule.split()[3] }}"
+    weekday: "{{ item.schedule.split()[4] }}"
+    job: "{{ item.job }}"
+    user: "{{ item.user }}"
+    state: present
+  loop: "{{ backup_cron_jobs }}"
+  when: backup_enabled | bool
+  tags: [backup, cron]
+
+- name: Remove backup cron if disabled
+  ansible.builtin.cron:
+    name: "xdc-daily-backup"
+    state: absent
+  when: not backup_enabled | bool
+  tags: [backup, cron]

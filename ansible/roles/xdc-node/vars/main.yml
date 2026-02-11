@@ -1,0 +1,57 @@
+---
+# XDC Node Role - Internal Variables
+
+xdc_repositories:
+  XDPoSChain:
+    url: https://github.com/XinFinOrg/XDPoSChain.git
+    binary_name: XDC
+    build_cmd: make all
+    default_branch: master
+  erigon-xdc:
+    url: https://github.com/XinFinOrg/erigon-xdc.git
+    binary_name: erigon
+    build_cmd: make erigon
+    default_branch: main
+
+xdc_genesis_urls:
+  mainnet: https://raw.githubusercontent.com/XinFinOrg/XDPoSChain/master/genesis/mainnet.json
+  testnet: https://raw.githubusercontent.com/XinFinOrg/XDPoSChain/master/genesis/testnet.json
+
+xdc_bootnodes:
+  mainnet: "enode://...
+  testnet: "enode://...
+
+xdc_client_flags:
+  XDPoSChain:
+    - --datadir {{ xdc_data_dir }}
+    - --port {{ p2p_port }}
+    - --rpc
+    - --rpcaddr 0.0.0.0
+    - --rpcport {{ rpc_port }}
+    - --rpcapi {{ rpc_api }}
+    - --rpccorsdomain "*"
+    - --rpcvhosts "*"
+    - --ws
+    - --wsaddr 0.0.0.0
+    - --wsport {{ ws_port }}
+    - --wsapi {{ ws_api }}
+    - --wsorigins "*"
+    - --metrics
+    - --metrics.addr 0.0.0.0
+    - --metrics.port {{ metrics_port }}
+    - --gcmode {{ pruning_mode }}
+    - --syncmode {{ sync_mode }}
+  erigon-xdc:
+    - --datadir {{ xdc_data_dir }}
+    - --port {{ p2p_port }}
+    - --http
+    - --http.addr 0.0.0.0
+    - --http.port {{ rpc_port }}
+    - --http.api {{ rpc_api }}
+    - --http.corsdomain "*"
+    - --http.vhosts "*"
+    - --ws
+    - --metrics
+    - --metrics.addr 0.0.0.0
+    - --metrics.port {{ metrics_port }}
+    - --prune={{ pruning_mode }}

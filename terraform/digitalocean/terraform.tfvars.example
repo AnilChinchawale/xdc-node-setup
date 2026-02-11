@@ -1,0 +1,11 @@
+droplet_name = "xdc-validator-01"
+size         = "s-4vcpu-8gb"
+region       = "nyc1"
+ssh_key_ids  = ["12:34:56:78:90:ab:cd:ef:..."]
+
+node_type = "validator"
+network   = "mainnet"
+
+data_volume_size = 1000
+
+tags = ["production", "xdc-validator"]

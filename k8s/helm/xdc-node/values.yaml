@@ -1,0 +1,208 @@
+# XDC Node Helm Chart Values
+# Override these values in your deployment
+
+# Node Configuration
+nodeType: full  # full, validator, rpc, archive
+network: mainnet  # mainnet, testnet
+client: XDPoSChain  # XDPoSChain, erigon-xdc
+
+# Replica count (usually 1 for blockchain nodes)
+replicaCount: 1
+
+image:
+  repository: xinfin/xdc-node
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Service Account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Pod Security Context
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+
+# XDC Node Configuration
+xdc:
+  # Data directory
+  dataDir: /xdc-data
+  
+  # Network ports
+  p2pPort: 30303
+  rpcPort: 8545
+  wsPort: 8546
+  metricsPort: 6060
+  
+  # RPC Configuration
+  rpcEnabled: true
+  rpcApi: "eth,net,web3,txpool"
+  rpcCorsDomain: "*"
+  rpcVhosts: "*"
+  
+  # WebSocket Configuration
+  wsEnabled: false
+  wsApi: "eth,net,web3"
+  wsOrigins: "*"
+  
+  # Metrics
+  metricsEnabled: true
+  
+  # Sync mode
+  syncMode: snap  # snap, full, archive
+  
+  # Cache size in MB
+  cacheSize: 4096
+  
+  # Max peers
+  maxPeers: 50
+  
+  # Extra flags
+  extraFlags: []
+  
+  # Genesis configuration (if using custom genesis)
+  customGenesis: ""
+  
+  # Bootnodes (comma-separated)
+  bootnodes: ""
+
+# Persistence Configuration
+persistence:
+  enabled: true
+  storageClass: ""  # Leave empty for default
+  accessMode: ReadWriteOnce
+  size: 1000Gi
+  annotations: {}
+
+# Resources
+resources:
+  limits:
+    cpu: "4"
+    memory: 16Gi
+  requests:
+    cpu: "2"
+    memory: 8Gi
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
+
+# Service Configuration
+service:
+  type: ClusterIP
+  annotations: {}
+  
+  # P2P Service (NodePort for external connectivity)
+  p2p:
+    enabled: true
+    type: NodePort
+    nodePort: 30303
+  
+  # RPC Service
+  rpc:
+    enabled: true
+    port: 8545
+  
+  # WebSocket Service
+  ws:
+    enabled: false
+    port: 8546
+  
+  # Metrics Service
+  metrics:
+    enabled: true
+    port: 6060
+
+# Ingress Configuration
+ingress:
+  enabled: false
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+  hosts:
+    - host: rpc.xdc.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          port: 8545
+  tls: []
+
+# ServiceMonitor for Prometheus Operator
+serviceMonitor:
+  enabled: false
+  namespace: ""
+  interval: 30s
+  scrapeTimeout: 10s
+  labels: {}
+  
+# PrometheusRule for alerting
+prometheusRule:
+  enabled: false
+  namespace: ""
+  labels: {}
+  rules: []
+
+# Liveness and Readiness Probes
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /
+    port: rpc
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /
+    port: rpc
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Init Containers
+initContainers: []
+
+# Sidecar Containers
+sidecars: []
+
+# Extra environment variables
+extraEnv: []
+
+# Extra volumes
+extraVolumes: []
+
+# Extra volume mounts
+extraVolumeMounts: []
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+# Annotations for the deployment
+podAnnotations: {}
+
+# Labels for the pods
+podLabels: {}

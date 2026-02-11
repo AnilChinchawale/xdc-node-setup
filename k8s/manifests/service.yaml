@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: xdc-node
+  namespace: xdc
+  labels:
+    app.kubernetes.io/name: xdc-node
+spec:
+  type: ClusterIP
+  ports:
+    - name: rpc
+      port: 8545
+      targetPort: rpc
+      protocol: TCP
+    - name: ws
+      port: 8546
+      targetPort: ws
+      protocol: TCP
+    - name: metrics
+      port: 6060
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: xdc-node
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: xdc-node-p2p
+  namespace: xdc
+  labels:
+    app.kubernetes.io/name: xdc-node
+spec:
+  type: NodePort
+  ports:
+    - name: p2p-tcp
+      port: 30303
+      targetPort: p2p-tcp
+      nodePort: 30303
+      protocol: TCP
+    - name: p2p-udp
+      port: 30303
+      targetPort: p2p-udp
+      nodePort: 30303
+      protocol: UDP
+  selector:
+    app.kubernetes.io/name: xdc-node

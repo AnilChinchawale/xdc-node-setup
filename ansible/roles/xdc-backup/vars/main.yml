@@ -1,0 +1,28 @@
+---
+# XDC Backup Role - Internal Variables
+
+backup_scripts_dir: /usr/local/bin/xdc
+backup_log_dir: /var/log/xdc-backup
+backup_lock_file: /var/run/xdc-backup.lock
+
+backup_exclude_patterns:
+  - "*.log"
+  - "*.tmp"
+  - "LOCK"
+  - "CURRENT"
+  - "LOG"
+  - "MANIFEST*"
+  - "lost+found"
+
+backup_packages:
+  - gzip
+  - tar
+  - cron
+  - gnupg
+  - awscli
+
+backup_cron_jobs:
+  - name: "xdc-daily-backup"
+    schedule: "{{ backup_schedule }}"
+    job: "{{ backup_scripts_dir }}/backup.sh >> {{ backup_log_dir }}/backup.log 2>&1"
+    user: root

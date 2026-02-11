@@ -1,0 +1,24 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+
+packages:
+  - curl
+  - wget
+  - git
+  - build-essential
+  - jq
+
+runcmd:
+  - |
+    cd /root
+    git clone https://github.com/AnilChinchawale/XDC-Node-Setup.git
+    cd XDC-Node-Setup
+    
+    export NODE_TYPE="${node_type}"
+    export NETWORK="${network}"
+    export CLIENT="${client}"
+    
+    ./setup.sh --non-interactive
+
+final_message: "XDC node setup complete!"

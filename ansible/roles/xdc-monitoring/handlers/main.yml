@@ -1,7 +1,19 @@
 ---
-# XDC Monitoring Role Handlers
+# XDC Monitoring Role - Handlers
 
 - name: Restart monitoring stack
   ansible.builtin.command:
     cmd: docker compose restart
-    chdir: "{{ monitoring_dir | default('/opt/monitoring') }}"
+    chdir: "{{ monitoring_dir }}"
+  changed_when: true
+
+- name: Reload prometheus
+  ansible.builtin.uri:
+    url: "http://localhost:{{ prometheus_port }}/-/reload"
+    method: POST
+  ignore_errors: yes
+
+- name: Restart docker
+  ansible.builtin.systemd:
+    name: docker
+    state: restarted

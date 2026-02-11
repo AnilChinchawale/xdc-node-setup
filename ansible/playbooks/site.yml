@@ -1,0 +1,84 @@
+---
+# Site Playbook - Master playbook that runs all XDC node deployment tasks
+# Usage: ansible-playbook -i inventory/hosts.yml playbooks/site.yml
+#
+# To run specific tags:
+#   ansible-playbook -i inventory/hosts.yml playbooks/site.yml --tags common,security
+#
+# To run on specific groups:
+#   ansible-playbook -i inventory/hosts.yml playbooks/site.yml --limit validators
+
+- name: Import Common Configuration Playbook
+  import_playbook: deploy-node.yml
+  tags: [common, always]
+
+- name: Import Security Hardening Playbook
+  import_playbook: security-harden.yml
+  tags: [security]
+
+- name: Import Monitoring Setup Playbook
+  import_playbook: setup-monitoring.yml
+  tags: [monitoring]
+  when: enable_monitoring | default(true) | bool
+
+- name: Import Backup Configuration Playbook
+  import_playbook: backup-restore.yml
+  tags: [backup]
+  when: backup_enabled | default(true) | bool
+
+# Post-deployment verification
+- name: Verify Deployment
+  hosts: xdc_nodes
+  become: yes
+  gather_facts: no
+  tags: [verify, always]
+  
+  tasks:
+    - name: Wait for SSH to be available
+      ansible.builtin.wait_for:
+        host: "{{ ansible_host }}"
+        port: "{{ ansible_port }}"
+        timeout: 300
+      delegate_to: localhost
+      become: no
+      
+    - name: Gather facts
+      ansible.builtin.setup:
+      
+    - name: Verify node is responding
+      ansible.builtin.uri:
+        url: "http://localhost:{{ rpc_port }}/health"
+        method: GET
+        status_code: 200
+      register: health_check
+      retries: 5
+      delay: 10
+      ignore_errors: yes
+      
+    - name: Check sync status
+      ansible.builtin.uri:
+        url: "http://localhost:{{ rpc_port }}"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: eth_syncing
+          params: []
+          id: 1
+        return_content: yes
+      register: sync_status
+      ignore_errors: yes
+      
+    - name: Display deployment summary
+      ansible.builtin.debug:
+        msg: |
+          ============================================
+          Deployment Summary for {{ inventory_hostname }}
+          ============================================
+          Host: {{ ansible_host }}
+          Role: {{ node_role }}
+          Client: {{ client }}
+          Network: {{ xdc_network }}
+          Health: {{ '✓ OK' if health_check.status == 200 else '✗ FAILED' }}
+          Syncing: {{ sync_status.json.result if sync_status is defined and sync_status.json is defined else 'Unknown' }}
+          ============================================

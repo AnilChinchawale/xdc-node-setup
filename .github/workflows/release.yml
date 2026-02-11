@@ -1,0 +1,122 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get previous tag
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          
+          if [[ -z "$PREVIOUS_TAG" ]]; then
+            echo "First release - no previous tag found"
+            CHANGELOG="## Initial Release\n\nFirst release of XDC Node Setup toolkit."
+          else
+            echo "Generating changelog from $PREVIOUS_TAG to ${{ steps.version.outputs.version }}"
+            
+            # Generate changelog from commits
+            CHANGELOG="## What's Changed\n\n"
+            
+            # Features
+            FEATURES=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s" --grep="^feat" --grep="^add" --grep="^feature" -i 2>/dev/null || true)
+            if [[ -n "$FEATURES" ]]; then
+              CHANGELOG+="### ✨ Features\n$FEATURES\n\n"
+            fi
+            
+            # Bug Fixes
+            FIXES=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s" --grep="^fix" --grep="^bug" -i 2>/dev/null || true)
+            if [[ -n "$FIXES" ]]; then
+              CHANGELOG+="### 🐛 Bug Fixes\n$FIXES\n\n"
+            fi
+            
+            # Documentation
+            DOCS=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s" --grep="^doc" -i 2>/dev/null || true)
+            if [[ -n "$DOCS" ]]; then
+              CHANGELOG+="### 📚 Documentation\n$DOCS\n\n"
+            fi
+            
+            # Other changes
+            OTHER=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s" --invert-grep --grep="^feat" --grep="^fix" --grep="^doc" --grep="^Merge" 2>/dev/null | head -20 || true)
+            if [[ -n "$OTHER" ]]; then
+              CHANGELOG+="### 🔧 Other Changes\n$OTHER\n\n"
+            fi
+            
+            # Contributors
+            CONTRIBUTORS=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"%an" | sort -u | head -10)
+            if [[ -n "$CONTRIBUTORS" ]]; then
+              CHANGELOG+="### 👥 Contributors\n"
+              echo "$CONTRIBUTORS" | while read contributor; do
+                CHANGELOG+="- $contributor\n"
+              done
+            fi
+          fi
+          
+          # Save changelog to file for release body
+          echo -e "$CHANGELOG" > CHANGELOG_RELEASE.md
+          cat CHANGELOG_RELEASE.md
+
+      - name: Prepare release assets
+        run: |
+          # Make setup.sh executable
+          chmod +x setup.sh
+          
+          # Create a release archive
+          mkdir -p release-assets
+          cp setup.sh release-assets/
+          
+          # Create tarball of the entire project
+          tar -czvf release-assets/xdc-node-setup-${{ steps.version.outputs.version }}.tar.gz \
+            --exclude='.git' \
+            --exclude='release-assets' \
+            --exclude='*.tmp' \
+            .
+          
+          # Create checksum file
+          cd release-assets
+          sha256sum * > SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: XDC Node Setup ${{ steps.version.outputs.version }}
+          body_path: CHANGELOG_RELEASE.md
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, '-rc') || contains(steps.version.outputs.version, '-beta') || contains(steps.version.outputs.version, '-alpha') }}
+          files: |
+            release-assets/setup.sh
+            release-assets/xdc-node-setup-${{ steps.version.outputs.version }}.tar.gz
+            release-assets/SHA256SUMS.txt
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post-release summary
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Assets uploaded:**" >> $GITHUB_STEP_SUMMARY
+          echo "- setup.sh" >> $GITHUB_STEP_SUMMARY
+          echo "- xdc-node-setup-${{ steps.version.outputs.version }}.tar.gz" >> $GITHUB_STEP_SUMMARY
+          echo "- SHA256SUMS.txt" >> $GITHUB_STEP_SUMMARY

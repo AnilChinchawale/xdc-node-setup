@@ -1,22 +1,14 @@
-# XDC Node Ansible Automation
+# XDC Node Ansible Infrastructure
 
-This directory contains Ansible playbooks and roles for automating XDC node deployment, management, and operations.
+Enterprise-grade Ansible automation for deploying and managing XDC Network nodes.
 
-## Prerequisites
+## Features
 
-- Ansible 2.12+ installed on your control machine
-- SSH access to target hosts with key-based authentication
-- Python 3.8+ on target hosts
-
-### Installation
-
-```bash
-# Install Ansible
-pip install ansible ansible-lint
-
-# Install required collections
-ansible-galaxy collection install community.general ansible.posix
-```
+- **Multi-region inventory** with validators, RPC nodes, archive nodes
+- **Rolling updates** with health checks after each node
+- **Security hardening** based on CIS benchmarks
+- **Monitoring stack** with Prometheus and Grafana
+- **Automated backups** with S3/remote storage support
 
 ## Directory Structure
 
@@ -24,168 +16,143 @@ ansible-galaxy collection install community.general ansible.posix
 ansible/
 ├── ansible.cfg              # Ansible configuration
 ├── inventory/
-│   └── hosts.yml.template   # Inventory template
+│   └── hosts.yml.template   # Multi-region inventory template
 ├── playbooks/
-│   ├── deploy-node.yml      # Deploy new XDC node
-│   ├── security-harden.yml  # Apply security hardening
-│   ├── update-client.yml    # Rolling client updates
-│   ├── setup-monitoring.yml # Deploy monitoring stack
-│   └── backup-restore.yml   # Backup/restore operations
+│   ├── site.yml             # Master playbook
+│   ├── deploy-node.yml      # Full node deployment
+│   ├── security-harden.yml  # Security hardening
+│   ├── update-client.yml    # Rolling updates
+│   ├── setup-monitoring.yml # Monitoring stack
+│   └── backup-restore.yml   # Backup operations
 └── roles/
-    ├── xdc-common/          # Base system configuration
-    ├── xdc-node/            # Node installation
-    ├── xdc-security/        # Security hardening
-    └── xdc-monitoring/      # Monitoring setup
+    ├── xdc-common/          # Base packages, timezone, NTP
+    ├── xdc-node/            # Client install, config, systemd
+    ├── xdc-security/        # SSH, UFW, fail2ban, auditd
+    ├── xdc-monitoring/      # Docker, Prometheus, Grafana
+    └── xdc-backup/          # Backup scripts, cron jobs
 ```
 
 ## Quick Start
 
-### 1. Set Up Inventory
+### 1. Setup Inventory
 
 ```bash
-# Copy and customize the inventory template
+# Copy and edit the inventory template
 cp inventory/hosts.yml.template inventory/hosts.yml
 vim inventory/hosts.yml
 ```
 
+Update with your server IPs and configuration.
+
 ### 2. Test Connectivity
 
 ```bash
-# Ping all hosts
-ansible all -m ping
-
-# Check host facts
-ansible all -m setup | head -50
+ansible -i inventory/hosts.yml all -m ping
 ```
 
-### 3. Deploy a New Node
+### 3. Deploy Nodes
 
 ```bash
-# Deploy to a specific host
-ansible-playbook playbooks/deploy-node.yml --limit test-geth
+# Full deployment
+ansible-playbook -i inventory/hosts.yml playbooks/site.yml
 
-# Deploy with custom variables
-ansible-playbook playbooks/deploy-node.yml \
-  --limit test-geth \
-  -e "xdc_network=testnet" \
-  -e "rpc_port=8545"
+# Deploy specific group
+ansible-playbook -i inventory/hosts.yml playbooks/deploy-node.yml --limit validators
+
+# Dry run
+ansible-playbook -i inventory/hosts.yml playbooks/site.yml --check
 ```
 
 ## Playbooks
 
-### deploy-node.yml
+### site.yml - Master Playbook
 
-Deploys a new XDC node with full configuration.
-
-```bash
-# Basic deployment
-ansible-playbook playbooks/deploy-node.yml --limit <host>
-
-# Custom deployment
-ansible-playbook playbooks/deploy-node.yml --limit <host> \
-  -e "client=XDPoSChain" \
-  -e "xdc_network=mainnet" \
-  -e "xdc_data_dir=/data/xdc"
-```
-
-**Variables:**
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `client` | XDPoSChain | Client type (XDPoSChain or erigon-xdc) |
-| `xdc_network` | mainnet | Network (mainnet or testnet) |
-| `xdc_data_dir` | /root/XDC-Node | Data directory |
-| `rpc_port` | 8545 | RPC port |
-| `p2p_port` | 30303 | P2P port |
-
-### security-harden.yml
-
-Applies comprehensive security hardening.
+Runs all deployment tasks in order:
 
 ```bash
-# Apply all security hardening
-ansible-playbook playbooks/security-harden.yml
-
-# Apply specific tags only
-ansible-playbook playbooks/security-harden.yml --tags "ssh,firewall"
-
-# Skip certain components
-ansible-playbook playbooks/security-harden.yml --skip-tags "auditd"
+ansible-playbook -i inventory/hosts.yml playbooks/site.yml
 ```
 
-**Tags:**
-- `ssh` - SSH hardening
-- `firewall` - UFW firewall
-- `fail2ban` - Fail2ban configuration
-- `auditd` - Audit logging
-- `sysctl` - Kernel parameters
-- `updates` - Unattended upgrades
+### deploy-node.yml - Node Deployment
 
-### update-client.yml
-
-Performs rolling updates one node at a time.
+Deploys XDC node software:
 
 ```bash
-# Update all nodes
-ansible-playbook playbooks/update-client.yml
+# Deploy to all nodes
+ansible-playbook -i inventory/hosts.yml playbooks/deploy-node.yml
 
-# Update specific version
-ansible-playbook playbooks/update-client.yml -e "target_version=v2.0.0"
+# Deploy specific client
+ansible-playbook -i inventory/hosts.yml playbooks/deploy-node.yml \
+  -e "client=erigon-xdc"
 
-# Update specific host first
-ansible-playbook playbooks/update-client.yml --limit test-geth
+# Deploy to testnet
+ansible-playbook -i inventory/hosts.yml playbooks/deploy-node.yml \
+  -e "xdc_network=testnet"
 ```
 
-### setup-monitoring.yml
+### security-harden.yml - Security Hardening
 
-Deploys monitoring stack (Prometheus, Grafana, exporters).
+Applies CIS benchmark security settings:
 
 ```bash
-# Deploy monitoring
-ansible-playbook playbooks/setup-monitoring.yml
-
-# With custom Grafana password
-ansible-playbook playbooks/setup-monitoring.yml \
-  -e "grafana_admin_password=MySecurePassword123"
+ansible-playbook -i inventory/hosts.yml playbooks/security-harden.yml
 ```
 
-**Access URLs (via SSH tunnel):**
-- Prometheus: http://localhost:9090
-- Grafana: http://localhost:3000 (admin/xdc-admin-changeme)
-- Node Exporter: http://localhost:9100
+### update-client.yml - Rolling Updates
 
-### backup-restore.yml
+Updates nodes one at a time with health checks:
 
-Manages backups and restoration.
+```bash
+# Check for updates
+ansible-playbook -i inventory/hosts.yml playbooks/update-client.yml \
+  --tags check
+
+# Apply updates
+ansible-playbook -i inventory/hosts.yml playbooks/update-client.yml \
+  -e "target_version=v2.6.0"
+```
+
+### setup-monitoring.yml - Monitoring Stack
+
+Deploys Prometheus, Grafana, and exporters:
+
+```bash
+ansible-playbook -i inventory/hosts.yml playbooks/setup-monitoring.yml
+```
+
+### backup-restore.yml - Backup Operations
 
 ```bash
 # Create backup
-ansible-playbook playbooks/backup-restore.yml --limit prod-geth
+ansible-playbook -i inventory/hosts.yml playbooks/backup-restore.yml \
+  --tags backup
 
 # Restore from backup
-ansible-playbook playbooks/backup-restore.yml \
-  --limit prod-geth \
-  -e "restore=true" \
-  -e "backup_file=/root/backups/xdc-backup-2024-01-15.tar.gz"
+ansible-playbook -i inventory/hosts.yml playbooks/backup-restore.yml \
+  --tags restore \
+  -e "restore_file=/backup/xdc-node/latest.tar.gz"
+
+# List backups
+ansible-playbook -i inventory/hosts.yml playbooks/backup-restore.yml \
+  --tags list
 ```
 
 ## Roles
 
 ### xdc-common
 
-Base system configuration applied to all nodes:
+Base system configuration:
 - Package installation
 - Timezone and NTP
 - System limits
-- Sysctl tuning
 - Log rotation
 
 ### xdc-node
 
-Node-specific configuration:
-- Client build/installation
-- Data directory setup
+XDC client deployment:
+- Build from source
 - Systemd service
-- Genesis initialization
+- Configuration management
 
 ### xdc-security
 
@@ -194,103 +161,99 @@ Security hardening:
 - UFW firewall
 - Fail2ban
 - Auditd
-- File permissions
+- Sysctl tuning
 
 ### xdc-monitoring
 
-Monitoring deployment:
+Monitoring stack:
 - Docker installation
-- Prometheus + Grafana
-- Node exporter
-- Alert rules
+- Prometheus
+- Grafana
+- Node Exporter
+- Alertmanager
 
-## Common Tasks
+### xdc-backup
 
-### Check Node Status
+Backup automation:
+- Backup scripts
+- Cron scheduling
+- S3 upload (optional)
+- Retention management
 
-```bash
-# Check sync status
-ansible xdc_nodes -m shell -a "curl -s localhost:8545 -X POST -H 'Content-Type: application/json' --data '{\"jsonrpc\":\"2.0\",\"method\":\"eth_syncing\",\"params\":[],\"id\":1}' | jq ."
+## Variables
 
-# Check peer count
-ansible xdc_nodes -m shell -a "curl -s localhost:8545 -X POST -H 'Content-Type: application/json' --data '{\"jsonrpc\":\"2.0\",\"method\":\"net_peerCount\",\"params\":[],\"id\":1}' | jq ."
+### Common Variables
+
+```yaml
+# Node configuration
+client: XDPoSChain  # or erigon-xdc
+node_role: full     # full, validator, rpc, archive
+xdc_network: mainnet
+
+# Data directories
+xdc_data_dir: /xdc-data
+xdc_logs_dir: /var/log/xdc
+
+# Network ports
+rpc_port: 8545
+ws_port: 8546
+p2p_port: 30303
+
+# Security
+ssh_port: 12141
+fail2ban_maxretry: 3
 ```
 
-### Service Management
+### Per-Host Variables
 
-```bash
-# Restart node
-ansible prod-geth -m systemd -a "name=xdc-node state=restarted"
+Set in inventory for each host:
 
-# Check service status
-ansible xdc_nodes -m shell -a "systemctl status xdc-node"
-
-# View logs
-ansible prod-geth -m shell -a "journalctl -u xdc-node -n 50"
+```yaml
+validator-01:
+  ansible_host: 65.21.27.213
+  node_role: validator
+  client: XDPoSChain
+  xdc_network: mainnet
 ```
 
-### Inventory Management
+## Requirements
 
-```bash
-# List all hosts
-ansible all --list-hosts
-
-# List by group
-ansible validators --list-hosts
-ansible rpc_nodes --list-hosts
-
-# Check host variables
-ansible-inventory --host prod-geth
-```
+- Ansible 2.12+
+- Python 3.8+ on control node
+- Ubuntu 20.04/22.04/24.04 on target hosts
+- SSH access with sudo privileges
 
 ## Best Practices
 
-1. **Always test on test nodes first**
-   ```bash
-   ansible-playbook playbooks/update-client.yml --limit test_nodes
-   ```
-
-2. **Use check mode for dry runs**
-   ```bash
-   ansible-playbook playbooks/security-harden.yml --check --diff
-   ```
-
-3. **Use tags for targeted runs**
-   ```bash
-   ansible-playbook playbooks/deploy-node.yml --tags "config,systemd"
-   ```
-
-4. **Keep secrets in vault**
-   ```bash
-   ansible-vault create group_vars/all/vault.yml
-   ansible-playbook playbook.yml --ask-vault-pass
-   ```
+1. **Always test in staging first**
+2. **Use `--check` for dry runs**
+3. **Limit to specific hosts during updates**
+4. **Monitor nodes during rolling updates**
+5. **Keep inventory in version control**
 
 ## Troubleshooting
 
 ### Connection Issues
 
 ```bash
-# Debug SSH connection
-ansible prod-geth -m ping -vvvv
+# Test SSH
+ssh -i ~/.ssh/key user@host
 
-# Check SSH config
-ansible prod-geth -m debug -a "var=ansible_ssh_common_args"
+# Verbose mode
+ansible-playbook -vvv playbooks/site.yml
 ```
 
-### Playbook Debugging
+### Task Failures
 
 ```bash
-# Verbose output
-ansible-playbook playbooks/deploy-node.yml -vvv
+# Start from specific task
+ansible-playbook playbooks/site.yml --start-at-task "Task Name"
 
-# Step through tasks
-ansible-playbook playbooks/deploy-node.yml --step
-
-# Start at specific task
-ansible-playbook playbooks/deploy-node.yml --start-at-task="Start XDC node"
+# Run specific tags
+ansible-playbook playbooks/site.yml --tags security
 ```
 
-## Contributing
+## Support
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
+- Issues: https://github.com/AnilChinchawale/XDC-Node-Setup/issues
+- XDC Docs: https://docs.xdc.community

@@ -1,0 +1,18 @@
+region          = "us-east-1"
+instance_name   = "xdc-validator-01"
+instance_type   = "c6i.2xlarge"
+key_name        = "my-aws-key"
+
+node_type = "validator"
+network   = "mainnet"
+client    = "XDPoSChain"
+
+data_volume_size = 1000
+enable_s3_backup = true
+s3_backup_bucket = "my-xdc-backups"
+
+tags = {
+  Project     = "xdc-validator"
+  Environment = "production"
+  Owner       = "xdc-team"
+}

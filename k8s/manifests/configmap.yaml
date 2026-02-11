@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: xdc-node-config
+  namespace: xdc
+  labels:
+    app.kubernetes.io/name: xdc-node
+data:
+  NODE_TYPE: "full"
+  NETWORK: "mainnet"
+  CLIENT: "XDPoSChain"
+  RPC_PORT: "8545"
+  WS_PORT: "8546"
+  P2P_PORT: "30303"
+  METRICS_PORT: "6060"

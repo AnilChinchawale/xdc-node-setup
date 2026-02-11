@@ -1,0 +1,51 @@
+---
+# XDC Common Role - Default Variables
+# These can be overridden in inventory or via extra vars
+
+# System Configuration
+timezone: UTC
+set_hostname: true
+locale: en_US.UTF-8
+
+# XDC Data Directories
+xdc_data_dir: /xdc-data
+xdc_logs_dir: /var/log/xdc
+xdc_backup_dir: /backup/xdc-node
+
+# User Configuration
+xdc_user: xdc
+xdc_group: xdc
+xdc_uid: 1000
+xdc_gid: 1000
+
+# Network Ports
+rpc_port: 8545
+ws_port: 8546
+p2p_port: 30303
+metrics_port: 6060
+
+# System Limits
+max_open_files: 65535
+max_processes: 65535
+
+# NTP Configuration
+ntp_servers:
+  - 0.pool.ntp.org
+  - 1.pool.ntp.org
+  - 2.pool.ntp.org
+  - 3.pool.ntp.org
+ntp_fallback_servers:
+  - ntp.ubuntu.com
+
+# Logrotate Configuration
+logrotate_rotate: 7
+logrotate_frequency: daily
+
+# Package Installation
+install_docker: true
+install_monitoring_agents: true
+install_build_tools: true
+
+# Security Settings
+security_updates_only: true
+enable_auto_updates: true

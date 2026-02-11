@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: xdc
+  labels:
+    app.kubernetes.io/name: xdc
+    app.kubernetes.io/component: blockchain

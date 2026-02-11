@@ -1,64 +1,243 @@
-# XDC Node Inventory Template
-# Copy to hosts.yml and customize for your environment
+---
+# XDC Node Infrastructure - Multi-Region Inventory
+# Copy this file to hosts.yml and update with your actual server details
 #
-# Usage: cp hosts.yml.template hosts.yml && vim hosts.yml
+# Usage: ansible-playbook -i inventory/hosts.yml playbooks/site.yml
 
 all:
-  vars:
-    ansible_user: root
-    ansible_python_interpreter: /usr/bin/python3
-    xdc_data_dir: /root/XDC-Node
-    xdc_network: mainnet
-    xdc_client_version: latest
-
   children:
+    # ============================================================================
+    # Validator Nodes - Production validators participating in consensus
+    # ============================================================================
     validators:
       hosts:
-        prod-geth:
+        validator-01:
           ansible_host: 65.21.27.213
           ansible_port: 22
-          node_role: production
+          ansible_user: root
+          node_role: validator
           client: XDPoSChain
-          rpc_port: 8989
-          ws_port: 8990
-          p2p_port: 30303
+          xdc_network: mainnet
+          datacenter: fi-helsinki
           
+        validator-02:
+          ansible_host: 95.217.56.168
+          ansible_port: 22
+          ansible_user: root
+          node_role: validator
+          client: XDPoSChain
+          xdc_network: mainnet
+          datacenter: fi-helsinki
+          
+        validator-03:
+          ansible_host: 175.110.113.12
+          ansible_port: 22
+          ansible_user: root
+          node_role: validator
+          client: XDPoSChain
+          xdc_network: mainnet
+          datacenter: in-mumbai
+          
+        validator-04:
+          ansible_host: 175.110.113.17
+          ansible_port: 22
+          ansible_user: root
+          node_role: validator
+          client: XDPoSChain
+          xdc_network: mainnet
+          datacenter: in-mumbai
+      vars:
+        enable_public_rpc: false
+        enable_monitoring: true
+        backup_enabled: true
+        security_hardening: true
+        
+    # ============================================================================
+    # RPC Nodes - Public RPC endpoints for dApps and wallets
+    # ============================================================================
     rpc_nodes:
       hosts:
-        gcx-geth:
-          ansible_host: 175.110.113.12
+        rpc-01:
+          ansible_host: 10.0.1.10
           ansible_port: 12141
+          ansible_user: xdc
           node_role: rpc
           client: XDPoSChain
-          rpc_port: 8545
-          ws_port: 8546
-          p2p_port: 30303
+          xdc_network: mainnet
+          datacenter: us-east-1
           enable_public_rpc: true
+          rpc_rate_limit: 1000
           
+        rpc-02:
+          ansible_host: 10.0.2.10
+          ansible_port: 12141
+          ansible_user: xdc
+          node_role: rpc
+          client: XDPoSChain
+          xdc_network: mainnet
+          datacenter: eu-west-1
+          enable_public_rpc: true
+          rpc_rate_limit: 1000
+          
+        rpc-03:
+          ansible_host: 10.0.3.10
+          ansible_port: 12141
+          ansible_user: xdc
+          node_role: rpc
+          client: erigon-xdc
+          xdc_network: mainnet
+          datacenter: ap-southeast-1
+          enable_public_rpc: true
+          rpc_rate_limit: 2000
+      vars:
+        enable_public_rpc: true
+        rpc_allowed_ips: "0.0.0.0/0"
+        enable_monitoring: true
+        backup_enabled: true
+        security_hardening: true
+        
+    # ============================================================================
+    # Archive Nodes - Full historical data for explorers and analytics
+    # ============================================================================
+    archive_nodes:
+      hosts:
+        archive-01:
+          ansible_host: 10.1.0.10
+          ansible_port: 12141
+          ansible_user: xdc
+          node_role: archive
+          client: erigon-xdc
+          xdc_network: mainnet
+          datacenter: us-east-1
+          data_volume_size: 2000
+          
+        archive-02:
+          ansible_host: 10.1.0.11
+          ansible_port: 12141
+          ansible_user: xdc
+          node_role: archive
+          client: erigon-xdc
+          xdc_network: mainnet
+          datacenter: eu-west-1
+          data_volume_size: 2000
+      vars:
+        enable_public_rpc: false
+        enable_monitoring: true
+        backup_enabled: true
+        security_hardening: true
+        pruning_mode: archive
+        
+    # ============================================================================
+    # Testnet Nodes - Non-production testing environment
+    # ============================================================================
     test_nodes:
       hosts:
-        test-geth:
-          ansible_host: 95.217.56.168
+        testnet-validator-01:
+          ansible_host: 10.2.0.10
           ansible_port: 22
-          node_role: test
+          ansible_user: root
+          node_role: validator
           client: XDPoSChain
           xdc_network: testnet
-          rpc_port: 8545
+          datacenter: us-east-1
           
+        testnet-rpc-01:
+          ansible_host: 10.2.0.20
+          ansible_port: 22
+          ansible_user: root
+          node_role: rpc
+          client: XDPoSChain
+          xdc_network: testnet
+          datacenter: us-east-1
+          enable_public_rpc: true
+      vars:
+        enable_monitoring: true
+        backup_enabled: false
+        security_hardening: true
+        auto_update: true
+        
+    # ============================================================================
+    # Erigon Nodes - High-performance Erigon client nodes
+    # ============================================================================
     erigon_nodes:
       hosts:
-        test-erigon:
-          ansible_host: 95.217.56.168
-          ansible_port: 22
-          node_role: test
+        erigon-01:
+          ansible_host: 10.3.0.10
+          ansible_port: 12141
+          ansible_user: xdc
+          node_role: rpc
           client: erigon-xdc
-          xdc_network: testnet
-          rpc_port: 8545
+          xdc_network: mainnet
+          datacenter: us-east-1
+          
+        erigon-02:
+          ansible_host: 10.3.0.11
+          ansible_port: 12141
+          ansible_user: xdc
+          node_role: archive
+          client: erigon-xdc
+          xdc_network: mainnet
+          datacenter: eu-west-1
+      vars:
+        client: erigon-xdc
+        enable_monitoring: true
+        backup_enabled: true
+        security_hardening: true
 
-    # Group all XDC nodes
+    # ============================================================================
+    # Monitoring Stack - Centralized monitoring servers
+    # ============================================================================
+    monitoring:
+      hosts:
+        monitoring-01:
+          ansible_host: 10.4.0.10
+          ansible_port: 22
+          ansible_user: root
+          datacenter: us-east-1
+      vars:
+        grafana_admin_password: "{{ vault_grafana_admin_password }}"
+        prometheus_retention: "30d"
+        
+    # ============================================================================
+    # All XDC Nodes - Group for common configuration
+    # ============================================================================
     xdc_nodes:
       children:
         validators:
         rpc_nodes:
+        archive_nodes:
         test_nodes:
         erigon_nodes:
+      vars:
+        # Common variables for all XDC nodes
+        xdc_data_dir: /xdc-data
+        xdc_logs_dir: /var/log/xdc
+        timezone: UTC
+        
+        # Network ports
+        rpc_port: 8545
+        ws_port: 8546
+        p2p_port: 30303
+        metrics_port: 6060
+        
+        # Security
+        ssh_port: 12141
+        fail2ban_bantime: 3600
+        fail2ban_maxretry: 3
+        
+        # Backup settings
+        backup_enabled: true
+        backup_schedule: "0 3 * * *"
+        backup_retention_days: 30
+        
+        # Monitoring
+        enable_monitoring: true
+        prometheus_retention: "15d"
+        
+        # Notifications
+        notify_telegram: true
+        notify_email: false
+        
+        # Ansible connection
+        ansible_python_interpreter: /usr/bin/python3
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"

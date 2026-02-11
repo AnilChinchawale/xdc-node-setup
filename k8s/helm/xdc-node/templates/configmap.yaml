@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "xdc-node.fullname" . }}
+  labels:
+    {{- include "xdc-node.labels" . | nindent 4 }}
+data:
+  node-type: {{ .Values.nodeType | quote }}
+  network: {{ .Values.network | quote }}
+  client: {{ .Values.client | quote }}
+  {{- if .Values.xdc.customGenesis }}
+  genesis.json: |
+    {{- .Values.xdc.customGenesis | nindent 4 }}
+  {{- end }}

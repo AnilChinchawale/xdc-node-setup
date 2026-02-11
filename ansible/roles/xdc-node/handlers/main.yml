@@ -1,12 +1,22 @@
 ---
-# XDC Node Role Handlers
+# XDC Node Role - Handlers
 
 - name: Reload systemd
   ansible.builtin.systemd:
     daemon_reload: yes
-
+  
 - name: Restart XDC node
   ansible.builtin.systemd:
     name: xdc-node
     state: restarted
-  when: restart_on_change | default(true) | bool
+    daemon_reload: yes
+  
+- name: Stop XDC node
+  ansible.builtin.systemd:
+    name: xdc-node
+    state: stopped
+  
+- name: Start XDC node
+  ansible.builtin.systemd:
+    name: xdc-node
+    state: started

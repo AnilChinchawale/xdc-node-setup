@@ -1,0 +1,12 @@
+---
+# XDC Backup Role - Handlers
+
+- name: Restart cron
+  ansible.builtin.systemd:
+    name: cron
+    state: restarted
+
+- name: Reload cron
+  ansible.builtin.command:
+    cmd: crontab /etc/cron.d/xdc-backup
+  changed_when: true

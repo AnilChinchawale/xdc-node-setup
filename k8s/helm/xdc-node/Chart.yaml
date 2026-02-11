@@ -1,0 +1,19 @@
+apiVersion: v2
+name: xdc-node
+description: Enterprise-grade XDC Network node deployment chart
+type: application
+version: 1.0.0
+appVersion: "2.6.0"
+keywords:
+  - xdc
+  - blockchain
+  - node
+  - validator
+  - rpc
+maintainers:
+  - name: Anil Chinchawale
+    email: anil24593@gmail.com
+home: https://github.com/AnilChinchawale/XDC-Node-Setup
+sources:
+  - https://github.com/XinFinOrg/XDPoSChain
+dependencies: []

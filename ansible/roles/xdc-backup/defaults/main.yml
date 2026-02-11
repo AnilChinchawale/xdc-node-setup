@@ -1,0 +1,50 @@
+---
+# XDC Backup Role - Default Variables
+
+# Backup Configuration
+backup_enabled: true
+backup_dir: /backup/xdc-node
+backup_schedule: "0 3 * * *"  # Daily at 3 AM
+backup_retention_days: 30
+backup_retention_weeks: 4
+backup_retention_months: 12
+
+# Backup Type
+backup_type: incremental  # full, incremental
+backup_compression: gzip  # gzip, bzip2, xz
+backup_encryption: false
+backup_encryption_key: ""
+
+# What to backup
+backup_chaindata: true
+backup_keystore: true
+backup_logs: false
+backup_config: true
+
+# Remote Storage
+backup_s3_enabled: false
+backup_s3_bucket: ""
+backup_s3_region: us-east-1
+backup_s3_path: xdc-backups
+backup_s3_storage_class: STANDARD_IA
+
+backup_azure_enabled: false
+backup_azure_container: ""
+backup_azure_account: ""
+
+backup_gcs_enabled: false
+backup_gcs_bucket: ""
+
+# NFS/SMB Backup
+backup_nfs_enabled: false
+backup_nfs_server: ""
+backup_nfs_path: ""
+
+# Notifications
+backup_notify_on_success: false
+backup_notify_on_failure: true
+backup_notification_webhook: ""
+
+# Pre/post scripts
+backup_pre_script: ""
+backup_post_script: ""

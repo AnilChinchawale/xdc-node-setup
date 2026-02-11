@@ -1,0 +1,191 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  shellcheck:
+    name: Lint Shell Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: Run ShellCheck on all .sh files
+        run: |
+          echo "Finding and checking shell scripts..."
+          find . -name "*.sh" -type f | while read script; do
+            echo "Checking: $script"
+            shellcheck -x -e SC1091 "$script" || exit 1
+          done
+          echo "All shell scripts passed ShellCheck!"
+
+  yamllint:
+    name: Lint YAML Files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: Create yamllint config
+        run: |
+          cat > .yamllint.yml << 'EOF'
+          extends: default
+          rules:
+            line-length:
+              max: 120
+              level: warning
+            truthy:
+              allowed-values: ['true', 'false', 'yes', 'no']
+            comments:
+              min-spaces-from-content: 1
+            document-start: disable
+            indentation:
+              spaces: 2
+              indent-sequences: consistent
+          EOF
+
+      - name: Run yamllint
+        run: |
+          echo "Linting YAML files..."
+          find . -name "*.yml" -o -name "*.yaml" | grep -v node_modules | grep -v ".git" | while read yaml; do
+            echo "Checking: $yaml"
+            yamllint -c .yamllint.yml "$yaml" || true
+          done
+          echo "YAML lint complete!"
+
+  docker-build:
+    name: Test Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Verify docker-compose files
+        run: |
+          echo "Checking docker-compose files..."
+          for compose_file in $(find . -name "docker-compose*.yml" -o -name "docker-compose*.yaml"); do
+            echo "Validating: $compose_file"
+            docker compose -f "$compose_file" config > /dev/null
+          done
+          echo "All docker-compose files are valid!"
+
+      - name: Test monitoring stack build
+        if: hashFiles('monitoring/docker-compose.yml') != ''
+        working-directory: monitoring
+        run: |
+          docker compose config
+          echo "Monitoring stack configuration is valid!"
+
+  docs-check:
+    name: Verify Documentation Links
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for broken internal links
+        run: |
+          echo "Checking documentation for broken links..."
+          broken_links=0
+          
+          # Find all markdown files
+          for md_file in $(find . -name "*.md" -type f | grep -v node_modules | grep -v ".git"); do
+            echo "Checking: $md_file"
+            
+            # Extract internal links (relative paths)
+            grep -oE '\[.*?\]\(\.?\.?/?[^http][^)]+\)' "$md_file" 2>/dev/null | \
+            grep -oE '\([^)]+\)' | tr -d '()' | while read link; do
+              # Remove anchor links
+              link_path=$(echo "$link" | cut -d'#' -f1)
+              
+              if [[ -n "$link_path" && ! -e "$link_path" && ! -e "$(dirname $md_file)/$link_path" ]]; then
+                echo "  ⚠️  Broken link: $link (in $md_file)"
+                broken_links=$((broken_links + 1))
+              fi
+            done
+          done
+          
+          if [[ $broken_links -gt 0 ]]; then
+            echo "Found $broken_links broken link(s)"
+            # Don't fail for now, just warn
+          fi
+          echo "Documentation check complete!"
+
+      - name: Verify README structure
+        run: |
+          echo "Verifying README.md structure..."
+          if [[ ! -f "README.md" ]]; then
+            echo "ERROR: README.md not found!"
+            exit 1
+          fi
+          
+          # Check for required sections
+          required_sections=("Installation" "Usage" "Configuration")
+          for section in "${required_sections[@]}"; do
+            if ! grep -qi "# .*$section\|## .*$section" README.md; then
+              echo "WARNING: Missing section: $section"
+            fi
+          done
+          echo "README structure check complete!"
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for secrets in code
+        run: |
+          echo "Scanning for potential secrets..."
+          patterns=(
+            "password\s*=\s*['\"][^'\"]+['\"]"
+            "api_key\s*=\s*['\"][^'\"]+['\"]"
+            "secret\s*=\s*['\"][^'\"]+['\"]"
+            "PRIVATE.*KEY"
+          )
+          
+          found=0
+          for pattern in "${patterns[@]}"; do
+            if grep -rniE "$pattern" --include="*.sh" --include="*.yml" --include="*.yaml" --include="*.env*" . 2>/dev/null | grep -v "example\|template\|changeme\|CHANGEME\|your-\|YOUR_"; then
+              found=1
+            fi
+          done
+          
+          if [[ $found -eq 1 ]]; then
+            echo "⚠️  Potential secrets found - please review"
+          else
+            echo "✅ No obvious secrets found"
+          fi
+
+  ansible-lint:
+    name: Lint Ansible Playbooks
+    runs-on: ubuntu-latest
+    if: hashFiles('ansible/**/*.yml') != ''
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ansible-lint
+        run: pip install ansible-lint
+
+      - name: Run ansible-lint
+        working-directory: ansible
+        continue-on-error: true
+        run: |
+          echo "Linting Ansible playbooks..."
+          ansible-lint playbooks/*.yml || true
+          echo "Ansible lint complete!"

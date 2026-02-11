@@ -1,56 +1,48 @@
 groups:
   - name: xdc-node-alerts
+    interval: 15s
     rules:
       - alert: XDCNodeDown
-        expr: up{job="xdc-node"} == 0
+        expr: up{job="xdc-node-metrics"} == 0
         for: 5m
         labels:
           severity: critical
         annotations:
-          summary: "XDC Node is down"
-          description: "XDC node {{ '{{ $labels.instance }}' }} has been down for more than 5 minutes."
+          summary: "XDC Node {{ $labels.instance }} is down"
+          description: "XDC node has been down for more than 5 minutes."
 
-      - alert: XDCNodeNotSyncing
-        expr: increase(eth_block_number[5m]) == 0
-        for: 10m
-        labels:
-          severity: warning
-        annotations:
-          summary: "XDC Node not syncing"
-          description: "XDC node {{ '{{ $labels.instance }}' }} block number has not increased in 10 minutes."
-
-      - alert: XDCLowPeerCount
-        expr: p2p_peers < 3
+      - alert: XDCNodeHighCPU
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "XDC Node has low peer count"
-          description: "XDC node {{ '{{ $labels.instance }}' }} has only {{ '{{ $value }}' }} peers."
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is above 90% for more than 5 minutes."
 
-      - alert: HighCPUUsage
-        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
-        for: 10m
-        labels:
-          severity: warning
-        annotations:
-          summary: "High CPU usage detected"
-          description: "CPU usage is above 80% on {{ '{{ $labels.instance }}' }}."
-
-      - alert: HighMemoryUsage
-        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+      - alert: XDCNodeHighMemory
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "High memory usage detected"
-          description: "Memory usage is above 85% on {{ '{{ $labels.instance }}' }}."
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is above 90% for more than 5 minutes."
 
-      - alert: DiskSpaceLow
-        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 15
+      - alert: XDCNodeDiskFull
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100 > 85
         for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk space running low on {{ $labels.instance }}"
+          description: "Disk usage is above 85%."
+
+      - alert: XDCNodeDiskCritical
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100 > 95
+        for: 1m
         labels:
           severity: critical
         annotations:
-          summary: "Low disk space"
-          description: "Disk space is below 15% on {{ '{{ $labels.instance }}' }}."
+          summary: "Critical disk space on {{ $labels.instance }}"
+          description: "Disk usage is above 95%!"

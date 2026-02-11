@@ -1,0 +1,14 @@
+server_name   = "xdc-validator-01"
+server_type   = "cpx31"
+location      = "fsn1"
+ssh_key_ids   = ["1234567"]
+
+node_type = "validator"
+network   = "mainnet"
+
+data_volume_size = 1000
+
+labels = {
+  environment = "production"
+  project     = "xdc"
+}

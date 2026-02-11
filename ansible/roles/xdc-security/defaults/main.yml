@@ -1,0 +1,45 @@
+---
+# XDC Security Role - Default Variables
+
+# SSH Configuration
+ssh_port: 12141
+ssh_permit_root_login: prohibit-password
+ssh_password_authentication: false
+ssh_pubkey_authentication: true
+ssh_max_auth_tries: 3
+ssh_client_alive_interval: 300
+ssh_client_alive_count_max: 2
+ssh_login_grace_time: 60
+ssh_x11_forwarding: false
+ssh_allow_agent_forwarding: false
+ssh_allow_tcp_forwarding: false
+ssh_permit_tunnel: false
+ssh_max_sessions: 3
+
+# UFW Configuration
+ufw_default_incoming: deny
+ufw_default_outgoing: allow
+ufw_logging: 'on'
+
+# Fail2ban Configuration
+fail2ban_enabled: true
+fail2ban_bantime: 3600
+fail2ban_findtime: 600
+fail2ban_maxretry: 3
+fail2ban_backend: systemd
+
+# Auditd Configuration
+auditd_enabled: true
+auditd_log_format: RAW
+auditd_log_group: root
+auditd_flush: INCREMENTAL_ASYNC
+auditd_freq: 50
+auditd_num_logs: 5
+auditd_max_log_file: 50
+auditd_max_log_file_action: ROTATE
+
+# Additional Security
+disable_ipv6: false
+enable_selinux: false
+secure_file_permissions: true
+remove_unused_packages: true
