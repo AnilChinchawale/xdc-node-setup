@@ -14,8 +14,9 @@
 4. [Single-Pane Monitoring](#4-single-pane-monitoring)
 5. [Version Management & Auto-Update](#5-version-management--auto-update)
 6. [Security Scorecard](#6-security-scorecard)
-7. [XDC-Specific Requirements](#7-xdc-specific-requirements)
-8. [Quick Start](#8-quick-start)
+7. [Notification System](#7-notification-system)
+8. [XDC-Specific Requirements](#8-xdc-specific-requirements)
+9. [Quick Start](#9-quick-start)
 
 ---
 
@@ -381,7 +382,309 @@ Each server is scored on a 100-point scale:
 
 ---
 
-## 7. XDC-Specific Requirements
+## 7. Notification System
+
+### Overview
+
+XDC Node Setup provides a multi-channel notification system for alerts, reports, and version updates. Instead of requiring users to configure their own Telegram bots, notifications are sent through the **XDC Gateway platform** — one API key and you're done.
+
+### Architecture
+
+```
+┌──────────────────┐
+│  Node Health      │
+│  Version Check    │──── Alert Event ────┐
+│  Backup Script    │                     │
+│  Security Audit   │                     ▼
+└──────────────────┘              ┌───────────────┐
+                                  │  Notify Engine │
+                                  │  (lib/notify)  │
+                                  └───────┬───────┘
+                          ┌───────────────┼───────────────┐
+                          ▼               ▼               ▼
+                   ┌────────────┐  ┌────────────┐  ┌────────────┐
+                   │  Platform  │  │  Telegram   │  │   Email    │
+                   │  API       │  │  (direct)   │  │  (SMTP)    │
+                   └─────┬──────┘  └─────┬──────┘  └─────┬──────┘
+                         │               │               │
+                         ▼               ▼               ▼
+                   ┌────────────┐  ┌────────────┐  ┌────────────┐
+                   │ Gateway    │  │ Telegram    │  │ User       │
+                   │ Bot → TG   │  │ Bot API     │  │ Inbox      │
+                   │ + Email    │  │             │  │            │
+                   └────────────┘  └────────────┘  └────────────┘
+```
+
+### Notification Channels
+
+| Channel | Setup Complexity | Features | Recommended |
+|---------|-----------------|----------|-------------|
+| **Platform API** | 🟢 Easy — just API key | TG + Email via Gateway bot | ✅ Yes |
+| **Direct Telegram** | 🟡 Medium — create bot | TG only, user manages bot | Fallback |
+| **Direct Email** | 🟡 Medium — SMTP config | Email only | Optional add-on |
+
+#### Channel 1: Platform API (Recommended)
+
+Users register their node on the XDC Gateway dashboard and get an API key. All notifications route through the platform's Telegram bot and email service — zero bot setup required.
+
+```
+POST https://cloud.xdcrpc.com/api/v1/notifications/send
+Authorization: Bearer <api-key>
+Content-Type: application/json
+
+{
+  "type": "alert",
+  "level": "critical",
+  "title": "🔴 Node Down: 65.21.27.213",
+  "message": "XDC node on 65.21.27.213 has been unreachable for 5 minutes. Last block: 99,222,839. Auto-restart attempted.",
+  "channels": ["telegram", "email"],
+  "metadata": {
+    "nodeHost": "65.21.27.213",
+    "alertType": "node_offline",
+    "lastBlock": 99222839,
+    "downtime": "5m"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "delivered": {
+    "telegram": true,
+    "email": true
+  },
+  "notificationId": "ntf_abc123"
+}
+```
+
+#### Channel 2: Direct Telegram (Fallback)
+
+For users who prefer their own bot:
+1. Create bot via [@BotFather](https://t.me/BotFather)
+2. Get chat ID from [@userinfobot](https://t.me/userinfobot)
+3. Set `NOTIFY_TELEGRAM_BOT_TOKEN` and `NOTIFY_TELEGRAM_CHAT_ID`
+
+#### Channel 3: Direct Email (SMTP)
+
+For users who want direct email delivery:
+```bash
+NOTIFY_EMAIL_TO="admin@example.com"
+NOTIFY_EMAIL_SMTP_HOST="smtp.gmail.com"
+NOTIFY_EMAIL_SMTP_PORT=587
+NOTIFY_EMAIL_SMTP_USER="alerts@example.com"
+NOTIFY_EMAIL_SMTP_PASS="app-password"
+```
+
+### Alert Levels & Routing
+
+| Level | Examples | Delivery | Quiet Hours |
+|-------|----------|----------|-------------|
+| 🔴 **Critical** | Node offline, disk >95%, backup failed, auto-update failed | **Instant** — all channels | ✅ Delivered always |
+| 🟡 **Warning** | Peers = 0, disk >85%, block behind >100, security score <70 | **Hourly digest** | ❌ Held until morning |
+| 🔵 **Info** | New version available, backup success, health report | **Daily report** | ❌ Held until morning |
+
+### Smart Delivery Features
+
+#### Deduplication
+Same alert won't fire again within a configurable interval (default: 5 minutes for critical, 1 hour for warnings):
+
+```
+Alert state tracked in: /var/lib/xdc-node/alert-state.json
+
+{
+  "node_offline:65.21.27.213": {
+    "lastFired": "2026-02-11T04:30:00Z",
+    "count": 3,
+    "level": "critical"
+  },
+  "block_behind:95.217.56.168": {
+    "lastFired": "2026-02-11T03:00:00Z",
+    "count": 1,
+    "level": "warning"
+  }
+}
+```
+
+#### Quiet Hours
+- **Default**: 23:00 — 07:00 (configurable)
+- Only 🔴 **critical** alerts delivered during quiet hours
+- 🟡 Warnings and 🔵 info batched into a **morning digest** sent at quiet hours end
+
+#### Hourly Digest
+Non-critical alerts batched into a summary instead of individual messages:
+
+```
+📊 XDC Node Digest (05:00 — 06:00)
+
+⚠️ 2 Warnings:
+  • Peer count = 0 on gcx-snap (175.110.113.12)
+  • Block height 150 behind on test-erigon (95.217.56.168)
+
+ℹ️ 1 Info:
+  • Backup completed successfully on prod (65.21.27.213)
+
+🔗 Full report: /var/lib/xdc-node/reports/2026-02-11.json
+```
+
+#### Rate Limiting
+- Max **10 notifications per hour** per channel
+- Prevents alert storms during cascading failures
+- If limit hit, sends a single "rate limit reached, check logs" message
+
+#### Retry Logic
+- Failed sends retry **3 times** with exponential backoff (5s, 15s, 45s)
+- All attempts logged to `/var/log/xdc-node/notifications.log`
+
+### Email Templates
+
+All emails use responsive HTML with XDC dark theme branding (primary: `#1F4CED`):
+
+| Template | Trigger | Content |
+|----------|---------|---------|
+| **Alert** | Critical/warning event | Red/yellow header, event details, affected node, recommended action |
+| **Daily Report** | Scheduled (6 AM) | All nodes summary table, security scores, version status, 24h timeline |
+| **Digest** | Hourly (non-critical batch) | Grouped alerts/warnings/info with counts |
+| **Version Update** | New release detected | Release version, changelog link, update instructions |
+
+#### Example: Alert Email
+
+```
+┌─────────────────────────────────────────────┐
+│  🔴 CRITICAL: Node Offline                  │  ← Red header
+├─────────────────────────────────────────────┤
+│                                             │
+│  Server: 65.21.27.213 (production)          │
+│  Client: XDPoSChain v2.6.0                  │
+│  Last Block: 99,222,839                     │
+│  Down Since: 2026-02-11 04:30:00 UTC        │
+│  Duration: 5 minutes                        │
+│                                             │
+│  Action Taken:                              │
+│  ✅ Auto-restart attempted                   │
+│  ⏳ Waiting for node to sync                │
+│                                             │
+│  Recommended:                               │
+│  • Check server SSH access                  │
+│  • Review system logs                       │
+│  • Verify disk space                        │
+│                                             │
+│  [View Dashboard] [SSH to Server]           │
+│                                             │
+├─────────────────────────────────────────────┤
+│  XDC Node Setup • Unsubscribe              │
+└─────────────────────────────────────────────┘
+```
+
+### Configuration
+
+All notification settings in `/etc/xdc-node/notify.conf`:
+
+```bash
+# ============================================
+# XDC Node Notification Configuration
+# ============================================
+
+# --- Channels (comma-separated) ---
+# Options: platform, telegram, email
+NOTIFY_CHANNELS="platform"
+
+# --- Platform API (Recommended) ---
+# Get your API key from https://cloud.xdcrpc.com/dashboard
+NOTIFY_PLATFORM_URL="https://cloud.xdcrpc.com/api/v1/notifications"
+NOTIFY_PLATFORM_API_KEY=""
+
+# --- Direct Telegram (Fallback) ---
+# Create bot: https://t.me/BotFather
+# Get chat ID: https://t.me/userinfobot
+NOTIFY_TELEGRAM_BOT_TOKEN=""
+NOTIFY_TELEGRAM_CHAT_ID=""
+
+# --- Email (Optional) ---
+NOTIFY_EMAIL_TO=""
+NOTIFY_EMAIL_FROM="alerts@xdc.network"
+NOTIFY_EMAIL_SMTP_HOST="smtp.gmail.com"
+NOTIFY_EMAIL_SMTP_PORT=587
+NOTIFY_EMAIL_SMTP_USER=""
+NOTIFY_EMAIL_SMTP_PASS=""
+
+# --- Delivery Rules ---
+NOTIFY_ALERT_INTERVAL=300        # Dedup: min seconds between same critical alert
+NOTIFY_WARNING_INTERVAL=3600     # Dedup: min seconds between same warning
+NOTIFY_RATE_LIMIT=10             # Max notifications per hour per channel
+
+# --- Digest ---
+NOTIFY_DIGEST_ENABLED=true       # Batch non-critical into digest
+NOTIFY_DIGEST_INTERVAL=3600      # Digest frequency (seconds)
+
+# --- Quiet Hours ---
+NOTIFY_QUIET_ENABLED=true
+NOTIFY_QUIET_START="23:00"       # Only critical alerts after this
+NOTIFY_QUIET_END="07:00"         # Morning digest sent at this time
+
+# --- Report ---
+NOTIFY_DAILY_REPORT=true         # Send daily health summary
+NOTIFY_DAILY_REPORT_TIME="06:00" # When to send daily report
+```
+
+### Notification Flow
+
+```
+Event Occurs (node down, new version, etc.)
+        │
+        ▼
+   Is it Critical?
+   ┌─── Yes ──────────────────────────► Send Immediately
+   │                                    (all channels, ignore quiet hours)
+   │
+   No ── Is Digest Enabled?
+         ┌─── Yes ─────► Add to digest buffer
+         │                     │
+         │               Digest interval reached?
+         │               ┌─── Yes ──► Send digest summary
+         │               │
+         │               No ──► Wait
+         │
+         No ─── Is Quiet Hours?
+                ┌─── Yes ──► Queue for morning
+                │
+                No ──► Send now
+                       │
+                       ▼
+                  Rate limit OK?
+                  ┌─── Yes ──► Deliver to channels
+                  │
+                  No ──► Log + skip
+```
+
+### Platform API Endpoints
+
+The XDC Gateway platform provides these notification endpoints:
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/notifications/send` | POST | Send notification |
+| `/api/v1/notifications/preferences` | GET/PUT | Get/update user notification preferences |
+| `/api/v1/notifications/history` | GET | View past notifications |
+| `/api/v1/notifications/test` | POST | Test notification delivery |
+| `/api/v1/notifications/unsubscribe` | POST | Unsubscribe from channel |
+
+### Implementation Files
+
+| File | Purpose |
+|------|---------|
+| `scripts/lib/notify.sh` | Shared notification library (source in scripts) |
+| `configs/notify.conf.template` | Configuration template with all options |
+| `templates/email/alert.html` | Critical/warning alert email |
+| `templates/email/report.html` | Daily health report email |
+| `templates/email/digest.html` | Hourly digest email |
+| `templates/email/version-update.html` | New version notification |
+| `scripts/notify-test.sh` | Test all configured channels |
+
+---
+
+## 8. XDC-Specific Requirements
 
 ### XDPoS Consensus
 - **Consensus**: XDPoS (Delegated Proof of Stake with XDC modifications)
@@ -459,7 +762,7 @@ curl -s -X POST -H "Content-Type: application/json" \
 
 ---
 
-## 8. Quick Start
+## 9. Quick Start
 
 ### One-Line Install
 ```bash
