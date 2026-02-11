@@ -86,6 +86,15 @@ init_logging() {
     chmod 640 "$LOG_FILE" 2>/dev/null || true
 }
 
+# Ensure path is a file, not a directory (Docker creates dirs for missing volume mounts)
+ensure_file_path() {
+    local f="$1"
+    if [[ -d "$f" ]]; then
+        rm -rf "$f"
+    fi
+    mkdir -p "$(dirname "$f")"
+}
+
 log() {
     local msg="[$(date '+%Y-%m-%d %H:%M:%S')] $1"
     echo -e "${GREEN}✓${NC} $1" | sed 's/\\033\[[0-9;]*m//g' >> "$LOG_FILE" 2>/dev/null || true
@@ -604,6 +613,7 @@ configure_node() {
     chmod 750 "$INSTALL_DIR"
     
     # Create environment file
+    ensure_file_path "$INSTALL_DIR/configs/node.env"
     cat > "$INSTALL_DIR/configs/node.env" << EOF
 # XDC Node Configuration
 # Generated on $(date)
@@ -664,6 +674,7 @@ setup_docker_compose() {
     chmod +x "$network_dir/start-node.sh" 2>/dev/null || true
     
     # Create .env file
+    ensure_file_path "$network_dir/.env"
     cat > "$network_dir/.env" << ENVEOF
 INSTANCE_NAME=XDC_Node
 CONTACT_DETAILS=admin@localhost
@@ -849,6 +860,7 @@ setup_monitoring() {
     mkdir -p "$INSTALL_DIR/docker/grafana/provisioning"/{dashboards,datasources}
     
     # Create Prometheus config
+    ensure_file_path "$INSTALL_DIR/docker/prometheus.yml"
     cat > "$INSTALL_DIR/docker/prometheus.yml" << EOF
 global:
   scrape_interval: 15s
@@ -870,6 +882,7 @@ scrape_configs:
 EOF
 
     # Create Grafana datasource config
+    ensure_file_path "$INSTALL_DIR/docker/grafana/provisioning/datasources/datasource.yml"
     cat > "$INSTALL_DIR/docker/grafana/provisioning/datasources/datasource.yml" << 'EOF'
 apiVersion: 1
 
@@ -883,6 +896,7 @@ datasources:
 EOF
 
     # Create Grafana dashboard provider config
+    ensure_file_path "$INSTALL_DIR/docker/grafana/provisioning/dashboards/dashboard.yml"
     cat > "$INSTALL_DIR/docker/grafana/provisioning/dashboards/dashboard.yml" << 'EOF'
 apiVersion: 1
 
@@ -945,6 +959,7 @@ install_cli_tool() {
     log "Installing XDC CLI tool..."
     
     # Create CLI script
+    ensure_file_path "$INSTALL_DIR/scripts/xdc-node"
     cat > "$INSTALL_DIR/scripts/xdc-node" << 'EOF'
 #!/usr/bin/env bash
 # XDC Node CLI Tool
