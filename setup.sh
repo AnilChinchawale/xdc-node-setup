@@ -36,15 +36,15 @@ readonly OS=$(detect_os)
 
 # Set OS-specific paths
 if [[ "$OS" == "macos" ]]; then
-    readonly DEFAULT_DATA_DIR="$HOME/xdcchain"
+    readonly DEFAULT_DATA_DIR="${PWD}/xdcchain"
     readonly LOG_FILE="${PWD}/xdc-node-setup.log"
-    readonly INSTALL_DIR="$HOME/.xdc-node"
-    readonly CONFIG_DIR="$HOME/.config/xdc-node"
+    readonly INSTALL_DIR="${PWD}/.xdc-node"
+    readonly CONFIG_DIR="${PWD}/.xdc-config"
 else
-    readonly DEFAULT_DATA_DIR="/root/xdcchain"
+    readonly DEFAULT_DATA_DIR="${PWD}/xdcchain"
     readonly LOG_FILE="${PWD}/xdc-node-setup.log"
-    readonly INSTALL_DIR="/opt/xdc-node"
-    readonly CONFIG_DIR="/etc/xdc-node"
+    readonly INSTALL_DIR="${PWD}/.xdc-node"
+    readonly CONFIG_DIR="${PWD}/.xdc-config"
 fi
 
 #==============================================================================
@@ -691,7 +691,6 @@ services:
       --wsorigins *
       --port 30303
       --maxpeers 50
-      ${extra_flags}
     networks:
       - xdc-network
     healthcheck:
