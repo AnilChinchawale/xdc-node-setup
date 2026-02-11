@@ -317,3 +317,132 @@ groups:
         annotations:
           summary: "XDC container was OOM killed"
           description: "Container was killed due to out of memory. Increase memory limit."
+
+  #------------------------------------------------------------------------
+  # XDPoS v2 Consensus Alerts
+  #------------------------------------------------------------------------
+  
+  - name: xdpos-consensus-alerts
+    rules:
+      # Epoch change detected
+      - alert: XDCEpochChange
+        expr: |
+          changes(xdpos_epoch_number[15m]) > 0
+        for: 0m
+        labels:
+          severity: info
+        annotations:
+          summary: "XDPoS epoch transition detected"
+          description: "XDPoS consensus epoch has changed on {{ $labels.instance }}"
+          action: "Informational - no action required"
+
+      # Penalty issued to validator
+      - alert: XDCPenaltyIssued
+        expr: |
+          xdpos_penalties_active > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Validator penalty issued"
+          description: "{{ $value }} validator(s) currently penalized on {{ $labels.instance }}"
+          action: "Check validator performance and ensure node is online"
+
+      # New governance proposal
+      - alert: XDCProposalNew
+        expr: |
+          xdpos_governance_active_proposals > 0
+        for: 1m
+        labels:
+          severity: info
+        annotations:
+          summary: "New governance proposal available"
+          description: "{{ $value }} active governance proposal(s) on {{ $labels.instance }}"
+          action: "Review proposals and cast vote if eligible"
+
+      # Vote cast (optional, for tracking)
+      - alert: XDCVoteCast
+        expr: |
+          increase(xdpos_governance_votes_total[1h]) > 0
+        for: 0m
+        labels:
+          severity: none
+        annotations:
+          summary: "New vote cast on governance proposal"
+          description: "Votes received in the last hour on {{ $labels.instance }}"
+
+      # Block finality delayed
+      - alert: XDCFinalityDelayed
+        expr: |
+          (
+            xdpos_block_number - xdpos_finalized_block_number
+          ) > 20
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "XDC block finality is delayed"
+          description: "Finality gap is {{ $value }} blocks on {{ $labels.instance }}. Network consensus may be disrupted."
+          action: "Check network connectivity and validator participation"
+
+      # Low validator participation
+      - alert: XDCLowValidatorParticipation
+        expr: |
+          xdpos_validators_active < 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low validator participation"
+          description: "Only {{ $value }} validators active on {{ $labels.instance }}"
+          action: "Check if validators are properly connected and synced"
+
+      # Masternode missed blocks
+      - alert: XDCMasternodeMissedBlocks
+        expr: |
+          increase(xdpos_masternode_missed_blocks[1h]) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Masternode missing blocks"
+          description: "Masternode has missed multiple blocks in the last hour on {{ $labels.instance }}"
+          action: "Check masternode uptime and network connectivity"
+
+      # Masternode slashed
+      - alert: XDCMasternodeSlashed
+        expr: |
+          increase(xdpos_masternode_slashed_total[1h]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Masternode slashed"
+          description: "Masternode has been slashed on {{ $labels.instance }}. Check immediately!"
+          action: "Review slashing reason and take corrective action"
+
+      # Reward below expected
+      - alert: XDCRewardBelowExpected
+        expr: |
+          (
+            xdpos_masternode_rewards_actual / xdpos_masternode_rewards_expected
+          ) < 0.8
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Masternode rewards below expected"
+          description: "Rewards are more than 20% below expected on {{ $labels.instance }}"
+          action: "Check missed blocks and validator performance"
+
+      # Cluster failover detected
+      - alert: XDCClusterFailover
+        expr: |
+          changes(xdpos_cluster_primary[5m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Masternode cluster failover detected"
+          description: "Cluster failover occurred on {{ $labels.instance }}"
+          action: "Verify failover completed successfully, check previous primary"

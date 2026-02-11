@@ -586,6 +586,89 @@ run_continuous() {
 }
 
 #==============================================================================
+# XDPoS Consensus Monitoring
+#==============================================================================
+
+cmd_consensus() {
+    echo -e "${BOLD}━━━ XDPoS Consensus Check ━━━${NC}"
+    echo ""
+    
+    # Run consensus monitor if available
+    if [[ -f "${SCRIPT_DIR}/consensus-monitor.sh" ]]; then
+        bash "${SCRIPT_DIR}/consensus-monitor.sh" --all
+    else
+        # Fallback to basic epoch tracking
+        track_epoch
+        
+        # Check for epoch change alert
+        local state_file="/var/lib/xdc-node/consensus-state.json"
+        if [[ -f "$state_file" ]]; then
+            local prev_epoch
+            prev_epoch=$(jq -r '.epoch // 0' "$state_file" 2>/dev/null || echo "0")
+            local current_block
+            current_block=$(rpc_call "$XDC_RPC_URL" "eth_blockNumber" | jq -r '.result // "0x0"')
+            current_block=$(hex_to_dec "$current_block")
+            local current_epoch=$((current_block / EPOCH_LENGTH))
+            
+            if [[ "$prev_epoch" -ne "$current_epoch" && "$prev_epoch" -ne "0" ]]; then
+                log "✓ Epoch transition detected: $prev_epoch → $current_epoch"
+                if command -v notify_alert &>/dev/null; then
+                    notify_alert "info" "🔄 Epoch Change" \
+                        "XDPoS epoch transition: $prev_epoch → $current_epoch" \
+                        "epoch_change"
+                fi
+            fi
+            
+            echo "{\"epoch\": $current_epoch, \"block\": $current_block, \"timestamp\": $(date +%s)}" > "$state_file"
+        fi
+    fi
+}
+
+#==============================================================================
+# Governance Monitoring
+#==============================================================================
+
+cmd_governance() {
+    echo -e "${BOLD}━━━ XDC Governance Check ━━━${NC}"
+    echo ""
+    
+    # Run governance monitor if available
+    if [[ -f "${SCRIPT_DIR}/governance.sh" ]]; then
+        bash "${SCRIPT_DIR}/governance.sh" proposals
+    else
+        info "Governance tools not available. Install the full XDC Node Setup."
+    fi
+    
+    # Check for new proposals
+    local proposals_file="/var/lib/xdc-node/proposals.json"
+    if [[ -f "$proposals_file" ]]; then
+        local proposal_count
+        proposal_count=$(jq 'length' "$proposals_file" 2>/dev/null || echo "0")
+        
+        if [[ "$proposal_count" -gt 0 ]]; then
+            info "Found $proposal_count active proposal(s)"
+            
+            # Alert on new proposals
+            local state_file="/var/lib/xdc-node/governance-state.json"
+            if [[ -f "$state_file" ]]; then
+                local prev_count
+                prev_count=$(jq -r '.count // 0' "$state_file" 2>/dev/null || echo "0")
+                if [[ "$proposal_count" -gt "$prev_count" ]]; then
+                    local new_proposals=$((proposal_count - prev_count))
+                    if command -v notify_alert &>/dev/null; then
+                        notify_alert "info" "📋 New Proposal" \
+                            "$new_proposals new governance proposal(s) available" \
+                            "proposal_new"
+                    fi
+                fi
+            fi
+            
+            echo "{\"count\": $proposal_count, \"timestamp\": $(date +%s)}" > "$state_file"
+        fi
+    fi
+}
+
+#==============================================================================
 # Help
 #==============================================================================
 
@@ -634,6 +717,8 @@ Description:
     - Transaction pool monitoring
     - Block propagation measurement
     - Peer quality scoring
+    - XDPoS consensus monitoring (--consensus)
+    - Governance monitoring (--governance)
 
 Notifications:
     Critical alerts are sent via configured notification channels.
@@ -674,6 +759,14 @@ main() {
             --report)
                 report_file="${2:-$REPORT_FILE}"
                 shift 2
+                ;;
+            --consensus)
+                cmd_consensus
+                shift
+                ;;
+            --governance)
+                cmd_governance
+                shift
                 ;;
             --masternode-check)
                 command="masternode_check"

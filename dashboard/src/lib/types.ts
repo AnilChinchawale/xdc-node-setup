@@ -153,3 +153,102 @@ export interface ApiKey {
   createdAt: string;
   lastUsed?: string;
 }
+
+// Masternode types
+export interface Reward {
+  id: number;
+  timestamp: string;
+  blockNumber: number;
+  txHash?: string;
+  amount: number;
+  rewardType: string;
+  masternodeAddress?: string;
+}
+
+export interface MissedBlock {
+  id: number;
+  timestamp: string;
+  blockNumber: number;
+  reason: string;
+  masternodeAddress?: string;
+}
+
+export interface SlashingEvent {
+  id: number;
+  timestamp: string;
+  blockNumber: number;
+  txHash?: string;
+  amount: number;
+  reason: string;
+  masternodeAddress?: string;
+}
+
+export interface DailyReward {
+  date: string;
+  rewardCount: number;
+  totalRewards: number;
+  avgReward: number;
+}
+
+export interface ApyHistory {
+  id: number;
+  calculatedAt: string;
+  periodDays: number;
+  totalRewards: number;
+  apyPercent: number;
+  expectedApy: number;
+}
+
+export interface RewardSummary {
+  totalRewards: number;
+  rewardCount: number;
+  avgReward: number;
+  missedCount: number;
+}
+
+export interface ClusterNode {
+  host: string;
+  hostname?: string;
+  ip?: string;
+  role: 'primary' | 'backup';
+  status: 'online' | 'offline' | 'syncing';
+  added?: string;
+  xdcStatus?: string;
+  syncStatus?: string;
+  peers?: number;
+}
+
+export interface ClusterConfig {
+  clusterId: string;
+  nodes: ClusterNode[];
+  primaryNode: string;
+  failoverEnabled: boolean;
+  failoverThreshold: number;
+  lastFailover?: string;
+  leader?: string;
+}
+
+export interface Delegation {
+  id: number;
+  timestamp: string;
+  delegatorAddress: string;
+  amount: number;
+  status: 'active' | 'inactive';
+  endTime?: string;
+}
+
+export interface CompoundSettings {
+  enabled: boolean;
+  threshold: number;
+  lastCompound?: string;
+}
+
+export interface StakeInfo {
+  minStake: number;
+  totalStake: number;
+  totalRewards: number;
+  effectiveApy?: number;
+  expectedApy: number;
+  delegations: Delegation[];
+  compoundSettings: CompoundSettings;
+}

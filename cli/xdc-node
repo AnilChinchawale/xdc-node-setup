@@ -100,12 +100,18 @@ $(c BOLD)USAGE:$(c NC)
 $(c BOLD)XDC-SPECIFIC COMMANDS:$(c NC)
 
     $(c GREEN)masternode$(c NC)  Setup and manage masternode (stake check, keystore, registration)
+    $(c GREEN)rewards$(c NC)     Masternode rewards analytics (history, APY, exports)
+    $(c GREEN)cluster$(c NC)     Multi-node cluster management (failover, health)
+    $(c GREEN)stake$(c NC)       Stake management (delegations, auto-compound, tax)
     $(c GREEN)peers$(c NC)       Optimize peer connections (latency ranking, NAT detection)
     $(c GREEN)snapshot$(c NC)    Manage chain snapshots (download/create/verify)
     $(c GREEN)monitor$(c NC)     XDC-specific monitoring (epoch, rewards, fork detection)
     $(c GREEN)sync$(c NC)        Sync optimization (status, ETA, pruning)
     $(c GREEN)rpc-secure$(c NC)  RPC security hardening (method filtering, rate limits)
     $(c GREEN)network$(c NC)      Network intelligence (peer map, fork readiness, diversity)
+    $(c GREEN)consensus$(c NC)   XDPoS v2 consensus monitoring (epoch, rounds, votes, penalties)
+    $(c GREEN)network-stats$(c NC) Network-wide statistics and validator rankings
+    $(c GREEN)governance$(c NC)  Governance participation (proposals, voting, history)
 
 $(c BOLD)GENERAL COMMANDS:$(c NC)
     $(c GREEN)init$(c NC)          Interactive setup wizard (wraps setup.sh)
@@ -1817,6 +1823,556 @@ cmd_network() {
 }
 
 #==============================================================================
+# XDPoS v2 Deep Integration Commands
+#==============================================================================
+
+cmd_consensus() {
+    local action="all"
+    local args=""
+    local watch_mode=false
+    local watch_interval=5
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            epoch|rounds|votes|finality|rotation|penalties|all)
+                action="$1"
+                shift
+                ;;
+            --watch)
+                watch_mode=true
+                if [[ -n "${2:-}" && ! "$2" =~ ^- ]]; then
+                    watch_interval="$2"
+                    shift
+                fi
+                shift
+                ;;
+            --json)
+                args="$args --json"
+                shift
+                ;;
+            --help|-h)
+                cat << EOF
+$(c BOLD)xdc-node consensus$(c NC) — XDPoS Consensus Monitoring
+
+$(c BOLD)USAGE:$(c NC)
+    xdc-node consensus [action] [options]
+
+$(c BOLD)ACTIONS:$(c NC)
+    epoch        Show current epoch information and progress
+    rounds       Show round tracking and timeline
+    votes        Monitor recent vote counts per block
+    finality     Show block finality status
+    rotation     Display masternode rotation schedule
+    penalties    Show active penalties and slashing events
+    all          Run all consensus checks (default)
+
+$(c BOLD)OPTIONS:$(c NC)
+    --watch [N]  Continuous monitoring mode (default: 5s interval)
+    --json       Output in JSON format
+    --help       Show this help
+
+$(c BOLD)EXAMPLES:$(c NC)
+    xdc-node consensus              # Show all consensus info
+    xdc-node consensus epoch        # Show epoch info only
+    xdc-node consensus --watch 10   # Watch mode with 10s updates
+    xdc-node consensus all --json   # JSON output
+
+$(c BOLD)DESCRIPTION:$(c NC)
+    Monitor XDPoS v2 consensus in real-time:
+    - Track epochs (900 blocks, ~30 minutes)
+    - Monitor rounds within epoch
+    - View vote counts for recent blocks
+    - Check block finality
+    - See masternode rotation schedule
+    - Track penalties and slashing events
+
+EOF
+                return 0
+                ;;
+            *) shift ;;
+        esac
+    done
+    
+    if [[ "$watch_mode" == "true" ]]; then
+        run_script "consensus-monitor.sh" "--watch $watch_interval"
+    else
+        run_script "consensus-monitor.sh" "--$action $args"
+    fi
+}
+
+cmd_network_stats() {
+    local action="all"
+    local args=""
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            rankings|aggregate|reputation|geo|clients)
+                action="$1"
+                shift
+                ;;
+            --json)
+                args="$args --json"
+                shift
+                ;;
+            --help|-h)
+                cat << EOF
+$(c BOLD)xdc-node network-stats$(c NC) — Network-wide Statistics and Rankings
+
+$(c BOLD)USAGE:$(c NC)
+    xdc-node network-stats [action] [options]
+
+$(c BOLD)ACTIONS:$(c NC)
+    rankings     Show validator rankings by performance
+    aggregate    Show network-wide aggregated statistics
+    reputation   Show peer reputation scores
+    geo          Show geographic distribution of validators
+    clients      Show client diversity statistics
+    all          Run all network stats (default)
+
+$(c BOLD)OPTIONS:$(c NC)
+    --json       Output in JSON format
+    --help       Show this help
+
+$(c BOLD)EXAMPLES:$(c NC)
+    xdc-node network-stats              # Show all network stats
+    xdc-node network-stats rankings     # Show validator rankings only
+    xdc-node network-stats --json       # JSON output
+
+$(c BOLD)DESCRIPTION:$(c NC)
+    Network participation and statistics tools:
+    - Validator rankings by blocks signed, uptime, rewards
+    - Network aggregation (total validators, performance)
+    - Peer reputation scoring by reliability and latency
+    - Geographic diversity analysis
+    - Client diversity statistics
+
+EOF
+                return 0
+                ;;
+            *) shift ;;
+        esac
+    done
+    
+    run_script "network-stats.sh" "--$action $args"
+}
+
+cmd_governance() {
+    local action=""
+    local proposal_id=""
+    local vote_choice=""
+    local voter_address=""
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            proposals|vote|impact|history)
+                action="$1"
+                shift
+                ;;
+            --id)
+                proposal_id="$2"
+                shift 2
+                ;;
+            --vote)
+                vote_choice="$2"
+                shift 2
+                ;;
+            --address)
+                voter_address="$2"
+                shift 2
+                ;;
+            --help|-h)
+                cat << EOF
+$(c BOLD)xdc-node governance$(c NC) — XDC Governance Participation
+
+$(c BOLD)USAGE:$(c NC)
+    xdc-node governance proposals                    List active proposals
+    xdc-node governance vote --id ID --vote yes|no [--address ADDR]
+    xdc-node governance impact --id ID               Analyze proposal impact
+    xdc-node governance history                      Show voting history
+
+$(c BOLD)OPTIONS:$(c NC)
+    --id ID         Proposal ID
+    --vote CHOICE   Vote choice (yes/no)
+    --address ADDR  Voter address (optional, uses coinbase if not set)
+    --help          Show this help
+
+$(c BOLD)EXAMPLES:$(c NC)
+    xdc-node governance proposals                    # List proposals
+    xdc-node governance vote --id 123 --vote yes     # Cast vote
+    xdc-node governance impact --id 123              # Analyze proposal
+    xdc-node governance history                      # View history
+
+$(c BOLD)DESCRIPTION:$(c NC)
+    Participate in XDC Network governance:
+    - View active governance proposals
+    - Cast votes on proposals (requires masternode)
+    - Analyze proposal impact
+    - Track your voting history
+
+Note: Only masternode owners can participate in governance.
+
+EOF
+                return 0
+                ;;
+            *) shift ;;
+        esac
+    done
+    
+    case "$action" in
+        proposals)
+            run_script "governance.sh" "proposals"
+            ;;
+        vote)
+            if [[ -z "$proposal_id" || -z "$vote_choice" ]]; then
+                error "Usage: xdc-node governance vote --id ID --vote yes|no [--address ADDR]"
+                return 1
+            fi
+            if [[ -n "$voter_address" ]]; then
+                run_script "governance.sh" "vote $proposal_id $vote_choice $voter_address"
+            else
+                run_script "governance.sh" "vote $proposal_id $vote_choice"
+            fi
+            ;;
+        impact)
+            if [[ -z "$proposal_id" ]]; then
+                error "Usage: xdc-node governance impact --id ID"
+                return 1
+            fi
+            run_script "governance.sh" "impact $proposal_id"
+            ;;
+        history)
+            run_script "governance.sh" "history"
+            ;;
+        "")
+            run_script "governance.sh" "proposals"
+            ;;
+        *)
+            error "Unknown action: $action"
+            cmd_governance --help
+            return 1
+            ;;
+    esac
+}
+
+#==============================================================================
+# Advanced Masternode Commands
+#==============================================================================
+
+cmd_rewards() {
+    local action="summary"
+    local days=30
+    local export_format=""
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            summary|history|apy|missed|slashing|compare)
+                action="$1"
+                shift
+                ;;
+            --days|-d)
+                days="$2"
+                shift 2
+                ;;
+            --export)
+                export_format="$2"
+                shift 2
+                ;;
+            --help|-h)
+                cat << EOF
+$(c BOLD)xdc-node rewards$(c NC) — Masternode Rewards Analytics
+
+$(c BOLD)USAGE:$(c NC)
+    xdc-node rewards [action] [options]
+
+$(c BOLD)ACTIONS:$(c NC)
+    summary      Show current period reward summary (default)
+    history      Show reward history
+    apy          Calculate current APY
+    missed       Show missed blocks report
+    slashing     Show slashing events
+    compare      Compare actual vs expected rewards
+
+$(c BOLD)OPTIONS:$(c NC)
+    --days N     Number of days to analyze (default: 30)
+    --export FMT Export data (json, csv, pdf)
+    --help       Show this help
+
+$(c BOLD)EXAMPLES:$(c NC)
+    xdc-node rewards                    # Show summary
+    xdc-node rewards history --days 7   # Last 7 days history
+    xdc-node rewards apy                # Calculate APY
+    xdc-node rewards export csv         # Export to CSV
+
+EOF
+                return 0
+                ;;
+            *) shift ;;
+        esac
+    done
+    
+    local args="--$action"
+    if [[ "$action" == "history" ]]; then
+        args="$args --days $days"
+    fi
+    if [[ -n "$export_format" ]]; then
+        args="$args --export $export_format"
+    fi
+    
+    run_script "masternode-rewards.sh" "$args"
+}
+
+cmd_cluster() {
+    local action="status"
+    local node=""
+    local cluster_id=""
+    local force=false
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            init|status|health|failover|sync-keys|leader|config|add-node|remove-node|promote|demote)
+                action="$1"
+                shift
+                ;;
+            --cluster-id)
+                cluster_id="$2"
+                shift 2
+                ;;
+            --node)
+                node="$2"
+                shift 2
+                ;;
+            --force)
+                force=true
+                shift
+                ;;
+            --help|-h)
+                cat << EOF
+$(c BOLD)xdc-node cluster$(c NC) — Masternode Cluster Management
+
+$(c BOLD)USAGE:$(c NC)
+    xdc-node cluster [action] [options]
+
+$(c BOLD)ACTIONS:$(c NC)
+    init         Initialize cluster configuration
+    status       Show cluster status (default)
+    health       Check health of all nodes
+    failover     Perform manual failover
+    sync-keys    Sync keys to all nodes
+    leader       Show current leader
+    config       Show cluster configuration
+    add-node     Add a backup node
+    remove-node  Remove a node from cluster
+    promote      Promote node to primary
+    demote       Demote node to backup
+
+$(c BOLD)OPTIONS:$(c NC)
+    --cluster-id ID   Set cluster ID
+    --node HOST       Target node for operation
+    --force           Force operation without confirmation
+    --help            Show this help
+
+$(c BOLD)EXAMPLES:$(c NC)
+    xdc-node cluster init --cluster-id xdc-mn-001
+    xdc-node cluster status
+    xdc-node cluster add-node 192.168.1.100
+    xdc-node cluster failover --node 192.168.1.101
+
+EOF
+                return 0
+                ;;
+            *) 
+                # Handle positional arguments
+                if [[ -z "$node" && ! "$1" =~ ^-- ]]; then
+                    node="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    local args=""
+    case "$action" in
+        init)
+            args="init"
+            if [[ -n "$cluster_id" ]]; then
+                args="$args --cluster-id $cluster_id"
+            fi
+            ;;
+        add-node|remove-node|promote|demote)
+            if [[ -z "$node" ]]; then
+                error "Node address required. Usage: xdc-node cluster $action <host>"
+                return 1
+            fi
+            args="$action $node"
+            if [[ "$force" == "true" ]]; then
+                args="$args --force"
+            fi
+            ;;
+        failover)
+            args="failover"
+            if [[ -n "$node" ]]; then
+                args="$args $node"
+            fi
+            if [[ "$force" == "true" ]]; then
+                args="$args --force"
+            fi
+            ;;
+        *)
+            args="$action"
+            ;;
+    esac
+    
+    run_script "masternode-cluster.sh" "$args"
+}
+
+cmd_stake() {
+    local action="info"
+    local address=""
+    local amount=""
+    local enabled=""
+    local threshold=""
+    local year="$(date +%Y)"
+    local days="30"
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            info|delegations|compound|compound-status|compound-now|withdraw-plan|tax-report|cost-basis|estimate-rewards|add-delegation|remove-delegation)
+                action="$1"
+                shift
+                ;;
+            --address|-a)
+                address="$2"
+                shift 2
+                ;;
+            --amount)
+                amount="$2"
+                shift 2
+                ;;
+            --enable)
+                enabled="on"
+                shift
+                ;;
+            --disable)
+                enabled="off"
+                shift
+                ;;
+            --threshold)
+                threshold="$2"
+                shift 2
+                ;;
+            --year)
+                year="$2"
+                shift 2
+                ;;
+            --days)
+                days="$2"
+                shift 2
+                ;;
+            --help|-h)
+                cat << EOF
+$(c BOLD)xdc-node stake$(c NC) — Stake Management Tools
+
+$(c BOLD)USAGE:$(c NC)
+    xdc-node stake [action] [options]
+
+$(c BOLD)ACTIONS:$(c NC)
+    info              Show stake information (default)
+    delegations       List all delegations
+    compound          Enable auto-compound
+    compound-status   Show auto-compound status
+    compound-now      Trigger compound immediately
+    withdraw-plan     Show optimal withdrawal strategy
+    tax-report        Generate tax report
+    cost-basis        Calculate cost basis
+    estimate-rewards  Estimate future rewards
+    add-delegation    Add new delegation
+    remove-delegation Remove delegation
+
+$(c BOLD)OPTIONS:$(c NC)
+    --address ADDR    Masternode/delegator address
+    --amount AMT      Stake amount in XDC
+    --enable          Enable auto-compound
+    --disable         Disable auto-compound
+    --threshold AMT   Auto-compound threshold
+    --year YYYY       Tax year (default: current)
+    --days N          Days for estimation
+    --help            Show this help
+
+$(c BOLD)EXAMPLES:$(c NC)
+    xdc-node stake                              # Show stake info
+    xdc-node stake compound --enable            # Enable auto-compound
+    xdc-node stake compound --disable           # Disable auto-compound
+    xdc-node stake tax-report --year 2025       # Generate 2025 tax report
+    xdc-node stake estimate-rewards --days 90   # Estimate 90-day rewards
+
+EOF
+                return 0
+                ;;
+            *) shift ;;
+        esac
+    done
+    
+    local args=""
+    case "$action" in
+        info)
+            args="--stake-info"
+            ;;
+        delegations)
+            args="--delegations"
+            if [[ -n "$address" ]]; then
+                args="$args --address $address"
+            fi
+            ;;
+        compound)
+            if [[ -z "$enabled" ]]; then
+                enabled="on"
+            fi
+            args="--compound $enabled"
+            if [[ -n "$threshold" ]]; then
+                args="$args --threshold $threshold"
+            fi
+            ;;
+        compound-status)
+            args="--compound-status"
+            ;;
+        compound-now)
+            args="--compound-now"
+            ;;
+        withdraw-plan)
+            args="--withdraw-plan"
+            ;;
+        tax-report)
+            args="--tax-report $year"
+            ;;
+        cost-basis)
+            args="--cost-basis"
+            ;;
+        estimate-rewards)
+            args="--estimate-rewards $days"
+            ;;
+        add-delegation)
+            if [[ -z "$address" ]]; then
+                error "Address required. Usage: xdc-node stake add-delegation --address ADDR [--amount AMT]"
+                return 1
+            fi
+            args="--add-delegation $address"
+            if [[ -n "$amount" ]]; then
+                args="$args --amount $amount"
+            fi
+            ;;
+        remove-delegation)
+            if [[ -z "$address" ]]; then
+                error "Address required. Usage: xdc-node stake remove-delegation --address ADDR"
+                return 1
+            fi
+            args="--remove-delegation $address"
+            ;;
+    esac
+    
+    run_script "stake-manager.sh" "$args"
+}
+
+#==============================================================================
 # Main Entry Point
 #==============================================================================
 main() {
@@ -1847,13 +2403,21 @@ main() {
     
     case "$command" in
         # XDC-specific commands
-        masternode) cmd_masternode "$@" ;;
-        peers)      cmd_peers "$@" ;;
-        snapshot)   cmd_snapshot "$@" ;;
-        monitor)    cmd_monitor "$@" ;;
-        sync)       cmd_sync "$@" ;;
-        rpc-secure) cmd_rpc_secure "$@" ;;
-        network)    cmd_network "$@" ;;
+        masternode)   cmd_masternode "$@" ;;
+        peers)        cmd_peers "$@" ;;
+        snapshot)     cmd_snapshot "$@" ;;
+        monitor)      cmd_monitor "$@" ;;
+        sync)         cmd_sync "$@" ;;
+        rpc-secure)   cmd_rpc_secure "$@" ;;
+        network)      cmd_network "$@" ;;
+        consensus)    cmd_consensus "$@" ;;
+        network-stats) cmd_network_stats "$@" ;;
+        governance)   cmd_governance "$@" ;;
+        
+        # Advanced masternode commands
+        rewards)      cmd_rewards "$@" ;;
+        cluster)      cmd_cluster "$@" ;;
+        stake)        cmd_stake "$@" ;;
         
         # General commands
         init)       cmd_init "$@" ;;
