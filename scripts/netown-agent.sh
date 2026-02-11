@@ -1,0 +1,511 @@
+#!/usr/bin/env bash
+#==============================================================================
+# XDCNetOwn Agent — Auto-register + push heartbeats to XDCNetOwn Platform
+# 
+# Usage:
+#   ./netown-agent.sh                    # Run once (heartbeat)
+#   ./netown-agent.sh --register         # Force re-registration
+#   ./netown-agent.sh --daemon           # Run as daemon (every 30s)
+#   ./netown-agent.sh --install          # Install as systemd service + cron
+#
+# Config: /etc/xdc-node/netown.conf
+# State:  /var/lib/xdc-node/netown.json
+#==============================================================================
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+#==============================================================================
+# Configuration
+#==============================================================================
+CONF_FILE="${NETOWN_CONF:-/etc/xdc-node/netown.conf}"
+STATE_FILE="${NETOWN_STATE:-/var/lib/xdc-node/netown.json}"
+RPC_URL="${XDC_RPC_URL:-http://127.0.0.1:8545}"
+NETOWN_API="${NETOWN_API_URL:-https://net.xdc.network/api/v1}"
+NETOWN_API_KEY="${NETOWN_API_KEY:-}"
+NODE_NAME="${NODE_NAME:-$(hostname)}"
+NODE_ROLE="${NODE_ROLE:-fullnode}"
+HEARTBEAT_INTERVAL=30
+
+# Load config file if exists
+if [[ -f "$CONF_FILE" ]]; then
+    # shellcheck source=/dev/null
+    source "$CONF_FILE"
+fi
+
+# State
+NODE_ID=""
+NODE_API_KEY=""
+
+#==============================================================================
+# Helpers
+#==============================================================================
+log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"; }
+warn() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARN: $1" >&2; }
+err()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $1" >&2; }
+
+hex_to_dec() {
+    local hex="${1#0x}"
+    printf '%d' "0x${hex}" 2>/dev/null || echo "0"
+}
+
+rpc_call() {
+    local method=$1
+    local params=${2:-"[]"}
+    curl -s -m 10 -X POST "$RPC_URL" \
+        -H "Content-Type: application/json" \
+        -d "{\"jsonrpc\":\"2.0\",\"method\":\"$method\",\"params\":$params,\"id\":1}" 2>/dev/null || echo '{}'
+}
+
+api_call() {
+    local method=$1
+    local endpoint=$2
+    local data=${3:-}
+    local auth_key="${NODE_API_KEY:-$NETOWN_API_KEY}"
+    
+    local args=(-s -m 15 -X "$method" "${NETOWN_API}${endpoint}" -H "Content-Type: application/json")
+    [[ -n "$auth_key" ]] && args+=(-H "Authorization: Bearer ${auth_key}")
+    [[ -n "$data" ]] && args+=(-d "$data")
+    
+    curl "${args[@]}" 2>/dev/null || echo '{"error":"connection_failed"}'
+}
+
+#==============================================================================
+# State Management
+#==============================================================================
+load_state() {
+    if [[ -f "$STATE_FILE" ]]; then
+        NODE_ID=$(jq -r '.nodeId // ""' "$STATE_FILE" 2>/dev/null || echo "")
+        NODE_API_KEY=$(jq -r '.apiKey // ""' "$STATE_FILE" 2>/dev/null || echo "")
+    fi
+}
+
+save_state() {
+    mkdir -p "$(dirname "$STATE_FILE")"
+    cat > "$STATE_FILE" <<EOF
+{
+    "nodeId": "$NODE_ID",
+    "apiKey": "$NODE_API_KEY",
+    "nodeName": "$NODE_NAME",
+    "registeredAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+    "rpcUrl": "$RPC_URL",
+    "apiUrl": "$NETOWN_API"
+}
+EOF
+    chmod 600 "$STATE_FILE"
+}
+
+#==============================================================================
+# Auto-Detection
+#==============================================================================
+detect_node_info() {
+    # Detect location via ip-api.com (free, no key needed)
+    local geo
+    geo=$(curl -s -m 5 "http://ip-api.com/json/?fields=city,countryCode,lat,lon,isp" 2>/dev/null || echo '{}')
+    
+    DETECT_CITY=$(echo "$geo" | jq -r '.city // "Unknown"')
+    DETECT_COUNTRY=$(echo "$geo" | jq -r '.countryCode // "XX"')
+    DETECT_LAT=$(echo "$geo" | jq -r '.lat // 0')
+    DETECT_LNG=$(echo "$geo" | jq -r '.lon // 0')
+    DETECT_ISP=$(echo "$geo" | jq -r '.isp // "Unknown"')
+    
+    # Detect client version
+    local node_info
+    node_info=$(rpc_call "admin_nodeInfo")
+    DETECT_VERSION=$(echo "$node_info" | jq -r '.result.name // "Unknown"')
+    DETECT_ENODE=$(echo "$node_info" | jq -r '.result.enode // ""')
+    
+    # Detect if masternode
+    local coinbase
+    coinbase=$(rpc_call "eth_coinbase" | jq -r '.result // "0x0"')
+    DETECT_COINBASE="$coinbase"
+    DETECT_IS_MASTERNODE=false
+    if [[ "$coinbase" != "0x0" && "$coinbase" != "0x0000000000000000000000000000000000000000" && "$coinbase" != "null" ]]; then
+        # Check if this address is a masternode
+        local mn_check
+        mn_check=$(rpc_call "XDPoS_getMasternodesByNumber" '["latest"]')
+        if echo "$mn_check" | jq -r '.result[]?' 2>/dev/null | grep -qi "${coinbase#0x}"; then
+            DETECT_IS_MASTERNODE=true
+            NODE_ROLE="masternode"
+        fi
+    fi
+    
+    # Detect Docker or native
+    DETECT_RUNTIME="native"
+    if [[ -f /.dockerenv ]] || grep -q docker /proc/1/cgroup 2>/dev/null; then
+        DETECT_RUNTIME="docker"
+    elif docker ps --format '{{.Names}}' 2>/dev/null | grep -qi xdc; then
+        DETECT_RUNTIME="docker-host"
+    fi
+}
+
+#==============================================================================
+# Registration
+#==============================================================================
+register_node() {
+    log "Registering node '$NODE_NAME' with XDCNetOwn..."
+    
+    detect_node_info
+    
+    local host
+    host=$(curl -s -m 5 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
+    
+    local payload
+    payload=$(cat <<EOF
+{
+    "name": "$NODE_NAME",
+    "host": "$host",
+    "role": "$NODE_ROLE",
+    "rpcUrl": "$RPC_URL",
+    "location": {
+        "city": "$DETECT_CITY",
+        "country": "$DETECT_COUNTRY",
+        "lat": $DETECT_LAT,
+        "lng": $DETECT_LNG
+    },
+    "tags": ["$DETECT_RUNTIME", "auto-registered"],
+    "version": "$DETECT_VERSION"
+}
+EOF
+)
+    
+    local response
+    response=$(api_call POST "/nodes/register" "$payload")
+    
+    if echo "$response" | jq -e '.nodeId' >/dev/null 2>&1; then
+        NODE_ID=$(echo "$response" | jq -r '.nodeId')
+        NODE_API_KEY=$(echo "$response" | jq -r '.apiKey')
+        save_state
+        log "✅ Registered! nodeId=$NODE_ID"
+        return 0
+    else
+        local error_msg
+        error_msg=$(echo "$response" | jq -r '.error // "Unknown error"')
+        err "Registration failed: $error_msg"
+        
+        # If node already exists, try to get existing ID
+        if [[ "$error_msg" == *"already exists"* || "$error_msg" == *"duplicate"* ]]; then
+            warn "Node may already be registered. Use --register to force re-registration."
+        fi
+        return 1
+    fi
+}
+
+#==============================================================================
+# Collect Metrics
+#==============================================================================
+collect_metrics() {
+    # Block height
+    local block_hex
+    block_hex=$(rpc_call "eth_blockNumber" | jq -r '.result // "0x0"')
+    local block_height
+    block_height=$(hex_to_dec "$block_hex")
+    
+    # Sync status
+    local sync_resp
+    sync_resp=$(rpc_call "eth_syncing")
+    local is_syncing=false
+    local sync_progress=""
+    if [[ "$(echo "$sync_resp" | jq -r '.result')" != "false" ]]; then
+        is_syncing=true
+        local current_block highest_block
+        current_block=$(hex_to_dec "$(echo "$sync_resp" | jq -r '.result.currentBlock // "0x0"')")
+        highest_block=$(hex_to_dec "$(echo "$sync_resp" | jq -r '.result.highestBlock // "0x0"')")
+        if [[ "$highest_block" -gt 0 ]]; then
+            sync_progress=$(awk "BEGIN {printf \"%.2f\", ($current_block / $highest_block) * 100}")
+        fi
+    fi
+    
+    # Peers
+    local peers_resp
+    peers_resp=$(rpc_call "admin_peers")
+    local peer_count
+    peer_count=$(echo "$peers_resp" | jq -r '.result | length // 0' 2>/dev/null || echo "0")
+    
+    # Build peers array
+    local peers_json="[]"
+    if [[ "$peer_count" -gt 0 ]]; then
+        peers_json=$(echo "$peers_resp" | jq '[.result[]? | {
+            enode: .enode,
+            name: .name,
+            remoteAddress: .network.remoteAddress,
+            protocols: (.protocols | keys),
+            direction: (if .network.inbound then "inbound" else "outbound" end)
+        }]' 2>/dev/null || echo "[]")
+    fi
+    
+    # TX Pool
+    local txpool_resp
+    txpool_resp=$(rpc_call "txpool_status")
+    local tx_pending tx_queued
+    tx_pending=$(hex_to_dec "$(echo "$txpool_resp" | jq -r '.result.pending // "0x0"')" 2>/dev/null || echo "0")
+    tx_queued=$(hex_to_dec "$(echo "$txpool_resp" | jq -r '.result.queued // "0x0"')" 2>/dev/null || echo "0")
+    
+    # Gas price
+    local gas_resp
+    gas_resp=$(rpc_call "eth_gasPrice")
+    local gas_price
+    gas_price=$(echo "$gas_resp" | jq -r '.result // "0x0"')
+    
+    # Coinbase
+    local coinbase
+    coinbase=$(rpc_call "eth_coinbase" | jq -r '.result // "0x0"')
+    
+    # Client version
+    local node_info
+    node_info=$(rpc_call "admin_nodeInfo")
+    local client_version
+    client_version=$(echo "$node_info" | jq -r '.result.name // "Unknown"')
+    
+    # Masternode check
+    local is_masternode=false
+    if [[ "$coinbase" != "0x0" && "$coinbase" != "0x0000000000000000000000000000000000000000" ]]; then
+        local mn_check
+        mn_check=$(rpc_call "XDPoS_getMasternodesByNumber" '["latest"]')
+        if echo "$mn_check" | jq -r '.result[]?' 2>/dev/null | grep -qi "${coinbase#0x}"; then
+            is_masternode=true
+        fi
+    fi
+    
+    # System resources
+    local cpu_percent mem_percent disk_percent disk_used disk_total
+    cpu_percent=$(top -bn1 2>/dev/null | grep "Cpu(s)" | awk '{print 100 - $8}' || echo "0")
+    mem_percent=$(free 2>/dev/null | awk '/Mem:/ {printf "%.1f", $3/$2*100}' || echo "0")
+    disk_percent=$(df -h / 2>/dev/null | awk 'NR==2 {gsub(/%/,""); print $5}' || echo "0")
+    disk_used=$(df -BG / 2>/dev/null | awk 'NR==2 {gsub(/G/,""); print $3}' || echo "0")
+    disk_total=$(df -BG / 2>/dev/null | awk 'NR==2 {gsub(/G/,""); print $2}' || echo "0")
+    
+    # RPC latency
+    local rpc_start rpc_end rpc_latency
+    rpc_start=$(date +%s%N)
+    rpc_call "eth_blockNumber" >/dev/null
+    rpc_end=$(date +%s%N)
+    rpc_latency=$(( (rpc_end - rpc_start) / 1000000 ))
+    
+    # Build heartbeat payload
+    cat <<EOF
+{
+    "nodeId": "$NODE_ID",
+    "blockHeight": $block_height,
+    "syncing": $is_syncing,
+    $([ -n "$sync_progress" ] && echo "\"syncProgress\": $sync_progress," || true)
+    "peerCount": $peer_count,
+    "peers": $peers_json,
+    "txPool": {"pending": $tx_pending, "queued": $tx_queued},
+    "gasPrice": "$gas_price",
+    "coinbase": "$coinbase",
+    "clientVersion": "$client_version",
+    "isMasternode": $is_masternode,
+    "system": {
+        "cpuPercent": $cpu_percent,
+        "memoryPercent": $mem_percent,
+        "diskPercent": $disk_percent,
+        "diskUsedGb": $disk_used,
+        "diskTotalGb": $disk_total
+    },
+    "rpcLatencyMs": $rpc_latency,
+    "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+EOF
+}
+
+#==============================================================================
+# Push Heartbeat
+#==============================================================================
+push_heartbeat() {
+    local payload
+    payload=$(collect_metrics)
+    
+    local response
+    response=$(api_call POST "/nodes/heartbeat" "$payload")
+    
+    if echo "$response" | jq -e '.ok' >/dev/null 2>&1; then
+        local commands
+        commands=$(echo "$response" | jq -r '.commands[]?' 2>/dev/null)
+        if [[ -n "$commands" ]]; then
+            log "📋 Received commands: $commands"
+            execute_commands "$commands"
+        fi
+        return 0
+    else
+        local error_msg
+        error_msg=$(echo "$response" | jq -r '.error // "Unknown error"')
+        err "Heartbeat failed: $error_msg"
+        
+        # If node not found, re-register
+        if [[ "$error_msg" == *"not found"* || "$error_msg" == *"NOT_FOUND"* ]]; then
+            warn "Node not found, re-registering..."
+            register_node && push_heartbeat
+        fi
+        return 1
+    fi
+}
+
+#==============================================================================
+# Execute Remote Commands
+#==============================================================================
+execute_commands() {
+    local commands="$1"
+    while IFS= read -r cmd; do
+        case "$cmd" in
+            restart)
+                log "🔄 Executing restart..."
+                if docker ps --format '{{.Names}}' 2>/dev/null | grep -qi xdc; then
+                    docker restart "$(docker ps --format '{{.Names}}' | grep -i xdc | head -1)" &
+                else
+                    systemctl restart xdc-node 2>/dev/null || true
+                fi
+                ;;
+            update)
+                log "📦 Executing update..."
+                if [[ -x "${SCRIPT_DIR}/version-check.sh" ]]; then
+                    "${SCRIPT_DIR}/version-check.sh" --auto-update &
+                fi
+                ;;
+            add_peers)
+                log "🔗 Adding peers..."
+                # Would call admin_addPeer via RPC
+                ;;
+            *)
+                warn "Unknown command: $cmd"
+                ;;
+        esac
+    done <<< "$commands"
+}
+
+#==============================================================================
+# Daemon Mode
+#==============================================================================
+run_daemon() {
+    log "🚀 Starting XDCNetOwn agent daemon (interval: ${HEARTBEAT_INTERVAL}s)"
+    
+    # Ensure registered
+    load_state
+    if [[ -z "$NODE_ID" ]]; then
+        register_node || { err "Failed to register. Exiting."; exit 1; }
+    fi
+    
+    while true; do
+        push_heartbeat && log "💓 Heartbeat sent (node=$NODE_ID)" || warn "Heartbeat failed"
+        sleep "$HEARTBEAT_INTERVAL"
+    done
+}
+
+#==============================================================================
+# Install as Service
+#==============================================================================
+install_service() {
+    log "📦 Installing XDCNetOwn agent..."
+    
+    # Create config directory
+    mkdir -p /etc/xdc-node /var/lib/xdc-node
+    
+    # Create config if not exists
+    if [[ ! -f "$CONF_FILE" ]]; then
+        cat > "$CONF_FILE" <<EOF
+# XDCNetOwn Agent Configuration
+NETOWN_API_URL=${NETOWN_API}
+NETOWN_API_KEY=${NETOWN_API_KEY}
+XDC_RPC_URL=${RPC_URL}
+NODE_NAME=${NODE_NAME}
+NODE_ROLE=${NODE_ROLE}
+HEARTBEAT_INTERVAL=30
+EOF
+        chmod 600 "$CONF_FILE"
+        log "Created config at $CONF_FILE"
+    fi
+    
+    # Create systemd service
+    cat > /etc/systemd/system/xdc-netown-agent.service <<EOF
+[Unit]
+Description=XDCNetOwn Monitoring Agent
+After=network.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=${SCRIPT_DIR}/netown-agent.sh --daemon
+Restart=always
+RestartSec=10
+EnvironmentFile=-/etc/xdc-node/netown.conf
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    
+    systemctl daemon-reload
+    systemctl enable xdc-netown-agent
+    systemctl start xdc-netown-agent
+    
+    log "✅ Agent installed and started as systemd service"
+    log "   Config: $CONF_FILE"
+    log "   State:  $STATE_FILE"
+    log "   Service: systemctl status xdc-netown-agent"
+}
+
+#==============================================================================
+# Main
+#==============================================================================
+main() {
+    local action="${1:-heartbeat}"
+    
+    case "$action" in
+        --register|-r)
+            load_state
+            register_node
+            ;;
+        --daemon|-d)
+            run_daemon
+            ;;
+        --install|-i)
+            load_state
+            if [[ -z "$NODE_ID" ]]; then
+                register_node || { err "Registration failed"; exit 1; }
+            fi
+            install_service
+            ;;
+        --status|-s)
+            load_state
+            if [[ -n "$NODE_ID" ]]; then
+                echo "Node ID:  $NODE_ID"
+                echo "API URL:  $NETOWN_API"
+                echo "RPC URL:  $RPC_URL"
+                echo "State:    $STATE_FILE"
+                api_call GET "/nodes/${NODE_ID}/status" | jq .
+            else
+                echo "Not registered. Run: $0 --register"
+            fi
+            ;;
+        --heartbeat|heartbeat|"")
+            load_state
+            if [[ -z "$NODE_ID" ]]; then
+                log "Not registered yet, auto-registering..."
+                register_node || { err "Registration failed"; exit 1; }
+            fi
+            push_heartbeat && log "✅ Heartbeat sent" || err "Heartbeat failed"
+            ;;
+        --help|-h)
+            echo "XDCNetOwn Agent — Monitor your XDC node"
+            echo ""
+            echo "Usage: $0 [option]"
+            echo ""
+            echo "Options:"
+            echo "  (none)       Send a heartbeat (auto-registers if needed)"
+            echo "  --register   Force re-registration with XDCNetOwn"
+            echo "  --daemon     Run as daemon (heartbeat every ${HEARTBEAT_INTERVAL}s)"
+            echo "  --install    Install as systemd service"
+            echo "  --status     Show registration status"
+            echo "  --help       Show this help"
+            echo ""
+            echo "Config: $CONF_FILE"
+            echo "API:    $NETOWN_API"
+            ;;
+        *)
+            err "Unknown option: $action"
+            echo "Run '$0 --help' for usage"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
