@@ -133,14 +133,14 @@ if echo "$ENABLE_RPC" | grep -iq "true"; then
             --ws.origins "$WS_ORIGINS"
         )
     elif [ "$RPC_STYLE" = "dash" ]; then
-        # XDC v2.6.x style flags (--http-addr with dashes)
+        # XDC v2.6.x supports both --http-addr and --rpcaddr; use legacy --rpc* per reference
         args+=(
-            --http
-            --http-addr "$RPC_ADDR"
-            --http-port "$RPC_PORT"
-            --http-api "$RPC_API"
-            --http-corsdomain "$RPC_CORS_DOMAIN"
-            --http-vhosts "$RPC_VHOSTS"
+            --rpc
+            --rpcaddr "$RPC_ADDR"
+            --rpcport "$RPC_PORT"
+            --rpcapi "$RPC_API"
+            --rpccorsdomain "$RPC_CORS_DOMAIN"
+            --rpcvhosts "$RPC_VHOSTS"
             --store-reward
             --ws
             --wsaddr "$WS_ADDR"
