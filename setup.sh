@@ -948,21 +948,38 @@ setup_security() {
     
     log "Applying security hardening..."
     
-    # UFW Firewall
+    # UFW Firewall — only add rules that don't already exist
     if command -v ufw &> /dev/null; then
-        ufw default deny incoming
-        ufw default allow outgoing
-        ufw allow 22/tcp comment 'SSH'
-        ufw allow ${RPC_PORT}/tcp comment 'XDC RPC'
-        ufw allow ${P2P_PORT}/tcp comment 'XDC P2P'
-        ufw allow ${P2P_PORT}/udp comment 'XDC P2P UDP'
+        ufw default deny incoming 2>/dev/null || true
+        ufw default allow outgoing 2>/dev/null || true
+        
+        # Helper: add rule only if not already present
+        ufw_allow_if_missing() {
+            local rule="$1"
+            local comment="${2:-}"
+            if ! ufw status | grep -q "$rule"; then
+                if [[ -n "$comment" ]]; then
+                    ufw allow "$rule" comment "$comment" 2>/dev/null || true
+                else
+                    ufw allow "$rule" 2>/dev/null || true
+                fi
+                info "Added firewall rule: $rule"
+            else
+                info "Firewall rule already exists: $rule (skipped)"
+            fi
+        }
+        
+        ufw_allow_if_missing "22/tcp" "SSH"
+        ufw_allow_if_missing "${RPC_PORT}/tcp" "XDC RPC"
+        ufw_allow_if_missing "${P2P_PORT}/tcp" "XDC P2P"
+        ufw_allow_if_missing "${P2P_PORT}/udp" "XDC P2P UDP"
         
         if [[ "$ENABLE_MONITORING" == "true" ]]; then
-            ufw allow 3000/tcp comment 'Grafana'
-            ufw allow 9090/tcp comment 'Prometheus (local only recommended)'
+            ufw_allow_if_missing "3000/tcp" "Grafana"
+            ufw_allow_if_missing "9090/tcp" "Prometheus"
         fi
         
-        ufw --force enable
+        ufw --force enable 2>/dev/null || true
         log "UFW firewall configured"
     fi
     
@@ -1080,9 +1097,26 @@ start_services() {
     docker compose pull &
     run_with_spinner "Pulling XDC Docker image..." wait $! || true
     
-    # Start services
+    # Check for conflicting container names and remove them
+    for svc in xdc-node xdc-prometheus xdc-grafana xdc-node-exporter xdc-monitoring; do
+        if docker ps -a --format '{{.Names}}' | grep -q "^${svc}$"; then
+            local svc_id
+            svc_id=$(docker ps -aq -f name="^${svc}$")
+            # Only remove if it belongs to a different compose project
+            local svc_project
+            svc_project=$(docker inspect "$svc_id" --format '{{index .Config.Labels "com.docker.compose.project"}}' 2>/dev/null || echo "")
+            local our_project
+            our_project=$(basename "$PWD" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g')
+            if [[ -n "$svc_project" && "$svc_project" != "$our_project" ]]; then
+                warn "Removing conflicting container '$svc' from project '$svc_project'"
+                docker rm -f "$svc_id" 2>/dev/null || true
+            fi
+        fi
+    done
+    
+    # Start services (remove orphans from other projects sharing this dir)
     info "Starting containers..."
-    docker compose up -d
+    docker compose up -d --remove-orphans
     
     # Wait for startup
     sleep 5
