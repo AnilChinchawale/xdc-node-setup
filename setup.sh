@@ -712,38 +712,40 @@ setup_docker_compose() {
             case "$f" in
                 start-node.sh)
                     warn "Generating start-node.sh from inline template..."
-                    cat > "$network_dir/start-node.sh" << 'STARTEOF'
+                    # Copy the full start-node.sh from bundled docker/mainnet if possible
+                    if [[ -f "$SCRIPT_DIR/docker/mainnet/start-node.sh" ]]; then
+                        cp "$SCRIPT_DIR/docker/mainnet/start-node.sh" "$network_dir/start-node.sh"
+                    else
+                        cat > "$network_dir/start-node.sh" << 'STARTEOF'
 #!/bin/bash
-# Ensure XDC binary is available
-if ! command -v XDC &>/dev/null; then
-    for bin in XDC-mainnet XDC-testnet XDC-devnet; do
-        command -v $bin &>/dev/null && { ln -sf "$(which $bin)" /usr/bin/XDC; break; }
-    done
-fi
-command -v XDC &>/dev/null || { echo "ERROR: No XDC binary found!"; exit 1; }
+set -e
+for bin in XDC XDC-mainnet XDC-testnet XDC-devnet; do
+    command -v "$bin" &>/dev/null && { [ "$bin" != "XDC" ] && ln -sf "$(which "$bin")" /usr/bin/XDC; break; }
+done
+command -v XDC &>/dev/null || { echo "FATAL: No XDC binary"; exit 1; }
+: "${SYNC_MODE:=full}" "${GC_MODE:=full}" "${LOG_LEVEL:=2}" "${RPC_ADDR:=0.0.0.0}" "${RPC_PORT:=8545}"
+: "${RPC_API:=eth,net,web3,XDPoS}" "${WS_ADDR:=0.0.0.0}" "${WS_PORT:=8546}"
 if [ ! -d /work/xdcchain/XDC/chaindata ]; then
-    wallet=$(XDC account new --password /work/.pwd --datadir /work/xdcchain | awk -F '[{}]' '{print $2}')
-    coinbaseaddr="$wallet"
-    echo "$coinbaseaddr" > /work/xdcchain/coinbase.txt
+    wallet=$(XDC account new --password /work/.pwd --datadir /work/xdcchain 2>/dev/null | awk -F '[{}]' '{print $2}')
+    echo "$wallet" > /work/xdcchain/coinbase.txt
     XDC init --datadir /work/xdcchain /work/genesis.json
 else
-    wallet=$(XDC account list --datadir /work/xdcchain | head -n 1 | awk -F '[{}]' '{print $2}')
+    wallet=$(XDC account list --datadir /work/xdcchain 2>/dev/null | head -1 | awk -F '[{}]' '{print $2}')
 fi
-input="/work/bootnodes.list"
-bootnodes=""
-while IFS= read -r line; do
-    [ -z "${bootnodes}" ] && bootnodes=$line || bootnodes="${bootnodes},$line"
-done < "$input"
-netstats="${INSTANCE_NAME:-XDC_Node}:xinfin_xdpos_hybrid_network_stats@stats.xinfin.network:3000"
-XDC --ethstats "${netstats}" --bootnodes "${bootnodes}" \
-    --syncmode "${SYNC_MODE:-full}" --gcmode "${GC_MODE:-full}" \
-    --datadir /work/xdcchain --XDCx.datadir /work/xdcchain/XDCx \
-    --networkid 50 --port 30303 \
-    --rpc --rpcaddr 0.0.0.0 --rpcport 8545 --rpcapi eth,net,web3,XDPoS --rpccorsdomain "*" --rpcvhosts "*" \
-    --unlock "${wallet}" --password /work/.pwd --mine \
-    --gasprice 1 --targetgaslimit 420000000 --verbosity "${LOG_LEVEL:-2}" \
-    "$@" 2>&1 | tee -a /work/xdcchain/xdc.log
+bootnodes=""; [ -f /work/bootnodes.list ] && while IFS= read -r l; do [ -z "$l" ] && continue; [ -z "$bootnodes" ] && bootnodes="$l" || bootnodes="$bootnodes,$l"; done < /work/bootnodes.list
+# Detect flag style
+if XDC --help 2>&1 | grep -q '\-\-http.addr'; then
+    RPC_FLAGS="--http --http.addr $RPC_ADDR --http.port $RPC_PORT --http.api $RPC_API --http.corsdomain * --http.vhosts * --ws --ws.addr $WS_ADDR --ws.port $WS_PORT --ws.origins *"
+else
+    RPC_FLAGS="--rpc --rpcaddr $RPC_ADDR --rpcport $RPC_PORT --rpcapi $RPC_API --rpccorsdomain * --rpcvhosts * --ws --wsaddr $WS_ADDR --wsport $WS_PORT --wsorigins *"
+fi
+exec XDC --datadir /work/xdcchain --networkid 50 --port 30303 --syncmode "$SYNC_MODE" --gcmode "$GC_MODE" \
+    --verbosity "$LOG_LEVEL" --password /work/.pwd --mine --gasprice 1 --targetgaslimit 420000000 \
+    ${wallet:+--unlock "$wallet"} ${bootnodes:+--bootnodes "$bootnodes"} \
+    --ethstats "${INSTANCE_NAME:-XDC_Node}:xinfin_xdpos_hybrid_network_stats@stats.xinfin.network:3000" \
+    --XDCx.datadir /work/xdcchain/XDCx $RPC_FLAGS "$@" 2>&1 | tee -a /work/xdcchain/xdc.log
 STARTEOF
+                    fi
                     chmod +x "$network_dir/start-node.sh"
                     ;;
                 bootnodes.list)
@@ -793,7 +795,15 @@ PRIVATE_KEY=0000000000000000000000000000000000000000000000000000000000000000
 LOG_LEVEL=2
 ENABLE_RPC=true
 ENABLE_WS=true
+RPC_ADDR=0.0.0.0
+RPC_PORT=8545
 RPC_API=eth,net,web3,XDPoS
+RPC_CORS_DOMAIN=*
+RPC_VHOSTS=*
+WS_ADDR=0.0.0.0
+WS_PORT=8546
+WS_API=eth,net,web3,XDPoS
+WS_ORIGINS=*
 ENVEOF
 
     # Create password file (remove if Docker created it as a directory)

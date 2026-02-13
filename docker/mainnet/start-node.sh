@@ -1,111 +1,157 @@
 #!/bin/bash
+set -e
 
 # Ensure XDC binary is available (some images use XDC-mainnet instead of XDC)
 if ! command -v XDC &>/dev/null; then
-    if command -v XDC-mainnet &>/dev/null; then
-        ln -sf "$(which XDC-mainnet)" /usr/local/bin/XDC 2>/dev/null || \
-        ln -sf "$(which XDC-mainnet)" /usr/bin/XDC 2>/dev/null || \
-        alias XDC=XDC-mainnet
-        echo "Linked XDC-mainnet → XDC"
-    elif command -v XDC-testnet &>/dev/null; then
-        ln -sf "$(which XDC-testnet)" /usr/local/bin/XDC 2>/dev/null || true
-    else
-        echo "ERROR: No XDC binary found!" && exit 1
-    fi
+    for bin in XDC-mainnet XDC-testnet XDC-devnet XDC-local; do
+        if command -v "$bin" &>/dev/null; then
+            ln -sf "$(which "$bin")" /usr/bin/XDC
+            echo "Linked $bin → /usr/bin/XDC"
+            break
+        fi
+    done
 fi
+command -v XDC &>/dev/null || { echo "FATAL: No XDC binary found!"; exit 1; }
 
-if [ ! -d /work/xdcchain/XDC/chaindata ]; then
-    wallet=$(XDC account new --password /work/.pwd --datadir /work/xdcchain | awk -F '[{}]' '{print $2}')
-    echo "Initalizing Genesis Block"
-    coinbaseaddr="$wallet"
-    coinbasefile=/work/xdcchain/coinbase.txt
-    touch $coinbasefile
-    if [ -f "$coinbasefile" ]; then
-        echo "$coinbaseaddr" >"$coinbasefile"
+# Detect XDC client version to determine flag style
+# Old XDPoS (v2.x): uses --rpc, --rpcaddr, --rpcport
+# New geth-based: uses --http, --http.addr, --http.port
+XDC_VERSION=$(XDC version 2>/dev/null | head -1 || echo "unknown")
+echo "XDC version: $XDC_VERSION"
+
+detect_rpc_style() {
+    # Check if --http flag is supported
+    if XDC --help 2>&1 | grep -q "\-\-http.addr\|\-\-http\.addr"; then
+        echo "new"
+    else
+        echo "old"
     fi
+}
+RPC_STYLE=$(detect_rpc_style)
+echo "RPC flag style: $RPC_STYLE"
+
+# ============================================================
+# Defaults (env vars override these)
+# ============================================================
+: "${SYNC_MODE:=full}"
+: "${GC_MODE:=full}"
+: "${LOG_LEVEL:=2}"
+: "${INSTANCE_NAME:=XDC_Node}"
+: "${ENABLE_RPC:=true}"
+: "${RPC_ADDR:=0.0.0.0}"
+: "${RPC_PORT:=8545}"
+: "${RPC_API:=eth,net,web3,XDPoS}"
+: "${RPC_CORS_DOMAIN:=*}"
+: "${RPC_VHOSTS:=*}"
+: "${WS_ADDR:=0.0.0.0}"
+: "${WS_PORT:=8546}"
+: "${WS_API:=eth,net,web3,XDPoS}"
+: "${WS_ORIGINS:=*}"
+
+echo "Config: sync=$SYNC_MODE gc=$GC_MODE log=$LOG_LEVEL rpc=$ENABLE_RPC"
+
+# ============================================================
+# Init or recover wallet
+# ============================================================
+if [ ! -d /work/xdcchain/XDC/chaindata ]; then
+    wallet=$(XDC account new --password /work/.pwd --datadir /work/xdcchain 2>/dev/null | awk -F '[{}]' '{print $2}')
+    echo "Initializing Genesis Block"
+    echo "$wallet" > /work/xdcchain/coinbase.txt
     XDC init --datadir /work/xdcchain /work/genesis.json
 else
-    wallet=$(XDC account list --datadir /work/xdcchain | head -n 1 | awk -F '[{}]' '{print $2}')
+    wallet=$(XDC account list --datadir /work/xdcchain 2>/dev/null | head -n 1 | awk -F '[{}]' '{print $2}')
 fi
+echo "Wallet: $wallet"
 
-input="/work/bootnodes.list"
+# ============================================================
+# Bootnodes
+# ============================================================
 bootnodes=""
-while IFS= read -r line; do
-    if [ -z "${bootnodes}" ]; then
-        bootnodes=$line
-    else
-        bootnodes="${bootnodes},$line"
-    fi
-done <"$input"
-
-log_level=2
-if test -z "$LOG_LEVEL"
-then
-  echo "Log level not set, default to verbosity of $log_level"
-else
-  echo "Log level found, set to $LOG_LEVEL"
-  log_level=$LOG_LEVEL
+if [ -f /work/bootnodes.list ]; then
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        [ -z "$bootnodes" ] && bootnodes="$line" || bootnodes="${bootnodes},$line"
+    done < /work/bootnodes.list
 fi
 
-# create log file with timestamp
-DATE="$(date +%Y%m%d-%H%M%S)"
-LOG_FILE="/work/xdcchain/xdc-${DATE}.log"
-
-# Set sync_mode from SYNC_MODE env or default to 'full'
-sync_mode=full
-if test -z "$SYNC_MODE"; then
-    echo "SYNC_MODE not set, default to full" # full or fast
-else
-    echo "SYNC_MODE found, set to $SYNC_MODE"
-    sync_mode=$SYNC_MODE
-fi
-
-# Set gc_mode from GC_MODE env or default to 'archive'
-gc_mode=archive
-if test -z "$GC_MODE"; then
-    echo "GC_MODE not set, default to archive" # full or archive
-else
-    echo "GC_MODE found, set to $GC_MODE"
-    gc_mode=$GC_MODE
-fi
-
-INSTANCE_IP=$(curl https://checkip.amazonaws.com)
+# ============================================================
+# Ethstats
+# ============================================================
 netstats="${INSTANCE_NAME}:xinfin_xdpos_hybrid_network_stats@stats.xinfin.network:3000"
 
-echo "Starting nodes with $bootnodes ..."
+# ============================================================
+# Build args
+# ============================================================
+LOG_FILE="/work/xdcchain/xdc-$(date +%Y%m%d-%H%M%S).log"
+
 args=(
-    --ethstats "${netstats}"
-    --bootnodes "${bootnodes}"
-    --syncmode "${sync_mode}"
-    --gcmode "${gc_mode}"
     --datadir /work/xdcchain
-    --XDCx.datadir /work/xdcchain/XDCx
     --networkid 50
     --port 30303
-    --unlock "${wallet}"
+    --syncmode "$SYNC_MODE"
+    --gcmode "$GC_MODE"
+    --verbosity "$LOG_LEVEL"
     --password /work/.pwd
     --mine
-    --gasprice "1"
-    --targetgaslimit "420000000"
-    --verbosity "${log_level}"
+    --gasprice 1
+    --targetgaslimit 420000000
 )
 
-# if ENABLE_RPC is true, add RPC related parameters
-if echo "${ENABLE_RPC}" | grep -iq "true"; then
-    args+=(
-        --rpc
-        --rpcaddr "${RPC_ADDR}"
-        --rpcport "${RPC_PORT}"
-        --rpcapi "${RPC_API}"
-        --rpccorsdomain "${RPC_CORS_DOMAIN}"
-        --rpcvhosts "${RPC_VHOSTS}"
-        --store-reward
-        --ws
-        --wsaddr "${WS_ADDR}"
-        --wsport "${WS_PORT}"
-        --wsapi "${WS_API}"
-        --wsorigins "${WS_ORIGINS}"
-    )
+# Add wallet unlock if available
+[ -n "$wallet" ] && args+=(--unlock "$wallet")
+
+# Add bootnodes if available
+[ -n "$bootnodes" ] && args+=(--bootnodes "$bootnodes")
+
+# Add ethstats
+args+=(--ethstats "$netstats")
+
+# XDCx data dir
+args+=(--XDCx.datadir /work/xdcchain/XDCx)
+
+# ============================================================
+# RPC/HTTP flags (style-dependent)
+# ============================================================
+if echo "$ENABLE_RPC" | grep -iq "true"; then
+    if [ "$RPC_STYLE" = "new" ]; then
+        # New geth-style flags (--http.*)
+        args+=(
+            --http
+            --http.addr "$RPC_ADDR"
+            --http.port "$RPC_PORT"
+            --http.api "$RPC_API"
+            --http.corsdomain "$RPC_CORS_DOMAIN"
+            --http.vhosts "$RPC_VHOSTS"
+            --ws
+            --ws.addr "$WS_ADDR"
+            --ws.port "$WS_PORT"
+            --ws.api "$WS_API"
+            --ws.origins "$WS_ORIGINS"
+        )
+    else
+        # Old XDPoS-style flags (--rpc*)
+        args+=(
+            --rpc
+            --rpcaddr "$RPC_ADDR"
+            --rpcport "$RPC_PORT"
+            --rpcapi "$RPC_API"
+            --rpccorsdomain "$RPC_CORS_DOMAIN"
+            --rpcvhosts "$RPC_VHOSTS"
+            --store-reward
+            --ws
+            --wsaddr "$WS_ADDR"
+            --wsport "$WS_PORT"
+            --wsapi "$WS_API"
+            --wsorigins "$WS_ORIGINS"
+        )
+    fi
 fi
 
-XDC "${args[@]}" 2>&1 >>"${LOG_FILE}" | tee -a "${LOG_FILE}"
+# ============================================================
+# Add any extra args passed via docker command
+# ============================================================
+args+=("$@")
+
+echo "Starting XDC node..."
+echo "Args: ${args[*]}"
+exec XDC "${args[@]}" 2>&1 | tee -a "$LOG_FILE"
