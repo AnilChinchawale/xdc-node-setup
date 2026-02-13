@@ -204,11 +204,11 @@ EOF
     local uptime="N/A"
     local docker_image="N/A"
     
-    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^xdc$"; then
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -qi "xdc.*node\|xdc.*chain\|xdc.*mainnet"; then
         container_status="running"
         uptime=$(docker inspect --format='{{.State.StartedAt}}' xdc 2>/dev/null | xargs -I {} date -d "{}" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "Unknown")
         docker_image=$(docker inspect --format='{{.Config.Image}}' xdc 2>/dev/null || echo "Unknown")
-    elif docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^xdc$"; then
+    elif docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qi "xdc.*node\|xdc.*chain\|xdc.*mainnet"; then
         container_status="stopped"
     fi
     
@@ -431,7 +431,7 @@ EOF
     # Check 1: Container running
     total_checks=$((total_checks + 1))
     printf "  %-40s " "Container Status:"
-    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^xdc$"; then
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -qi "xdc.*node\|xdc.*chain\|xdc.*mainnet"; then
         echo -e "${GREEN}${CHECK} Running${NC}"
         passed_checks=$((passed_checks + 1))
     else
@@ -1185,8 +1185,9 @@ EOF
         return 0
     fi
     
-    # Check if container is running
-    if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^xdc$"; then
+    # Find running container
+    _get_container
+    if [[ -z "$XDC_CONTAINER" ]] || ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${XDC_CONTAINER}$"; then
         error "XDC node container is not running"
         echo ""
         echo "To start the node:"
@@ -1195,8 +1196,8 @@ EOF
         exit 1
     fi
     
-    info "Attaching to XDC console..."
-    docker exec -it xdc XDC attach /work/xdcchain/XDC.ipc
+    info "Attaching to XDC console ($XDC_CONTAINER)..."
+    docker exec -it "$XDC_CONTAINER" XDC attach /work/xdcchain/XDC.ipc
 }
 
 #==============================================================================
@@ -1274,7 +1275,7 @@ EOF
     # Get uptime and image
     local uptime="N/A"
     local docker_image="N/A"
-    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^xdc$"; then
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -qi "xdc.*node\|xdc.*chain\|xdc.*mainnet"; then
         uptime=$(docker inspect --format='{{.State.StartedAt}}' xdc 2>/dev/null | xargs -I {} date -d "{}" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "N/A")
         docker_image=$(docker inspect --format='{{.Config.Image}}' xdc 2>/dev/null || echo "N/A")
     fi
