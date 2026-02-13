@@ -1,0 +1,441 @@
+#==============================================================================
+# AWS CloudFormation Template for XDC Node Deployment
+# Creates VPC, Security Groups, EC2 Instance, and EBS Volumes
+#==============================================================================
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'XDC Node Deployment - Full node infrastructure with monitoring'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues:
+      - production
+      - staging
+      - development
+    Description: Deployment environment
+
+  NodeType:
+    Type: String
+    Default: fullnode
+    AllowedValues:
+      - fullnode
+      - archive
+      - masternode
+      - rpc
+    Description: Type of XDC node to deploy
+
+  Network:
+    Type: String
+    Default: mainnet
+    AllowedValues:
+      - mainnet
+      - testnet
+      - devnet
+    Description: XDC Network to connect to
+
+  InstanceType:
+    Type: String
+    Default: t3.xlarge
+    AllowedValues:
+      - t3.large
+      - t3.xlarge
+      - t3.2xlarge
+      - m6i.xlarge
+      - m6i.2xlarge
+      - m6i.4xlarge
+      - c6i.xlarge
+      - c6i.2xlarge
+    Description: EC2 instance type based on node requirements
+
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: EC2 Key Pair for SSH access
+
+  VpcCIDR:
+    Type: String
+    Default: 10.0.0.0/16
+    Description: CIDR block for the VPC
+
+  SubnetCIDR:
+    Type: String
+    Default: 10.0.1.0/24
+    Description: CIDR block for the subnet
+
+  DataVolumeSize:
+    Type: Number
+    Default: 500
+    MinValue: 100
+    MaxValue: 16000
+    Description: Size of data volume in GB (minimum 100GB for fullnode, 2000GB+ for archive)
+
+  DataVolumeType:
+    Type: String
+    Default: gp3
+    AllowedValues:
+      - gp2
+      - gp3
+      - io1
+      - io2
+    Description: EBS volume type for chain data
+
+  Iops:
+    Type: Number
+    Default: 3000
+    MinValue: 3000
+    MaxValue: 64000
+    Description: IOPS for gp3/io volumes (minimum 3000)
+
+  Throughput:
+    Type: Number
+    Default: 125
+    MinValue: 125
+    MaxValue: 1000
+    Description: Throughput for gp3 volumes in MiB/s
+
+  AllowSSHFrom:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: CIDR block allowed for SSH access (restrict in production)
+
+  AmiId:
+    Type: AWS::EC2::Image::Id
+    Default: ''
+    Description: AMI ID for XDC Node (leave blank for latest Ubuntu 22.04)
+
+Conditions:
+  UseProvidedAmi: !Not [!Equals [!Ref AmiId, '']]
+  IsArchive: !Equals [!Ref NodeType, archive]
+  IsMasternode: !Equals [!Ref NodeType, masternode]
+
+Mappings:
+  AWSRegionAMI:
+    us-east-1:
+      AMI: ami-0c7217cdde317cfec  # Ubuntu 22.04 LTS
+    us-west-2:
+      AMI: ami-0c7217cdde317cfec
+    eu-west-1:
+      AMI: ami-0905a3c97561e0b69
+    ap-southeast-1:
+      AMI: ami-0f935a2ecd3a7bd5c
+
+Resources:
+  # VPC and Networking
+  XDCVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub 'xdc-${Environment}-vpc'
+        - Key: Project
+          Value: XDC-Node
+
+  XDCInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub 'xdc-${Environment}-igw'
+
+  XDCAttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref XDCVPC
+      InternetGatewayId: !Ref XDCInternetGateway
+
+  XDCSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref XDCVPC
+      CidrBlock: !Ref SubnetCIDR
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: !Sub 'xdc-${Environment}-subnet'
+
+  XDCRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref XDCVPC
+      Tags:
+        - Key: Name
+          Value: !Sub 'xdc-${Environment}-rt'
+
+  XDCInternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: XDCAttachGateway
+    Properties:
+      RouteTableId: !Ref XDCRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref XDCInternetGateway
+
+  XDCSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref XDCSubnet
+      RouteTableId: !Ref XDCRouteTable
+
+  # Security Groups
+  XDCNodeSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for XDC Node
+      VpcId: !Ref XDCVPC
+      SecurityGroupIngress:
+        # SSH
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref AllowSSHFrom
+          Description: SSH access
+        # XDC P2P
+        - IpProtocol: tcp
+          FromPort: 30303
+          ToPort: 30303
+          CidrIp: 0.0.0.0/0
+          Description: XDC P2P TCP
+        - IpProtocol: udp
+          FromPort: 30303
+          ToPort: 30303
+          CidrIp: 0.0.0.0/0
+          Description: XDC P2P UDP
+        # RPC HTTP (restrict in production)
+        - IpProtocol: tcp
+          FromPort: 8545
+          ToPort: 8545
+          CidrIp: !Ref AllowSSHFrom
+          Description: RPC HTTP
+        # RPC WebSocket (restrict in production)
+        - IpProtocol: tcp
+          FromPort: 8546
+          ToPort: 8546
+          CidrIp: !Ref AllowSSHFrom
+          Description: RPC WebSocket
+        # Grafana (restrict in production)
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: !Ref AllowSSHFrom
+          Description: Grafana Dashboard
+        # Prometheus (localhost only by default)
+        - IpProtocol: tcp
+          FromPort: 9090
+          ToPort: 9090
+          CidrIp: !Ref SubnetCIDR
+          Description: Prometheus
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: Allow all outbound
+      Tags:
+        - Key: Name
+          Value: !Sub 'xdc-${Environment}-sg'
+
+  # IAM Role for CloudWatch and SSM
+  XDCNodeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Tags:
+        - Key: Name
+          Value: !Sub 'xdc-${Environment}-role'
+
+  XDCNodeInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref XDCNodeRole
+
+  # Elastic IP for consistent addressing
+  XDCElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub 'xdc-${Environment}-eip'
+
+  XDCEIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    DependsOn: XDCNodeInstance
+    Properties:
+      EIP: !Ref XDCElasticIP
+      InstanceId: !Ref XDCNodeInstance
+
+  # EBS Data Volume
+  XDCDataVolume:
+    Type: AWS::EC2::Volume
+    Properties:
+      AvailabilityZone: !GetAtt XDCNodeInstance.AvailabilityZone
+      Size: !Ref DataVolumeSize
+      VolumeType: !Ref DataVolumeType
+      Iops: !If [IsArchive, 16000, !Ref Iops]
+      Throughput: !If [IsArchive, 1000, !Ref Throughput]
+      Encrypted: true
+      Tags:
+        - Key: Name
+          Value: !Sub 'xdc-${Environment}-data'
+        - Key: Purpose
+          Value: blockchain-data
+
+  XDCDataVolumeAttachment:
+    Type: AWS::EC2::VolumeAttachment
+    DependsOn: XDCNodeInstance
+    Properties:
+      Device: /dev/sdf
+      InstanceId: !Ref XDCNodeInstance
+      VolumeId: !Ref XDCDataVolume
+
+  # EC2 Instance
+  XDCNodeInstance:
+    Type: AWS::EC2::Instance
+    DependsOn: XDCAttachGateway
+    Properties:
+      ImageId: !If
+        - UseProvidedAmi
+        - !Ref AmiId
+        - !FindInMap [AWSRegionAMI, !Ref 'AWS::Region', AMI]
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPairName
+      IamInstanceProfile: !Ref XDCNodeInstanceProfile
+      SecurityGroupIds:
+        - !Ref XDCNodeSecurityGroup
+      SubnetId: !Ref XDCSubnet
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -e
+          
+          # Export configuration
+          export XDC_NODE_TYPE="${NodeType}"
+          export XDC_NETWORK="${Network}"
+          export XDC_DATA_VOLUME="/dev/nvme1n1"
+          
+          # Run user data script
+          curl -fsSL https://raw.githubusercontent.com/XDC-Node-Setup/main/cloud/aws/userdata.sh | bash
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 50
+            VolumeType: gp3
+            DeleteOnTermination: true
+            Encrypted: true
+      Tags:
+        - Key: Name
+          Value: !Sub 'xdc-${Environment}-${NodeType}'
+        - Key: NodeType
+          Value: !Ref NodeType
+        - Key: Network
+          Value: !Ref Network
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: XDC-Node
+
+  # CloudWatch Log Group
+  XDCLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/xdc/${Environment}/${NodeType}'
+      RetentionInDays: 30
+
+  # CloudWatch Alarm - High CPU
+  XDCHighCPUAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'xdc-${Environment}-${NodeType}-high-cpu'
+      AlarmDescription: Alarm when CPU exceeds 90% for 5 minutes
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 90
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: InstanceId
+          Value: !Ref XDCNodeInstance
+
+  # CloudWatch Alarm - Disk Full
+  XDCDiskFullAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'xdc-${Environment}-${NodeType}-disk-full'
+      AlarmDescription: Alarm when disk usage exceeds 85%
+      MetricName: DiskSpaceUtilization
+      Namespace: CWAgent
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 85
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: InstanceId
+          Value: !Ref XDCNodeInstance
+        - Name: device
+          Value: nvme1n1
+        - Name: fstype
+          Value: ext4
+        - Name: path
+          Value: /opt/xdc-node
+
+Outputs:
+  InstanceId:
+    Description: EC2 Instance ID
+    Value: !Ref XDCNodeInstance
+    Export:
+      Name: !Sub '${AWS::StackName}-InstanceId'
+
+  InstancePublicIP:
+    Description: Public IP address of the instance
+    Value: !Ref XDCElasticIP
+    Export:
+      Name: !Sub '${AWS::StackName}-PublicIP'
+
+  InstancePrivateIP:
+    Description: Private IP address of the instance
+    Value: !GetAtt XDCNodeInstance.PrivateIp
+    Export:
+      Name: !Sub '${AWS::StackName}-PrivateIP'
+
+  VPCId:
+    Description: VPC ID
+    Value: !Ref XDCVPC
+    Export:
+      Name: !Sub '${AWS::StackName}-VPC'
+
+  SecurityGroupId:
+    Description: Security Group ID
+    Value: !Ref XDCNodeSecurityGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-SecurityGroup'
+
+  RPCEndpoint:
+    Description: RPC HTTP Endpoint
+    Value: !Sub 'http://${XDCElasticIP}:8545'
+
+  WebSocketEndpoint:
+    Description: RPC WebSocket Endpoint
+    Value: !Sub 'ws://${XDCElasticIP}:8546'
+
+  GrafanaURL:
+    Description: Grafana Dashboard URL
+    Value: !Sub 'http://${XDCElasticIP}:3000'
+
+  SSHCommand:
+    Description: SSH command to connect
+    Value: !Sub 'ssh -i ${KeyPairName}.pem ubuntu@${XDCElasticIP}'

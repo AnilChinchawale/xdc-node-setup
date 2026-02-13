@@ -1,0 +1,54 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vmName": {
+      "value": "xdc-mainnet-node"
+    },
+    "adminUsername": {
+      "value": "xdcadmin"
+    },
+    "authenticationType": {
+      "value": "sshPublicKey"
+    },
+    "adminPasswordOrKey": {
+      "value": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC... your-ssh-key-here"
+    },
+    "vmSize": {
+      "value": "Standard_D4s_v3"
+    },
+    "nodeType": {
+      "value": "fullnode"
+    },
+    "network": {
+      "value": "mainnet"
+    },
+    "osDiskSize": {
+      "value": 64
+    },
+    "dataDiskSize": {
+      "value": 512
+    },
+    "dataDiskType": {
+      "value": "Premium_LRS"
+    },
+    "location": {
+      "value": "eastus"
+    },
+    "virtualNetworkName": {
+      "value": "xdc-vnet"
+    },
+    "subnetName": {
+      "value": "xdc-subnet"
+    },
+    "networkSecurityGroupName": {
+      "value": "xdc-nsg"
+    },
+    "publicIpName": {
+      "value": "xdc-public-ip"
+    },
+    "enableMonitoring": {
+      "value": true
+    }
+  }
+}

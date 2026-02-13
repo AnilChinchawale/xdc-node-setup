@@ -1,0 +1,220 @@
+#==============================================================================
+# DigitalOcean Cloud-Init Configuration for XDC Node
+# Runs on first boot to configure the node
+#==============================================================================
+
+#cloud-config
+
+# Hostname
+hostname: xdc-node
+fqdn: xdc-node.local
+
+# Create xdc user
+users:
+  - name: xdc
+    groups: sudo, docker
+    shell: /bin/bash
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    ssh-authorized-keys: []
+
+# Update and install packages
+package_update: true
+package_upgrade: true
+packages:
+  - htop
+  - iotop
+  - jq
+  - curl
+  - fail2ban
+  - ufw
+
+# Write files
+write_files:
+  # Environment configuration
+  - path: /opt/xdc-node/.env
+    content: |
+      # XDC Node Configuration
+      NETWORK=mainnet
+      NODE_TYPE=fullnode
+      
+      # RPC Configuration
+      RPC_API=eth,net,web3,xdpos
+      WS_API=eth,net,web3,xdpos
+      
+      # Grafana
+      GRAFANA_ADMIN_USER=admin
+      GRAFANA_ADMIN_PASSWORD=changeme
+      GRAFANA_SECRET_KEY=xdc-grafana-secret
+      
+      # Resource Limits
+      CPU_LIMIT=4
+      MEMORY_LIMIT=8G
+    permissions: '0644'
+
+  # systemd service for XDC node
+  - path: /etc/systemd/system/xdc-node.service
+    content: |
+      [Unit]
+      Description=XDC Node Docker Compose
+      Requires=docker.service
+      After=docker.service
+      
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      WorkingDirectory=/opt/xdc-node
+      Environment="NETWORK=mainnet"
+      EnvironmentFile=-/opt/xdc-node/.env
+      ExecStart=/usr/local/bin/docker-compose up -d
+      ExecStop=/usr/local/bin/docker-compose down
+      ExecReload=/usr/local/bin/docker-compose restart
+      TimeoutStartSec=0
+      
+      [Install]
+      WantedBy=multi-user.target
+    permissions: '0644'
+
+  # Fail2ban configuration
+  - path: /etc/fail2ban/jail.local
+    content: |
+      [DEFAULT]
+      bantime = 3600
+      findtime = 600
+      maxretry = 3
+      
+      [sshd]
+      enabled = true
+      port = ssh
+      filter = sshd
+      logpath = /var/log/auth.log
+      maxretry = 3
+    permissions: '0644'
+
+  # UFW configuration script
+  - path: /opt/xdc-node/setup-firewall.sh
+    content: |
+      #!/bin/bash
+      set -e
+      
+      echo "Configuring firewall..."
+      
+      # Default policies
+      ufw default deny incoming
+      ufw default allow outgoing
+      
+      # SSH
+      ufw allow 22/tcp comment 'SSH'
+      
+      # XDC P2P
+      ufw allow 30303/tcp comment 'XDC P2P TCP'
+      ufw allow 30303/udp comment 'XDC P2P UDP'
+      
+      # RPC - restrict in production
+      ufw allow 8545/tcp comment 'RPC HTTP'
+      ufw allow 8546/tcp comment 'RPC WebSocket'
+      
+      # Grafana
+      ufw allow 3000/tcp comment 'Grafana'
+      
+      # Prometheus - local only
+      ufw allow from 127.0.0.1 to any port 9090 comment 'Prometheus local'
+      
+      # Enable firewall
+      echo "y" | ufw enable
+      
+      echo "Firewall configured."
+    permissions: '0755'
+
+  # Setup script
+  - path: /opt/xdc-node/setup.sh
+    content: |
+      #!/bin/bash
+      set -e
+      
+      LOG_FILE="/var/log/xdc-setup.log"
+      exec >> "$LOG_FILE" 2>&1
+      
+      echo "==============================================="
+      echo "XDC Node First Boot Setup: $(date)"
+      echo "==============================================="
+      
+      # Mount volume if attached
+      if lsblk /dev/sda >/dev/null 2>&1; then
+          echo "Setting up data volume..."
+          if ! file -s /dev/sda | grep -q filesystem; then
+              mkfs.ext4 -F /dev/sda
+          fi
+          mount /dev/sda /opt/xdc-node || true
+          echo "/dev/sda /opt/xdc-node ext4 defaults,nofail 0 2" >> /etc/fstab
+      fi
+      
+      # Set permissions
+      chown -R root:root /opt/xdc-node
+      chmod -R 755 /opt/xdc-node
+      
+      # Configure firewall
+      /opt/xdc-node/setup-firewall.sh
+      
+      # Enable services
+      systemctl daemon-reload
+      systemctl enable xdc-node.service
+      systemctl enable fail2ban
+      
+      # Start fail2ban
+      systemctl start fail2ban
+      
+      # Generate random Grafana password if default
+      if grep -q "GRAFANA_ADMIN_PASSWORD=changeme" /opt/xdc-node/.env; then
+          NEW_PASS=$(openssl rand -base64 24)
+          sed -i "s/GRAFANA_ADMIN_PASSWORD=changeme/GRAFANA_ADMIN_PASSWORD=$NEW_PASS/" /opt/xdc-node/.env
+          echo "Generated Grafana admin password: $NEW_PASS"
+          echo "Store this password securely!"
+      fi
+      
+      # Pull latest images
+      cd /opt/xdc-node
+      docker-compose pull
+      
+      # Start node
+      systemctl start xdc-node.service
+      
+      # Wait for startup
+      sleep 30
+      
+      # Get droplet info
+      PUBLIC_IP=$(curl -s http://169.254.169.254/metadata/v1/interfaces/public/0/ipv4/address)
+      DROPLET_ID=$(curl -s http://169.254.169.254/metadata/v1/id)
+      
+      echo ""
+      echo "==============================================="
+      echo "XDC Node Setup Complete!"
+      echo "==============================================="
+      echo "Droplet ID: $DROPLET_ID"
+      echo "Public IP: $PUBLIC_IP"
+      echo ""
+      echo "Endpoints:"
+      echo "  RPC HTTP:   http://$PUBLIC_IP:8545"
+      echo "  RPC WS:     ws://$PUBLIC_IP:8546"
+      echo "  Grafana:    http://$PUBLIC_IP:3000"
+      echo "  P2P:        enode://...@$PUBLIC_IP:30303"
+      echo ""
+      echo "Check status with: xdc-status"
+      echo "View logs with: xdc-logs"
+      echo "==============================================="
+      
+      # Write completion marker
+      touch /opt/xdc-node/.setup-complete
+    permissions: '0755'
+
+runcmd:
+  # Ensure docker is running
+  - systemctl start docker
+  
+  # Run setup script
+  - /opt/xdc-node/setup.sh
+  
+  # Remove setup script after completion
+  - rm -f /opt/xdc-node/setup.sh
+
+# Final message
+final_message: "XDC Node setup complete! Check /var/log/xdc-setup.log for details."

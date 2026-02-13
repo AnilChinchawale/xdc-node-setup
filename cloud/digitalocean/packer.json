@@ -1,0 +1,180 @@
+#==============================================================================
+# DigitalOcean Packer Template for XDC Node Snapshot
+# Builds a custom image for 1-Click deployment
+#==============================================================================
+
+{
+  "variables": {
+    "do_token": "{{env `DIGITALOCEAN_TOKEN`}}",
+    "xdc_version": "v2.6.8",
+    "snapshot_name": "xdc-node-{{isotime \"2006-01-02-150405\"}}",
+    "region": "nyc3",
+    "size": "s-4vcpu-8gb"
+  },
+
+  "builders": [
+    {
+      "type": "digitalocean",
+      "api_token": "{{user `do_token`}}",
+      "image": "ubuntu-22-04-x64",
+      "region": "{{user `region`}}",
+      "size": "{{user `size`}}",
+      "ssh_username": "root",
+      "snapshot_name": "{{user `snapshot_name`}}",
+      "snapshot_regions": ["nyc1", "nyc3", "sfo3", "ams3", "sgp1", "lon1", "fra1", "tor1", "blr1"],
+      "tags": ["xdc", "blockchain", "node", "{{user `xdc_version`}}"]
+    }
+  ],
+
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [
+        "sleep 30",
+        "apt-get update -qq",
+        "apt-get upgrade -y -qq",
+        "apt-get install -y -qq apt-transport-https ca-certificates curl gnupg lsb-release software-properties-common jq git htop iotop unzip fail2ban ufw"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "# Install Docker CE",
+        "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
+        "echo \"deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" | tee /etc/apt/sources.list.d/docker.list > /dev/null",
+        "apt-get update -qq",
+        "apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-compose-plugin",
+        "systemctl enable docker",
+        "systemctl start docker"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "# Install Docker Compose",
+        "curl -L \"https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)\" -o /usr/local/bin/docker-compose",
+        "chmod +x /usr/local/bin/docker-compose",
+        "ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "# Create XDC node directories",
+        "mkdir -p /opt/xdc-node/{configs,scripts,monitoring,reports}",
+        "mkdir -p /var/lib/xdc-node/{xdcchain,logs}",
+        "mkdir -p /var/lib/node_exporter/textfile_collector",
+        "mkdir -p /var/lib/cloud/scripts/per-instance"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "../../docker/docker-compose.yml",
+      "destination": "/opt/xdc-node/docker-compose.yml"
+    },
+    {
+      "type": "file",
+      "source": "../../docker/mainnet/",
+      "destination": "/opt/xdc-node/mainnet/"
+    },
+    {
+      "type": "file",
+      "source": "../../scripts/",
+      "destination": "/opt/xdc-node/scripts/"
+    },
+    {
+      "type": "file",
+      "source": "../../configs/",
+      "destination": "/opt/xdc-node/configs/"
+    },
+    {
+      "type": "file",
+      "source": "cloudinit.yaml",
+      "destination": "/etc/cloud/cloud.cfg.d/99-xdc-node.cfg"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "# Set up XDC node environment",
+        "echo 'XDC_NODE_HOME=/opt/xdc-node' | tee /etc/default/xdc-node",
+        "echo 'NETWORK=mainnet' | tee -a /etc/default/xdc-node",
+        "chmod +x /opt/xdc-node/scripts/*.sh",
+        "# Pull XDC Docker image",
+        "docker pull xinfinorg/xdposchain:{{user `xdc_version`}}"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "# Create MOTD",
+        "cat > /etc/update-motd.d/99-xdc-node << 'EOFMOTD'",
+        "#!/bin/bash",
+        "echo ''",
+        "echo '========================================'",
+        "echo '  XDC Network Node - DigitalOcean 1-Click'",
+        "echo '========================================'",
+        "echo ''",
+        "echo 'Quick Commands:'",
+        "echo '  xdc-status    - Check node status'",
+        "echo '  xdc-logs      - View node logs'",
+        "echo '  xdc-start     - Start node'",
+        "echo '  xdc-stop      - Stop node'",
+        "echo ''",
+        "if command -v docker > /dev/null 2>&1; then",
+        "  echo 'Docker Containers:'",
+        "  docker ps --format '  {{.Names}} - {{.Status}}' 2>/dev/null || echo '  No containers running'",
+        "  echo ''",
+        "fi",
+        "echo 'Documentation: https://docs.xdc.network'",
+        "echo ''",
+        "EOFMOTD",
+        "chmod +x /etc/update-motd.d/99-xdc-node"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "# Create convenience scripts",
+        "cat > /usr/local/bin/xdc-status << 'EOF'",
+        "#!/bin/bash",
+        "/opt/xdc-node/scripts/node-health-check.sh --quick",
+        "EOF",
+        "",
+        "cat > /usr/local/bin/xdc-logs << 'EOF'",
+        "#!/bin/bash",
+        "SERVICE=\"\${1:-xdc-node}\"",
+        "docker logs -f --tail 100 \"\$SERVICE\"",
+        "EOF",
+        "",
+        "cat > /usr/local/bin/xdc-start << 'EOF'",
+        "#!/bin/bash",
+        "cd /opt/xdc-node && docker-compose up -d",
+        "EOF",
+        "",
+        "cat > /usr/local/bin/xdc-stop << 'EOF'",
+        "#!/bin/bash",
+        "cd /opt/xdc-node && docker-compose down",
+        "EOF",
+        "",
+        "chmod +x /usr/local/bin/xdc-*"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "# Clean up",
+        "apt-get autoremove -y -qq",
+        "apt-get clean -qq",
+        "rm -rf /var/lib/apt/lists/*",
+        "rm -rf /tmp/*",
+        "rm -rf /var/tmp/*",
+        "rm -f /root/.bash_history",
+        "rm -f /root/.ssh/authorized_keys",
+        "# Clear logs",
+        "find /var/log -type f -exec truncate -s 0 {} \;",
+        "# Clear cloud-init",
+        "cloud-init clean --logs --seed"
+      ]
+    }
+  ]
+}

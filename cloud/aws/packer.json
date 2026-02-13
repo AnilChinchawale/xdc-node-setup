@@ -1,0 +1,146 @@
+#==============================================================================
+# AWS Packer Template for XDC Node AMI
+# Builds an Ubuntu 22.04 based AMI with Docker and XDC node pre-installed
+#==============================================================================
+
+{
+  "variables": {
+    "aws_access_key": "{{env `AWS_ACCESS_KEY_ID`}}",
+    "aws_secret_key": "{{env `AWS_SECRET_ACCESS_KEY`}}",
+    "aws_region": "us-east-1",
+    "instance_type": "t3.xlarge",
+    "xdc_version": "v2.6.8",
+    "ami_name": "xdc-node-{{isotime \"2006-01-02-150405\"}}"
+  },
+
+  "builders": [
+    {
+      "type": "amazon-ebs",
+      "access_key": "{{user `aws_access_key`}}",
+      "secret_key": "{{user `aws_secret_key`}}",
+      "region": "{{user `aws_region`}}",
+      "source_ami_filter": {
+        "filters": {
+          "virtualization-type": "hvm",
+          "name": "ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*",
+          "root-device-type": "ebs"
+        },
+        "owners": ["099720109477"],
+        "most_recent": true
+      },
+      "instance_type": "{{user `instance_type`}}",
+      "ssh_username": "ubuntu",
+      "ami_name": "{{user `ami_name`}}",
+      "ami_description": "XDC Node - Ubuntu 22.04 with Docker and XDC client pre-installed",
+      "tags": {
+        "Name": "XDC Node",
+        "Version": "{{user `xdc_version`}}",
+        "OS": "Ubuntu 22.04 LTS",
+        "Docker": "latest",
+        "Purpose": "Blockchain Node"
+      },
+      "run_tags": {
+        "Name": "packer-xdc-node-build"
+      },
+      "snapshot_tags": {
+        "Name": "XDC Node Root Volume"
+      }
+    }
+  ],
+
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [
+        "sleep 30",
+        "sudo apt-get update",
+        "sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release software-properties-common jq git htop iotop unzip"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "# Install Docker CE",
+        "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
+        "echo \"deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
+        "sudo apt-get update",
+        "sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin",
+        "sudo usermod -aG docker ubuntu",
+        "sudo systemctl enable docker"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "# Install Docker Compose",
+        "sudo curl -L \"https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)\" -o /usr/local/bin/docker-compose",
+        "sudo chmod +x /usr/local/bin/docker-compose",
+        "sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "# Create XDC node directories",
+        "sudo mkdir -p /opt/xdc-node/{configs,scripts,monitoring,reports}",
+        "sudo mkdir -p /var/lib/xdc-node/{xdcchain,logs}",
+        "sudo mkdir -p /var/lib/node_exporter/textfile_collector",
+        "sudo chown -R ubuntu:ubuntu /opt/xdc-node /var/lib/xdc-node"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "../../docker/docker-compose.yml",
+      "destination": "/opt/xdc-node/docker-compose.yml"
+    },
+    {
+      "type": "file",
+      "source": "../../docker/mainnet/",
+      "destination": "/opt/xdc-node/mainnet/"
+    },
+    {
+      "type": "file",
+      "source": "../../scripts/",
+      "destination": "/opt/xdc-node/scripts/"
+    },
+    {
+      "type": "file",
+      "source": "../../configs/",
+      "destination": "/opt/xdc-node/configs/"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "# Set up XDC node environment",
+        "echo 'XDC_NODE_HOME=/opt/xdc-node' | sudo tee /etc/default/xdc-node",
+        "echo 'NETWORK=mainnet' | sudo tee -a /etc/default/xdc-node",
+        "sudo chown -R ubuntu:ubuntu /opt/xdc-node",
+        "sudo chmod +x /opt/xdc-node/scripts/*.sh",
+        "# Pull XDC Docker image",
+        "sudo docker pull xinfinorg/xdposchain:{{user `xdc_version`}}"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "# Install CloudWatch agent for monitoring",
+        "wget -q https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb",
+        "sudo dpkg -i amazon-cloudwatch-agent.deb",
+        "rm amazon-cloudwatch-agent.deb"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "# Clean up",
+        "sudo apt-get autoremove -y",
+        "sudo apt-get clean",
+        "sudo rm -rf /var/lib/apt/lists/*",
+        "sudo rm -rf /tmp/*",
+        "sudo rm -rf /var/tmp/*",
+        "sudo rm -f /home/ubuntu/.bash_history",
+        "sudo rm -f /home/ubuntu/.ssh/authorized_keys"
+      ]
+    }
+  ]
+}

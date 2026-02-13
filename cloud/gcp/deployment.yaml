@@ -1,0 +1,214 @@
+#==============================================================================
+# GCP Deployment Manager Template for XDC Node
+# Deploys complete XDC node infrastructure on Google Cloud Platform
+#==============================================================================
+
+imports:
+  - path: startup-script.sh
+    name: startup-script
+
+resources:
+  # VPC Network
+  - name: {{ env['deployment'] }}-network
+    type: compute.v1.network
+    properties:
+      autoCreateSubnetworks: false
+
+  # Subnet
+  - name: {{ env['deployment'] }}-subnet
+    type: compute.v1.subnetwork
+    properties:
+      network: $(ref.{{ env['deployment'] }}-network.selfLink)
+      ipCidrRange: 10.0.0.0/24
+      region: {{ properties['region'] }}
+      privateIpGoogleAccess: true
+
+  # Firewall Rules
+  - name: {{ env['deployment'] }}-allow-ssh
+    type: compute.v1.firewall
+    properties:
+      network: $(ref.{{ env['deployment'] }}-network.selfLink)
+      sourceRanges: ["0.0.0.0/0"]
+      allowed:
+        - IPProtocol: TCP
+          ports: ["22"]
+      description: "Allow SSH access"
+
+  - name: {{ env['deployment'] }}-allow-xdc-p2p
+    type: compute.v1.firewall
+    properties:
+      network: $(ref.{{ env['deployment'] }}-network.selfLink)
+      sourceRanges: ["0.0.0.0/0"]
+      allowed:
+        - IPProtocol: TCP
+          ports: ["30303"]
+        - IPProtocol: UDP
+          ports: ["30303"]
+      description: "Allow XDC P2P traffic"
+
+  - name: {{ env['deployment'] }}-allow-rpc
+    type: compute.v1.firewall
+    properties:
+      network: $(ref.{{ env['deployment'] }}-network.selfLink)
+      sourceRanges: [{{ properties['allowedSourceRanges'] | join(', ') }}]
+      allowed:
+        - IPProtocol: TCP
+          ports: ["8545", "8546", "3000"]
+      description: "Allow RPC and Grafana access"
+
+  - name: {{ env['deployment'] }}-allow-internal
+    type: compute.v1.firewall
+    properties:
+      network: $(ref.{{ env['deployment'] }}-network.selfLink)
+      sourceRanges: ["10.0.0.0/24"]
+      allowed:
+        - IPProtocol: TCP
+          ports: ["0-65535"]
+        - IPProtocol: UDP
+          ports: ["0-65535"]
+        - IPProtocol: ICMP
+      description: "Allow internal traffic"
+
+  # Static IP Address
+  - name: {{ env['deployment'] }}-static-ip
+    type: compute.v1.address
+    properties:
+      region: {{ properties['region'] }}
+      description: "Static IP for XDC Node"
+
+  # Service Account
+  - name: {{ env['deployment'] }}-sa
+    type: iam.v1.serviceAccount
+    properties:
+      accountId: {{ env['deployment'] }}-sa
+      displayName: XDC Node Service Account
+      projectId: {{ env['project'] }}
+
+  # Service Account IAM Binding
+  - name: {{ env['deployment'] }}-sa-binding
+    type: gcp-types/cloudresourcemanager-v1:projects.iamMemberBinding
+    properties:
+      resource: projects/{{ env['project'] }}
+      member: serviceAccount:$(ref.{{ env['deployment'] }}-sa.email)
+      role: roles/logging.logWriter
+
+  # Persistent Disk for Chain Data
+  - name: {{ env['deployment'] }}-data-disk
+    type: compute.v1.disk
+    properties:
+      zone: {{ properties['zone'] }}
+      sizeGb: {{ properties['dataDiskSize'] }}
+      type: projects/{{ env['project'] }}/zones/{{ properties['zone'] }}/diskTypes/{{ properties['dataDiskType'] }}
+      description: "XDC Node chain data"
+
+  # Compute Instance
+  - name: {{ env['deployment'] }}-vm
+    type: compute.v1.instance
+    properties:
+      zone: {{ properties['zone'] }}
+      machineType: projects/{{ env['project'] }}/zones/{{ properties['zone'] }}/machineTypes/{{ properties['machineType'] }}
+      description: "XDC Network Node"
+      labels:
+        node-type: {{ properties['nodeType'] }}
+        network: {{ properties['network'] }}
+        managed-by: deployment-manager
+      tags:
+        items:
+          - xdc-node
+          - {{ properties['nodeType'] }}
+      disks:
+        - deviceName: boot
+          type: PERSISTENT
+          boot: true
+          autoDelete: true
+          initializeParams:
+            sourceImage: projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts
+            diskSizeGb: 50
+            diskType: projects/{{ env['project'] }}/zones/{{ properties['zone'] }}/diskTypes/pd-ssd
+        - deviceName: data
+          type: PERSISTENT
+          boot: false
+          autoDelete: false
+          source: $(ref.{{ env['deployment'] }}-data-disk.selfLink)
+          mode: READ_WRITE
+      networkInterfaces:
+        - network: $(ref.{{ env['deployment'] }}-network.selfLink)
+          subnetwork: $(ref.{{ env['deployment'] }}-subnet.selfLink)
+          accessConfigs:
+            - name: External NAT
+              type: ONE_TO_ONE_NAT
+              natIP: $(ref.{{ env['deployment'] }}-static-ip.address)
+      serviceAccounts:
+        - email: $(ref.{{ env['deployment'] }}-sa.email)
+          scopes:
+            - https://www.googleapis.com/auth/cloud-platform
+            - https://www.googleapis.com/auth/logging.write
+            - https://www.googleapis.com/auth/monitoring.write
+      metadata:
+        items:
+          - key: startup-script
+            value: |
+              {{ imports['startup-script'] | indent(14) }}
+          - key: node-type
+            value: {{ properties['nodeType'] }}
+          - key: network
+            value: {{ properties['network'] }}
+          - key: enable-oslogin
+            value: "TRUE"
+      scheduling:
+        automaticRestart: true
+        onHostMaintenance: MIGRATE
+        preemptible: {{ properties['preemptible'] }}
+
+  # Firewall Rule for Health Checks (if using load balancer)
+  - name: {{ env['deployment'] }}-allow-health-check
+    type: compute.v1.firewall
+    properties:
+      network: $(ref.{{ env['deployment'] }}-network.selfLink)
+      sourceRanges: ["130.211.0.0/22", "35.191.0.0/16"]
+      allowed:
+        - IPProtocol: TCP
+          ports: ["8545"]
+      targetTags: ["xdc-node"]
+      description: "Allow Google health checks"
+
+  # Cloud Monitoring Alert Policy
+  - name: {{ env['deployment'] }}-high-cpu-alert
+    type: gcp-types/monitoring-v3:projects.alertPolicies
+    properties:
+      displayName: "XDC Node High CPU"
+      combiner: OR
+      conditions:
+        - displayName: "CPU usage above 90%"
+          conditionThreshold:
+            filter: 'resource.type="gce_instance" AND metric.type="compute.googleapis.com/instance/cpu/utilization"'
+            aggregations:
+              - alignmentPeriod: 300s
+                perSeriesAligner: ALIGN_MEAN
+            comparison: COMPARISON_GT
+            thresholdValue: 0.9
+            duration: 300s
+            trigger:
+              count: 1
+      notificationChannels: []
+      enabled: true
+
+outputs:
+  - name: instanceName
+    value: $(ref.{{ env['deployment'] }}-vm.name)
+  - name: instanceIP
+    value: $(ref.{{ env['deployment'] }}-static-ip.address)
+  - name: network
+    value: $(ref.{{ env['deployment'] }}-network.name)
+  - name: subnet
+    value: $(ref.{{ env['deployment'] }}-subnet.name)
+  - name: serviceAccount
+    value: $(ref.{{ env['deployment'] }}-sa.email)
+  - name: rpcEndpoint
+    value: http://$(ref.{{ env['deployment'] }}-static-ip.address):8545
+  - name: websocketEndpoint
+    value: ws://$(ref.{{ env['deployment'] }}-static-ip.address):8546
+  - name: grafanaUrl
+    value: http://$(ref.{{ env['deployment'] }}-static-ip.address):3000
+  - name: sshCommand
+    value: gcloud compute ssh {{ env['deployment'] }}-vm --zone={{ properties['zone'] }}
