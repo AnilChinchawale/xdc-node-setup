@@ -96,6 +96,8 @@ services:
       - xdc-monitoring
     depends_on:
       - xdc-node
+    profiles:
+      - monitoring
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy || exit 1"]
       interval: 30s
@@ -131,6 +133,8 @@ services:
       - xdc-monitoring
     expose:
       - "9100"
+    profiles:
+      - monitoring
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:9100/metrics | grep -q 'node_' || exit 1"]
       interval: 30s
@@ -170,6 +174,8 @@ services:
       - xdc-monitoring
     expose:
       - "8080"
+    profiles:
+      - monitoring
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"]
       interval: 30s
@@ -215,6 +221,8 @@ services:
       - xdc-monitoring
     depends_on:
       - prometheus
+    profiles:
+      - monitoring
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health | grep -q 'ok' || exit 1"]
       interval: 30s
@@ -366,6 +374,8 @@ services:
     depends_on:
       - xdc-node
       - node-exporter
+    profiles:
+      - monitoring
     logging:
       driver: "json-file"
       options:
