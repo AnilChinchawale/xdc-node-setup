@@ -667,8 +667,17 @@ setup_docker_compose() {
     
     mkdir -p "$INSTALL_DIR/docker"
     
-    # Determine Docker image and flags based on node type
+    # Determine Docker image based on platform
+    local arch
+    arch=$(uname -m)
     local xdc_image="xinfinorg/xdposchain:v2.6.8"
+    local platform_flag=""
+    if [[ "$arch" == "arm64" || "$arch" == "aarch64" ]]; then
+        # Check if ARM image exists, otherwise use platform emulation
+        platform_flag="platform: linux/amd64"
+        warn "ARM64 detected — using linux/amd64 emulation (may be slower)"
+        info "Ensure Docker Desktop has 'Use Rosetta for x86_64/amd64 emulation' enabled"
+    fi
     local docker_dir="$INSTALL_DIR/docker"
     local network_dir="$docker_dir/mainnet"
     
@@ -726,6 +735,7 @@ ENVEOF
 services:
   xdc-node:
     image: $xdc_image
+    ${platform_flag:+$platform_flag}
     container_name: xdc-node
     restart: always
     ports:
@@ -1339,23 +1349,71 @@ register_with_skynet() {
     
     rpc_port="${RPC_PORT:-9545}"
     
+    # Detect OS type
+    local os_short
+    case "$(uname -s)" in
+        Linux*)  os_short="linux";;
+        Darwin*) os_short="macos";;
+        *)       os_short="unknown";;
+    esac
+    
+    # Get IP last octets (e.g. 12.32 from 192.168.12.32)
+    local ip_suffix
+    ip_suffix=$(echo "$public_ip" | awk -F'.' '{print $(NF-1)"."$NF}')
+    [[ -z "$ip_suffix" || "$ip_suffix" == "." ]] && ip_suffix=$(echo "$public_ip" | tail -c 8)
+    
+    # Detect location
+    local location_city location_country
+    local geo_json
+    geo_json=$(curl -s -m 5 "http://ip-api.com/json/?fields=city,countryCode" 2>/dev/null || echo '{}')
+    location_city=$(echo "$geo_json" | jq -r '.city // "unknown"' 2>/dev/null || echo "unknown")
+    location_country=$(echo "$geo_json" | jq -r '.countryCode // "XX"' 2>/dev/null || echo "XX")
+    local location_short
+    location_short=$(echo "${location_city}" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | cut -c1-10)
+    
+    # Try to get coinbase (first 6 chars) from running node
+    local coinbase_short=""
+    local cb
+    cb=$(curl -s -m 3 -X POST http://127.0.0.1:${rpc_port} \
+        -H "Content-Type: application/json" \
+        -d '{"jsonrpc":"2.0","method":"eth_coinbase","params":[],"id":1}' 2>/dev/null | jq -r '.result // ""' 2>/dev/null || true)
+    if [[ -n "$cb" && "$cb" != "0x0" && "$cb" != "0x0000000000000000000000000000000000000000" && "$cb" != "null" ]]; then
+        coinbase_short="${cb:2:6}"
+    fi
+    
+    # Build smart node name: [coinbase]-[os]-[ip_suffix]-[location]
+    local node_name
+    if [[ -n "$coinbase_short" ]]; then
+        node_name="${coinbase_short}-${os_short}-${ip_suffix}-${location_short}"
+    else
+        node_name="${hostname}-${os_short}-${ip_suffix}-${location_short}"
+    fi
+    # Sanitize: only alphanumeric, dash, underscore, dot
+    node_name=$(echo "$node_name" | sed 's/[^a-zA-Z0-9._-]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')
+    
     info "Auto-detected configuration:"
+    echo "  Node Name: $node_name"
     echo "  Hostname: $hostname"
     echo "  Public IP: $public_ip"
+    echo "  OS: $os_short ($(uname -m))"
+    echo "  Location: $location_city, $location_country"
     echo "  Node Role: $node_role"
     echo "  RPC Port: $rpc_port"
+    [[ -n "$coinbase_short" ]] && echo "  Coinbase: 0x${coinbase_short}..."
     echo ""
     
     # Prepare registration payload
     local payload
     payload=$(cat <<EOF
 {
-    "name": "${hostname}-${NETWORK:-mainnet}",
+    "name": "${node_name}",
     "host": "${public_ip}",
     "rpcUrl": "http://${public_ip}:${rpc_port}",
     "role": "${node_role}",
     "email": "${email:-}",
-    "telegram": "${telegram:-}"
+    "telegram": "${telegram:-}",
+    "locationCity": "${location_city}",
+    "locationCountry": "${location_country}"
 }
 EOF
 )
@@ -1382,7 +1440,7 @@ EOF
 # Auto-generated during node setup
 
 SKYNET_API_URL=https://net.xdc.network/api/v1
-SKYNET_NODE_NAME=${hostname}-${NETWORK:-mainnet}
+SKYNET_NODE_NAME=${node_name}
 SKYNET_API_KEY=${api_key}
 SKYNET_ROLE=${node_role}
 SKYNET_EMAIL=${email:-}
