@@ -134,6 +134,7 @@ $(c BOLD)GENERAL COMMANDS:$(c NC)
     $(c GREEN)restart$(c NC)       Graceful node restart
     $(c GREEN)stop$(c NC)          Stop node
     $(c GREEN)start$(c NC)         Start node
+    $(c GREEN)addpeers$(c NC)      Add peers from bootnodes.list (manual injection)
     $(c GREEN)config$(c NC)        View/edit configuration
     $(c GREEN)notify$(c NC)        Test notifications or send custom alert
     $(c GREEN)dashboard$(c NC)     Start web dashboard
@@ -2708,6 +2709,7 @@ main() {
         rewards)      cmd_rewards "$@" ;;
         cluster)      cmd_cluster "$@" ;;
         stake)        cmd_stake "$@" ;;
+        addpeers)     cmd_peers "add" "$@" ;;
         
         # General commands
         init)       cmd_init "$@" ;;
