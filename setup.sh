@@ -990,15 +990,8 @@ setup_security() {
         log "Fail2ban enabled"
     fi
     
-    # Set up 90-day SSH/password rotation reminder
-    if [[ "$OS" != "macos" ]]; then
-        cat > /etc/cron.d/xdc-security-reminder << 'CRONEOF'
-# Remind to rotate SSH keys and passwords every 90 days
-0 9 1 */3 * root echo "$(date): SECURITY REMINDER — Time to rotate SSH keys, passwords, and API keys. Recommended every 90 days." >> /var/log/xdc-security-reminders.log && wall "🔒 XDC Security Reminder: Time to rotate SSH keys and passwords (90-day cycle). See /var/log/xdc-security-reminders.log"
-CRONEOF
-        chmod 644 /etc/cron.d/xdc-security-reminder 2>/dev/null || true
-        info "Security rotation reminder set (every 90 days)"
-    fi
+    # Security rotation reminders are now handled by: xdc-node monitor
+    # No cron job needed - users can check with 'xdc-node monitor' command
     
     log "Security hardening complete"
 }
@@ -1011,74 +1004,30 @@ install_cli_tool() {
     
     log "Installing XDC CLI tool..."
     
-    # Create CLI script
-    ensure_file_path "$INSTALL_DIR/scripts/xdc-node"
-    cat > "$INSTALL_DIR/scripts/xdc-node" << 'EOF'
-#!/usr/bin/env bash
-# XDC Node CLI Tool
-
-CMD="${1:-status}"
-INSTALL_DIR="/opt/xdc-node"
-[[ "$OSTYPE" == "darwin"* ]] && INSTALL_DIR="$HOME/.xdc-node"
-
-case "$CMD" in
-    status)
-        echo "XDC Node Status"
-        echo "==============="
-        docker ps --filter "name=xdc-node" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || echo "Docker not available"
-        ;;
-    sync)
-        echo "Checking sync status..."
-        curl -s -X POST http://localhost:8545 \
-            -H "Content-Type: application/json" \
-            -d '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' | jq . 2>/dev/null || echo "Node not responding"
-        ;;
-    health)
-        echo "Health check..."
-        curl -s -X POST http://localhost:8545 \
-            -H "Content-Type: application/json" \
-            -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' | jq . 2>/dev/null || echo "Node not responding"
-        ;;
-    logs)
-        docker logs -f xdc-node 2>/dev/null || echo "Container not found"
-        ;;
-    stop)
-        echo "Stopping XDC node..."
-        (cd "$INSTALL_DIR/docker" && docker compose stop)
-        ;;
-    start)
-        echo "Starting XDC node..."
-        (cd "$INSTALL_DIR/docker" && docker compose start)
-        ;;
-    restart)
-        echo "Restarting XDC node..."
-        (cd "$INSTALL_DIR/docker" && docker compose restart)
-        ;;
-    update)
-        echo "Updating XDC node..."
-        (cd "$INSTALL_DIR/docker" && docker compose pull && docker compose up -d)
-        ;;
-    help|*)
-        echo "XDC Node CLI"
-        echo "Usage: xdc-node <command>"
-        echo ""
-        echo "Commands:"
-        echo "  status   - Show node status"
-        echo "  sync     - Check sync status"
-        echo "  health   - Health check"
-        echo "  logs     - View logs"
-        echo "  stop     - Stop node"
-        echo "  start    - Start node"
-        echo "  restart  - Restart node"
-        echo "  update   - Update to latest version"
-        echo "  help     - Show this help"
-        ;;
-esac
-EOF
-
-    chmod +x "$INSTALL_DIR/scripts/xdc-node"
+    # Copy CLI script from bundled cli/xdc-node
+    local cli_source="${SCRIPT_DIR}/cli/xdc-node"
     
-    # Create symlink
+    mkdir -p "$INSTALL_DIR/scripts"
+    
+    if [[ -f "$cli_source" ]]; then
+        cp "$cli_source" "$INSTALL_DIR/scripts/xdc-node"
+        chmod +x "$INSTALL_DIR/scripts/xdc-node"
+        log "Installed CLI from bundled cli/xdc-node"
+    else
+        warn "CLI source not found at $cli_source, downloading..."
+        curl -fsSL "https://raw.githubusercontent.com/AnilChinchawale/xdc-node-setup/main/cli/xdc-node" \
+            -o "$INSTALL_DIR/scripts/xdc-node" 2>/dev/null || {
+            error "Failed to download CLI tool"
+            return 1
+        }
+        chmod +x "$INSTALL_DIR/scripts/xdc-node"
+    fi
+    
+    # Create state directories for CLI
+    mkdir -p /var/lib/xdc-node
+    chmod 750 /var/lib/xdc-node
+    
+    # Create symlink to /usr/local/bin
     if [[ "$OS" == "linux" ]]; then
         ln -sf "$INSTALL_DIR/scripts/xdc-node" /usr/local/bin/xdc-node
     else
@@ -1091,7 +1040,7 @@ EOF
         fi
     fi
     
-    log "CLI tool installed. Use: xdc-node <command>"
+    log "CLI tool installed. Use: xdc-node help"
 }
 
 #==============================================================================
@@ -1442,17 +1391,30 @@ print_summary() {
         echo -e "     Dashboard: http://localhost:3001 (run: cd dashboard && npm run dev)"
     fi
     
-    echo -e "   ${BOLD}CLI:${NC}        xdc-node status"
+    echo -e "   ${BOLD}CLI Commands:${NC}"
+    echo "     xdc-node status     — Node status, block height, peers, sync %"
+    echo "     xdc-node sync       — Detailed sync progress with progress bar"
+    echo "     xdc-node health     — Comprehensive health check (score 0-100)"
+    echo "     xdc-node security   — Server security audit (score 0-100)"
+    echo "     xdc-node snapshot   — Restore from snapshot (with resume)"
+    echo "     xdc-node attach     — Attach to node console"
+    echo "     xdc-node info       — Node info (network, version, enode)"
+    echo "     xdc-node peers      — List connected peers"
+    echo "     xdc-node backup     — Backup keystore and configs"
+    echo "     xdc-node monitor    — Security rotation reminders"
+    echo "     xdc-node logs       — View node logs"
+    echo "     xdc-node help       — Show all commands"
     echo ""
     echo -e "   ${BOLD}Next Steps:${NC}"
     echo "   1. Wait for sync to complete (~2-3 days for full node)"
     echo "   2. Check sync status: xdc-node sync"
     echo "   3. Monitor health: xdc-node health"
+    echo "   4. Check security: xdc-node security"
     echo ""
     echo -e "   ${YELLOW}${BOLD}🔒 Security Recommendations:${NC}"
     echo "   • RPC is bound to 127.0.0.1 only (not exposed externally)"
     echo "   • Change default SSH port: edit /etc/ssh/sshd_config → Port <custom>"
-    echo "   • Change SSH password & rotate keys every 90 days"
+    echo "   • Rotate credentials every 90 days: xdc-node monitor"
     echo "   • Disable root login: PermitRootLogin no"
     echo "   • Use SSH key auth and disable password auth after setup"
     echo "   • Review firewall rules: ufw status numbered"
