@@ -139,6 +139,10 @@ error() {
     local msg="[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $1"
     echo -e "$msg" | sed 's/\\033\[[0-9;]*m//g' >> "$LOG_FILE" 2>/dev/null || true
     echo -e "${RED}✗${NC} $1" >&2
+}
+
+fatal() {
+    error "$1"
     exit 1
 }
 
@@ -239,7 +243,7 @@ EOF
 #==============================================================================
 check_root() {
     if [[ "$OS" == "linux" && $EUID -ne 0 ]]; then
-        error "This script must be run as root on Linux. Try: sudo $0"
+        fatal "This script must be run as root on Linux. Try: sudo $0"
     fi
 }
 
@@ -283,10 +287,10 @@ check_os_compatibility() {
             info "Note: Docker Desktop is required on macOS"
             ;;
         windows)
-            error "Windows is not directly supported. Please use WSL2 with Docker Desktop."
+            fatal "Windows is not directly supported. Please use WSL2 with Docker Desktop."
             ;;
         *)
-            error "Unsupported operating system: $OSTYPE"
+            fatal "Unsupported operating system: $OSTYPE"
             ;;
     esac
 }
@@ -328,11 +332,9 @@ check_hardware() {
         warnings=$((warnings + 1))
     fi
     
-    if [[ $warnings -gt 0 && "$MODE" == "advanced" ]]; then
-        read -rp "Continue anyway? [y/N]: " confirm
-        [[ "$confirm" =~ ^[Yy]$ ]] || exit 1
-    elif [[ $warnings -gt 0 ]]; then
-        warn "Proceeding with suboptimal hardware..."
+    if [[ $warnings -gt 0 ]]; then
+        warn "Hardware does not meet recommended specs — node may run slowly"
+        warn "Proceeding with setup anyway..."
         sleep 2
     fi
     
@@ -396,11 +398,11 @@ install_docker_linux() {
 
 check_docker_macos() {
     if ! command -v docker &> /dev/null; then
-        error "Docker Desktop is required on macOS. Please install from https://www.docker.com/products/docker-desktop"
+        fatal "Docker Desktop is required on macOS. Please install from https://www.docker.com/products/docker-desktop"
     fi
     
     if ! docker info &> /dev/null; then
-        error "Docker Desktop is installed but not running. Please start Docker Desktop."
+        fatal "Docker Desktop is installed but not running. Please start Docker Desktop."
     fi
     
     log "Docker Desktop detected and running"
@@ -428,7 +430,7 @@ install_dependencies() {
     if [[ "$OS" == "macos" ]]; then
         # macOS dependencies
         if ! command -v brew &> /dev/null; then
-            error "Homebrew is required. Install from https://brew.sh"
+            fatal "Homebrew is required. Install from https://brew.sh"
         fi
         
         local deps=(jq curl wget)
@@ -1476,15 +1478,15 @@ main() {
     # Configure and setup
     configure_node
     setup_docker_compose
-    setup_monitoring
-    setup_security
-    install_cli_tool
+    setup_monitoring || warn "Monitoring setup had issues (non-fatal)"
+    setup_security || warn "Security setup had issues (non-fatal)"
+    install_cli_tool || warn "CLI tool installation had issues (non-fatal)"
     
-    # Start services
+    # Start services — this is the critical step
     start_services
     
-    # Register with SkyNet
-    register_with_skynet
+    # Register with SkyNet (non-fatal if API is unreachable)
+    register_with_skynet || warn "SkyNet registration skipped — you can retry later with: xdc node --register-skynet"
     
     # Show summary
     print_summary
