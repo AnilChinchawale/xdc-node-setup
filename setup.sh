@@ -1290,21 +1290,20 @@ register_with_skynet() {
         fi
     fi
     
-    # Ask user for email
+    # Ask user for contact info (both optional)
+    local telegram=""
     echo ""
     echo -e "${CYAN}${BOLD}📡 SkyNet Dashboard Registration${NC}"
-    echo "Register your node to receive monitoring alerts and view node status."
+    echo "Register your node for monitoring and alerts on https://net.xdc.network"
     echo ""
     
-    while [[ -z "$email" ]]; do
-        read -rp "Enter your email address (required for alerts): " email
-        if [[ -z "$email" ]]; then
-            warn "Email is required for SkyNet registration"
-        elif [[ ! "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
-            warn "Invalid email format. Please try again."
-            email=""
-        fi
-    done
+    read -rp "Email for alerts (optional, press Enter to skip): " email
+    if [[ -n "$email" && ! "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+        warn "Invalid email format — skipping"
+        email=""
+    fi
+    
+    read -rp "Telegram handle for alerts (optional, e.g. @username — press Enter to skip): " telegram
     
     # Auto-detect node information
     hostname=$(hostname -s)
@@ -1340,7 +1339,8 @@ register_with_skynet() {
     "host": "${public_ip}",
     "rpcUrl": "http://${public_ip}:${rpc_port}",
     "role": "${node_role}",
-    "email": "${email}"
+    "email": "${email:-}",
+    "telegram": "${telegram:-}"
 }
 EOF
 )
@@ -1370,8 +1370,8 @@ SKYNET_API_URL=https://net.xdc.network/api/v1
 SKYNET_NODE_NAME=${hostname}-${NETWORK:-mainnet}
 SKYNET_API_KEY=${api_key}
 SKYNET_ROLE=${node_role}
-SKYNET_EMAIL=${email}
-SKYNET_TELEGRAM=
+SKYNET_EMAIL=${email:-}
+SKYNET_TELEGRAM=${telegram:-}
 EOF
         chmod 600 "$skynet_conf"
         
