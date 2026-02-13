@@ -687,21 +687,68 @@ setup_docker_compose() {
     log "Downloading XDC node configuration files..."
     local base_url="https://raw.githubusercontent.com/XinFinOrg/XinFin-Node/master/mainnet"
     
-    # First try bundled files from the repo, then fall back to download
-    local script_base="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    local bundled_dir="$script_base/docker/mainnet"
+    # Try multiple sources for config files
+    local bundled_dir="$SCRIPT_DIR/docker/mainnet"
+    local alt_bundled="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/docker/mainnet"
+    local alt_url="https://raw.githubusercontent.com/AnilChinchawale/xdc-node-setup/main/docker/mainnet"
     
     for f in genesis.json start-node.sh bootnodes.list; do
+        # 1. Try bundled from SCRIPT_DIR
         if [[ -f "$bundled_dir/$f" ]]; then
             cp "$bundled_dir/$f" "$network_dir/$f"
             log "Using bundled $f"
+        # 2. Try alternate bundled path
+        elif [[ -f "$alt_bundled/$f" ]]; then
+            cp "$alt_bundled/$f" "$network_dir/$f"
+            log "Using bundled $f"
+        # 3. Try official XinFin URL
+        elif curl -fsSL --connect-timeout 15 --retry 2 "$base_url/$f" -o "$network_dir/$f" 2>/dev/null && [[ -s "$network_dir/$f" ]]; then
+            log "Downloaded $f from XinFin"
+        # 4. Try our repo URL
+        elif curl -fsSL --connect-timeout 15 --retry 2 "$alt_url/$f" -o "$network_dir/$f" 2>/dev/null && [[ -s "$network_dir/$f" ]]; then
+            log "Downloaded $f from xdc-node-setup"
         else
-            if ! curl -fsSL --connect-timeout 10 "$base_url/$f" -o "$network_dir/$f" 2>/dev/null; then
-                warn "Failed to download $f — check your internet connection"
-                warn "You can manually place $f in $network_dir/"
-            else
-                log "Downloaded $f"
-            fi
+            # 5. Last resort: generate minimal inline versions
+            case "$f" in
+                start-node.sh)
+                    warn "Generating start-node.sh from inline template..."
+                    cat > "$network_dir/start-node.sh" << 'STARTEOF'
+#!/bin/bash
+if [ ! -d /work/xdcchain/XDC/chaindata ]; then
+    wallet=$(XDC account new --password /work/.pwd --datadir /work/xdcchain | awk -F '[{}]' '{print $2}')
+    coinbaseaddr="$wallet"
+    echo "$coinbaseaddr" > /work/xdcchain/coinbase.txt
+    XDC init --datadir /work/xdcchain /work/genesis.json
+else
+    wallet=$(XDC account list --datadir /work/xdcchain | head -n 1 | awk -F '[{}]' '{print $2}')
+fi
+input="/work/bootnodes.list"
+bootnodes=""
+while IFS= read -r line; do
+    [ -z "${bootnodes}" ] && bootnodes=$line || bootnodes="${bootnodes},$line"
+done < "$input"
+netstats="${INSTANCE_NAME:-XDC_Node}:xinfin_xdpos_hybrid_network_stats@stats.xinfin.network:3000"
+XDC --ethstats "${netstats}" --bootnodes "${bootnodes}" \
+    --syncmode "${SYNC_MODE:-full}" --gcmode "${GC_MODE:-full}" \
+    --datadir /work/xdcchain --XDCx.datadir /work/xdcchain/XDCx \
+    --networkid 50 --port 30303 \
+    --rpc --rpcaddr 0.0.0.0 --rpcport 8545 --rpcapi eth,net,web3,XDPoS --rpccorsdomain "*" --rpcvhosts "*" \
+    --unlock "${wallet}" --password /work/.pwd --mine \
+    --gasprice 1 --targetgaslimit 420000000 --verbosity "${LOG_LEVEL:-2}" \
+    "$@" 2>&1 | tee -a /work/xdcchain/xdc.log
+STARTEOF
+                    chmod +x "$network_dir/start-node.sh"
+                    ;;
+                bootnodes.list)
+                    warn "Generating bootnodes.list with default XDC bootnodes..."
+                    cat > "$network_dir/bootnodes.list" << 'BNEOF'
+enode://9a977b1ac4320fa2c862dcaf536aaaea3a8f8f7cd14e3bcde32e5a1c0152bd17bd18bfdc3c2ca8c4a0f3da153c62935fea1dc040cc1e66d2c07d6b4c91e2ed42@bootnode.xinfin.network:30303
+BNEOF
+                    ;;
+                *)
+                    warn "Failed to get $f from all sources. Place manually in $network_dir/"
+                    ;;
+            esac
         fi
     done
     chmod +x "$network_dir/start-node.sh" 2>/dev/null || true
