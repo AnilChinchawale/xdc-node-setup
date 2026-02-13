@@ -1,0 +1,387 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://xdc.network/schemas/node-config.schema.json",
+  "title": "XDC Node Configuration Schema",
+  "description": "Schema for validating XDC node configuration files",
+  "type": "object",
+  "required": ["network", "node"],
+  "properties": {
+    "network": {
+      "type": "string",
+      "enum": ["mainnet", "testnet", "devnet"],
+      "description": "XDC Network to connect to"
+    },
+    "node": {
+      "type": "object",
+      "required": ["type", "syncMode"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["full", "archive", "rpc", "masternode"],
+          "description": "Type of XDC node"
+        },
+        "syncMode": {
+          "type": "string",
+          "enum": ["full", "snap", "light"],
+          "description": "Blockchain synchronization mode"
+        },
+        "dataDir": {
+          "type": "string",
+          "pattern": "^/[a-zA-Z0-9_/.-]+$",
+          "description": "Absolute path to chain data directory"
+        },
+        "cacheSize": {
+          "type": "integer",
+          "minimum": 512,
+          "maximum": 65536,
+          "description": "Cache size in MB"
+        }
+      }
+    },
+    "rpc": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "host": {
+          "type": "string",
+          "format": "ipv4",
+          "default": "0.0.0.0"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "default": 8545
+        },
+        "apis": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["eth", "net", "web3", "txpool", "debug", "admin", "personal", "clique", "XDPoS"]
+          },
+          "default": ["eth", "net", "web3", "XDPoS"]
+        },
+        "cors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          },
+          "default": ["*"]
+        },
+        "vhosts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["*"]
+        },
+        "authentication": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "jwtSecret": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{64}$"
+            }
+          }
+        }
+      }
+    },
+    "p2p": {
+      "type": "object",
+      "properties": {
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "default": 30303
+        },
+        "maxPeers": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 50
+        },
+        "discovery": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "monitoring": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "prometheusPort": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "default": 6060
+        },
+        "metrics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["system", "chain", "network", "rpc", "txpool"]
+          }
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["debug", "info", "warn", "error"],
+          "default": "info"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["json", "text"],
+          "default": "text"
+        },
+        "output": {
+          "type": "string",
+          "enum": ["stdout", "file", "both"],
+          "default": "stdout"
+        },
+        "file": {
+          "type": "string",
+          "pattern": "^/[a-zA-Z0-9_/.-]+\\.log$"
+        },
+        "maxSize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "Max log file size in MB"
+        },
+        "maxBackups": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "firewall": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "allowedPorts": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              }
+            }
+          }
+        },
+        "fail2ban": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "maxRetries": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "default": 5
+            },
+            "banTime": {
+              "type": "integer",
+              "minimum": 60,
+              "maximum": 86400,
+              "default": 3600,
+              "description": "Ban duration in seconds"
+            }
+          }
+        },
+        "audit": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "rules": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "backup": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "schedule": {
+          "type": "string",
+          "pattern": "^\\*?\\d* [0-9*,/-]+ [0-9*,/-]+ [0-9*,/-]+ [0-9*,/-]+$",
+          "description": "Cron expression for backup schedule",
+          "default": "0 3 * * *"
+        },
+        "retention": {
+          "type": "object",
+          "properties": {
+            "daily": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 30,
+              "default": 7
+            },
+            "weekly": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 52,
+              "default": 4
+            },
+            "monthly": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 24,
+              "default": 12
+            }
+          }
+        },
+        "encryption": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "gpgRecipient": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{40}$"
+            }
+          }
+        },
+        "destination": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["local", "s3", "ftp", "sftp"],
+              "default": "local"
+            },
+            "path": {
+              "type": "string"
+            },
+            "s3": {
+              "type": "object",
+              "properties": {
+                "bucket": {
+                  "type": "string"
+                },
+                "region": {
+                  "type": "string"
+                },
+                "storageClass": {
+                  "type": "string",
+                  "enum": ["STANDARD", "STANDARD_IA", "GLACIER", "DEEP_ARCHIVE"],
+                  "default": "STANDARD_IA"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "notifications": {
+      "type": "object",
+      "properties": {
+        "channels": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["telegram", "email", "slack", "discord", "webhook"]
+          }
+        },
+        "telegram": {
+          "type": "object",
+          "properties": {
+            "botToken": {
+              "type": "string",
+              "minLength": 46
+            },
+            "chatId": {
+              "type": "string"
+            }
+          }
+        },
+        "email": {
+          "type": "object",
+          "properties": {
+            "smtpHost": {
+              "type": "string",
+              "format": "hostname"
+            },
+            "smtpPort": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535,
+              "default": 587
+            },
+            "username": {
+              "type": "string",
+              "format": "email"
+            },
+            "tls": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        },
+        "alerts": {
+          "type": "object",
+          "properties": {
+            "nodeOffline": {
+              "type": "boolean",
+              "default": true
+            },
+            "syncBehind": {
+              "type": "boolean",
+              "default": true
+            },
+            "diskSpace": {
+              "type": "boolean",
+              "default": true
+            },
+            "highCpu": {
+              "type": "boolean",
+              "default": true
+            },
+            "newVersion": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        }
+      }
+    }
+  }
+}

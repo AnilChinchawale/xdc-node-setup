@@ -1,0 +1,128 @@
+name: CI Extended
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ... existing jobs ...
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Bats
+        run: |
+          git clone https://github.com/bats-core/bats-core.git
+          cd bats-core
+          sudo ./install.sh /usr/local
+
+      - name: Run unit tests
+        run: |
+          cd tests
+          bats unit/
+
+  config-validation:
+    name: Validate Configurations
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq python3 python3-pip
+          pip3 install jsonschema
+
+      - name: Validate config schema
+        run: |
+          python3 -c "import json, jsonschema; jsonschema.Draft7Validator.check_schema(json.load(open('configs/schema.json')))"
+
+      - name: Test config validator
+        run: |
+          ./scripts/validate-config.sh sample > /tmp/sample-config.json
+          ./scripts/validate-config.sh validate /tmp/sample-config.json
+
+  shellcheck-extended:
+    name: Extended ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: Run ShellCheck with strict rules
+        run: |
+          find . -name "*.sh" -type f | grep -v node_modules | while read script; do
+            echo "Checking: $script"
+            shellcheck -x -s bash \
+              -e SC1090 \
+              -e SC1091 \
+              -e SC2001 \
+              "$script" || exit 1
+          done
+
+  security-scan:
+    name: Security Scan Extended
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for hardcoded secrets
+        run: |
+          patterns=(
+            "password\s*=\s*['\"][^'\"]{8,}['\"]"
+            "api_key\s*=\s*['\"][^'\"]{20,}['\"]"
+            "secret\s*=\s*['\"][^'\"]{20,}['\"]"
+            "PRIVATE.*KEY.*=.*[a-fA-F0-9]{32,}"
+            "-----BEGIN.*PRIVATE KEY-----"
+          )
+          
+          found=0
+          for pattern in "${patterns[@]}"; do
+            matches=$(grep -rniE "$pattern" --include="*.sh" --include="*.yml" --include="*.yaml" --include="*.ts" --include="*.js" . 2>/dev/null | grep -v "example\|template\|changeme\|CHANGEME\|your-\|YOUR_\|test\|spec" || true)
+            if [[ -n "$matches" ]]; then
+              echo "Potential secret found:"
+              echo "$matches"
+              found=1
+            fi
+          done
+          
+          if [[ $found -eq 1 ]]; then
+            echo "⚠️  Please review potential secrets"
+            exit 1
+          fi
+          echo "✅ No obvious secrets found"
+
+  docker-security:
+    name: Docker Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ./docker/Dockerfile
+          verbose: true
+
+      - name: Check compose security
+        run: |
+          # Check for security issues in docker-compose files
+          if grep -r "privileged: true" docker/*.yml 2>/dev/null; then
+            echo "Warning: Found privileged containers"
+          fi
+          
+          if ! grep -r "no-new-privileges" docker/*.yml 2>/dev/null; then
+            echo "Warning: Consider adding no-new-privileges security option"
+          fi
