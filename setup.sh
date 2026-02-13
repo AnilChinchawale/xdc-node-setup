@@ -1037,16 +1037,22 @@ install_cli_tool() {
     mkdir -p /var/lib/xdc-node
     chmod 750 /var/lib/xdc-node
     
-    # Create symlink to /usr/local/bin
-    if [[ "$OS" == "linux" ]]; then
+    # Create symlink — try /usr/local/bin first, fall back to ~/.local/bin
+    if [[ -w /usr/local/bin ]]; then
         ln -sf "$INSTALL_DIR/scripts/xdc-node" /usr/local/bin/xdc
+        log "CLI installed at /usr/local/bin/xdc"
+    elif sudo ln -sf "$INSTALL_DIR/scripts/xdc-node" /usr/local/bin/xdc 2>/dev/null; then
+        log "CLI installed at /usr/local/bin/xdc (via sudo)"
     else
         mkdir -p "$HOME/.local/bin"
-        ln -sf "$INSTALL_DIR/scripts/xdc-node" "$HOME/.local/bin/xdc-node"
+        ln -sf "$INSTALL_DIR/scripts/xdc-node" "$HOME/.local/bin/xdc"
+        log "CLI installed at $HOME/.local/bin/xdc"
         # Add to PATH if needed
         if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc" 2>/dev/null || true
             echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.zshrc" 2>/dev/null || true
+            export PATH="$HOME/.local/bin:$PATH"
+            warn "Added ~/.local/bin to PATH. Run: source ~/.zshrc (or restart terminal)"
         fi
     fi
     
