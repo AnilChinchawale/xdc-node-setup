@@ -1256,13 +1256,29 @@ register_with_skynet() {
     echo "Register your node for monitoring and alerts on https://net.xdc.network"
     echo ""
     
-    read -rp "Email for alerts (optional, press Enter to skip): " email
+    # Mask sensitive input: show first 2 and last 2 chars, rest as *
+    mask_value() {
+        local val="$1"
+        local len=${#val}
+        if [[ $len -le 4 ]]; then
+            printf '%*s' "$len" | tr ' ' '*'
+        else
+            echo "${val:0:2}$(printf '%*s' $((len - 4)) | tr ' ' '*')${val: -2}"
+        fi
+    }
+    
+    read -rp "* Email for alerts (optional, press Enter to skip): " email
     if [[ -n "$email" && ! "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
         warn "Invalid email format — skipping"
         email=""
+    elif [[ -n "$email" ]]; then
+        info "Email: $(mask_value "$email")"
     fi
     
-    read -rp "Telegram handle for alerts (optional, e.g. @username — press Enter to skip): " telegram
+    read -rp "* Telegram handle for alerts (optional, e.g. @username — press Enter to skip): " telegram
+    if [[ -n "$telegram" ]]; then
+        info "Telegram: $(mask_value "$telegram")"
+    fi
     
     # Auto-detect node information
     hostname=$(hostname -s)
