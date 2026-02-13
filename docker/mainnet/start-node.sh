@@ -20,11 +20,15 @@ XDC_VERSION=$(XDC version 2>/dev/null | head -1 || echo "unknown")
 echo "XDC version: $XDC_VERSION"
 
 detect_rpc_style() {
-    # Check if --http flag is supported
-    if XDC --help 2>&1 | grep -q "\-\-http.addr\|\-\-http\.addr"; then
-        echo "new"
+    # v2.6.8 supports --http-addr (dash) but NOT --http.addr (dot)
+    # Newer geth supports --http.addr (dot)
+    # Check for dot-style first (true new geth), then dash-style, then old --rpc
+    if XDC --help 2>&1 | grep -q "\-\-http\.addr"; then
+        echo "new"       # geth-style --http.addr --http.port
+    elif XDC --help 2>&1 | grep -q "\-\-http-addr"; then
+        echo "dash"      # v2.6.8 style --http-addr --http-port
     else
-        echo "old"
+        echo "old"       # legacy --rpcaddr --rpcport
     fi
 }
 RPC_STYLE=$(detect_rpc_style)
@@ -40,7 +44,7 @@ echo "RPC flag style: $RPC_STYLE"
 : "${ENABLE_RPC:=true}"
 : "${RPC_ADDR:=0.0.0.0}"
 : "${RPC_PORT:=8545}"
-: "${RPC_API:=eth,net,web3,XDPoS}"
+: "${RPC_API:=admin,eth,net,web3,XDPoS}"
 : "${RPC_CORS_DOMAIN:=*}"
 : "${RPC_VHOSTS:=*}"
 : "${WS_ADDR:=0.0.0.0}"
@@ -128,8 +132,24 @@ if echo "$ENABLE_RPC" | grep -iq "true"; then
             --ws.api "$WS_API"
             --ws.origins "$WS_ORIGINS"
         )
+    elif [ "$RPC_STYLE" = "dash" ]; then
+        # XDC v2.6.x style flags (--http-addr with dashes)
+        args+=(
+            --http
+            --http-addr "$RPC_ADDR"
+            --http-port "$RPC_PORT"
+            --http-api "$RPC_API"
+            --http-corsdomain "$RPC_CORS_DOMAIN"
+            --http-vhosts "$RPC_VHOSTS"
+            --store-reward
+            --ws
+            --wsaddr "$WS_ADDR"
+            --wsport "$WS_PORT"
+            --wsapi "$WS_API"
+            --wsorigins "$WS_ORIGINS"
+        )
     else
-        # Old XDPoS-style flags (--rpc*)
+        # Legacy XDPoS flags (--rpc*)
         args+=(
             --rpc
             --rpcaddr "$RPC_ADDR"
