@@ -729,8 +729,8 @@ services:
     container_name: xdc-node
     restart: always
     ports:
-      - "${RPC_PORT}:8545"
-      - "${WS_PORT}:8546"
+      - "127.0.0.1:${RPC_PORT}:8545"
+      - "127.0.0.1:${WS_PORT}:8546"
       - "${P2P_PORT}:30303"
       - "${P2P_PORT}:30303/udp"
     volumes:
@@ -970,7 +970,7 @@ setup_security() {
         }
         
         ufw_allow_if_missing "22/tcp" "SSH"
-        ufw_allow_if_missing "${RPC_PORT}/tcp" "XDC RPC"
+        # RPC intentionally NOT exposed — bound to 127.0.0.1 only (internal monitoring)
         ufw_allow_if_missing "${P2P_PORT}/tcp" "XDC P2P"
         ufw_allow_if_missing "${P2P_PORT}/udp" "XDC P2P UDP"
         
@@ -988,6 +988,16 @@ setup_security() {
         systemctl enable fail2ban
         systemctl start fail2ban
         log "Fail2ban enabled"
+    fi
+    
+    # Set up 90-day SSH/password rotation reminder
+    if [[ "$OS" != "macos" ]]; then
+        cat > /etc/cron.d/xdc-security-reminder << 'CRONEOF'
+# Remind to rotate SSH keys and passwords every 90 days
+0 9 1 */3 * root echo "$(date): SECURITY REMINDER — Time to rotate SSH keys, passwords, and API keys. Recommended every 90 days." >> /var/log/xdc-security-reminders.log && wall "🔒 XDC Security Reminder: Time to rotate SSH keys and passwords (90-day cycle). See /var/log/xdc-security-reminders.log"
+CRONEOF
+        chmod 644 /etc/cron.d/xdc-security-reminder 2>/dev/null || true
+        info "Security rotation reminder set (every 90 days)"
     fi
     
     log "Security hardening complete"
@@ -1438,6 +1448,14 @@ print_summary() {
     echo "   1. Wait for sync to complete (~2-3 days for full node)"
     echo "   2. Check sync status: xdc-node sync"
     echo "   3. Monitor health: xdc-node health"
+    echo ""
+    echo -e "   ${YELLOW}${BOLD}🔒 Security Recommendations:${NC}"
+    echo "   • RPC is bound to 127.0.0.1 only (not exposed externally)"
+    echo "   • Change default SSH port: edit /etc/ssh/sshd_config → Port <custom>"
+    echo "   • Change SSH password & rotate keys every 90 days"
+    echo "   • Disable root login: PermitRootLogin no"
+    echo "   • Use SSH key auth and disable password auth after setup"
+    echo "   • Review firewall rules: ufw status numbered"
     echo ""
     echo -e "   ${BOLD}Documentation:${NC} https://github.com/AnilChinchawale/xdc-node-setup/docs"
     echo ""
