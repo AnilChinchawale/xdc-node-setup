@@ -760,6 +760,27 @@ BNEOF
     done
     chmod +x "$network_dir/start-node.sh" 2>/dev/null || true
     
+    # Create entrypoint wrapper that ensures XDC binary exists
+    cat > "$docker_dir/entrypoint.sh" << 'ENTRYEOF'
+#!/bin/sh
+# Ensure XDC binary is available (image may have XDC-mainnet instead)
+if ! command -v XDC >/dev/null 2>&1; then
+    for bin in XDC-mainnet XDC-testnet XDC-devnet XDC-local; do
+        if command -v "$bin" >/dev/null 2>&1; then
+            ln -sf "$(which "$bin")" /usr/bin/XDC
+            echo "Linked $bin → /usr/bin/XDC"
+            break
+        fi
+    done
+fi
+if ! command -v XDC >/dev/null 2>&1; then
+    echo "FATAL: No XDC binary found in image!"
+    exit 1
+fi
+exec /work/start.sh "$@"
+ENTRYEOF
+    chmod +x "$docker_dir/entrypoint.sh"
+    
     # Create .env file
     ensure_file_path "$network_dir/.env"
     cat > "$network_dir/.env" << ENVEOF
@@ -801,11 +822,12 @@ services:
       - ${DATA_DIR}:/work/xdcchain
       - ./mainnet/genesis.json:/work/genesis.json
       - ./mainnet/start-node.sh:/work/start.sh
+      - ./entrypoint.sh:/work/entrypoint.sh
       - ./mainnet/bootnodes.list:/work/bootnodes.list
       - ./mainnet/.pwd:/work/.pwd
     env_file:
       - ./mainnet/.env
-    entrypoint: /work/start.sh
+    entrypoint: /work/entrypoint.sh
       --ws
       --wsaddr 0.0.0.0
       --wsport 8546
