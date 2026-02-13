@@ -1089,6 +1089,29 @@ start_services() {
         fi
     done
     
+    # Verify critical files exist and are actual files (not directories)
+    for f in mainnet/start-node.sh mainnet/genesis.json mainnet/.pwd; do
+        local fpath="$INSTALL_DIR/docker/$f"
+        if [[ -d "$fpath" ]]; then
+            warn "$f was created as a directory (Docker artifact). Removing and recreating..."
+            rm -rf "$fpath"
+        fi
+        if [[ ! -f "$fpath" || ! -s "$fpath" ]]; then
+            warn "$f is missing or empty. Re-downloading..."
+            local base_url="https://raw.githubusercontent.com/XinFinOrg/XinFin-Node/master/mainnet"
+            local fname=$(basename "$f")
+            curl -fsSL "$base_url/$fname" -o "$fpath" 2>/dev/null || warn "Failed to download $fname"
+            [[ "$fname" == "start-node.sh" ]] && chmod +x "$fpath" 2>/dev/null || true
+            [[ "$fname" == ".pwd" ]] && { echo "xdc-node-password" > "$fpath"; chmod 600 "$fpath"; }
+        fi
+    done
+    
+    # Also remove any Docker-created directories in the data volume
+    local container_name="xdc-node"
+    if docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
+        docker rm -f "$container_name" 2>/dev/null || true
+    fi
+    
     # Start services (remove orphans from other projects sharing this dir)
     info "Starting containers..."
     docker compose up -d --remove-orphans
