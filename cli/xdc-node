@@ -2,19 +2,19 @@
 set -euo pipefail
 
 #==============================================================================
-# xdc-node — Comprehensive XDC Network Node Management CLI
+# xdc — Comprehensive XDC Network Node Management CLI
 # Version: 2.0.0
 #==============================================================================
 
 readonly CLI_VERSION="2.0.0"
-readonly CLI_NAME="xdc-node"
+readonly CLI_NAME="xdc"
 
 # Determine installation directory
-readonly INSTALL_DIR="${INSTALL_DIR:-/opt/xdc-node}"
-readonly XDC_HOME="${XDC_HOME:-/opt/xdc-node}"
+readonly INSTALL_DIR="${INSTALL_DIR:-/opt/xdc}"
+readonly XDC_HOME="${XDC_HOME:-/opt/xdc}"
 readonly XDC_DATA="${XDC_DATA:-/root/xdcchain}"
-readonly SECURITY_STATE_FILE="/var/lib/xdc-node/security-state.json"
-readonly SNAPSHOT_STATE_FILE="/var/lib/xdc-node/snapshot-state.json"
+readonly SECURITY_STATE_FILE="/var/lib/xdc/security-state.json"
+readonly SNAPSHOT_STATE_FILE="/var/lib/xdc/snapshot-state.json"
 
 # Default RPC settings
 readonly XDC_RPC_PORT="${XDC_RPC_PORT:-9545}"
@@ -90,7 +90,7 @@ cmd_help() {
 ${CYAN}${BOLD}XDC Node CLI${NC} — Comprehensive node management tool
 
 ${BOLD}USAGE:${NC}
-    xdc-node <command> [options]
+    xdc <command> [options]
 
 ${BOLD}STATUS & INFO COMMANDS:${NC}
     status          Show rich node status (running/stopped, block height, peers, sync %, uptime, disk, RPC latency)
@@ -119,13 +119,13 @@ ${BOLD}GLOBAL OPTIONS:${NC}
     --help, -h      Show this help message
 
 ${BOLD}EXAMPLES:${NC}
-    xdc-node status                    # Quick status check
-    xdc-node security                  # Check security score
-    xdc-node snapshot                  # Restore from snapshot
-    xdc-node attach                    # Attach to node console
-    xdc-node monitor --rotate-done ssh # Mark SSH keys as rotated
+    xdc status                    # Quick status check
+    xdc security                  # Check security score
+    xdc snapshot                  # Restore from snapshot
+    xdc attach                    # Attach to node console
+    xdc monitor --rotate-done ssh # Mark SSH keys as rotated
 
-Run 'xdc-node <command> --help' for detailed command usage.
+Run 'xdc <command> --help' for detailed command usage.
 
 EOF
 }
@@ -146,10 +146,10 @@ cmd_status() {
     
     if [[ "$show_help" == true ]]; then
         cat << EOF
-${CYAN}${BOLD}xdc-node status${NC} — Show rich node status
+${CYAN}${BOLD}xdc status${NC} — Show rich node status
 
 ${BOLD}USAGE:${NC}
-    xdc-node status
+    xdc status
 
 ${BOLD}OUTPUT:${NC}
     • Node running/stopped status
@@ -173,11 +173,11 @@ EOF
     local uptime="N/A"
     local docker_image="N/A"
     
-    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^xdc-node$"; then
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^xdc$"; then
         container_status="running"
-        uptime=$(docker inspect --format='{{.State.StartedAt}}' xdc-node 2>/dev/null | xargs -I {} date -d "{}" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "Unknown")
-        docker_image=$(docker inspect --format='{{.Config.Image}}' xdc-node 2>/dev/null || echo "Unknown")
-    elif docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^xdc-node$"; then
+        uptime=$(docker inspect --format='{{.State.StartedAt}}' xdc 2>/dev/null | xargs -I {} date -d "{}" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "Unknown")
+        docker_image=$(docker inspect --format='{{.Config.Image}}' xdc 2>/dev/null || echo "Unknown")
+    elif docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^xdc$"; then
         container_status="stopped"
     fi
     
@@ -276,10 +276,10 @@ cmd_sync() {
     
     if [[ "$show_help" == true ]]; then
         cat << EOF
-${CYAN}${BOLD}xdc-node sync${NC} — Detailed sync info with progress bar
+${CYAN}${BOLD}xdc sync${NC} — Detailed sync info with progress bar
 
 ${BOLD}USAGE:${NC}
-    xdc-node sync [--watch]
+    xdc sync [--watch]
 
 ${BOLD}OUTPUT:${NC}
     • Current block vs highest block
@@ -343,7 +343,7 @@ EOF
         
         # Estimate time (rough calculation)
         if [[ -f "$SNAPSHOT_STATE_FILE" ]]; then
-            info "Sync progress tracking available. Use 'xdc-node snapshot' for restore options."
+            info "Sync progress tracking available. Use 'xdc snapshot' for restore options."
         fi
     else
         warn "Unable to determine sync status. Is the node running?"
@@ -368,10 +368,10 @@ cmd_health() {
     
     if [[ "$show_help" == true ]]; then
         cat << EOF
-${CYAN}${BOLD}xdc-node health${NC} — Comprehensive health check with score
+${CYAN}${BOLD}xdc health${NC} — Comprehensive health check with score
 
 ${BOLD}USAGE:${NC}
-    xdc-node health
+    xdc health
 
 ${BOLD}CHECKS:${NC}
     • Container running
@@ -400,7 +400,7 @@ EOF
     # Check 1: Container running
     total_checks=$((total_checks + 1))
     printf "  %-40s " "Container Status:"
-    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^xdc-node$"; then
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^xdc$"; then
         echo -e "${GREEN}${CHECK} Running${NC}"
         passed_checks=$((passed_checks + 1))
     else
@@ -530,10 +530,10 @@ cmd_logs() {
     
     if [[ "$show_help" == true ]]; then
         cat << EOF
-${CYAN}${BOLD}xdc-node logs${NC} — View node logs
+${CYAN}${BOLD}xdc logs${NC} — View node logs
 
 ${BOLD}USAGE:${NC}
-    xdc-node logs [options]
+    xdc logs [options]
 
 ${BOLD}OPTIONS:${NC}
     --lines, -n N    Number of lines to show (default: 50)
@@ -545,9 +545,9 @@ EOF
     fi
     
     if [[ "$follow" == true ]]; then
-        docker logs -f --tail "$lines" xdc-node 2>/dev/null || error "Container not found"
+        docker logs -f --tail "$lines" xdc 2>/dev/null || error "Container not found"
     else
-        docker logs --tail "$lines" xdc-node 2>/dev/null || error "Container not found"
+        docker logs --tail "$lines" xdc 2>/dev/null || error "Container not found"
     fi
 }
 
@@ -567,17 +567,17 @@ cmd_stop() {
     
     if [[ "$show_help" == true ]]; then
         cat << EOF
-${CYAN}${BOLD}xdc-node stop${NC} — Stop the XDC node
+${CYAN}${BOLD}xdc stop${NC} — Stop the XDC node
 
 ${BOLD}USAGE:${NC}
-    xdc-node stop
+    xdc stop
 
 EOF
         return 0
     fi
     
     info "Stopping XDC node..."
-    if docker stop xdc-node 2>/dev/null; then
+    if docker stop xdc 2>/dev/null; then
         log "Node stopped successfully"
     else
         warn "Node may already be stopped or container not found"
@@ -596,17 +596,17 @@ cmd_start() {
     
     if [[ "$show_help" == true ]]; then
         cat << EOF
-${CYAN}${BOLD}xdc-node start${NC} — Start the XDC node
+${CYAN}${BOLD}xdc start${NC} — Start the XDC node
 
 ${BOLD}USAGE:${NC}
-    xdc-node start
+    xdc start
 
 EOF
         return 0
     fi
     
     info "Starting XDC node..."
-    if docker start xdc-node 2>/dev/null; then
+    if docker start xdc 2>/dev/null; then
         log "Node started successfully"
     else
         error "Failed to start node. Check if container exists."
@@ -626,17 +626,17 @@ cmd_restart() {
     
     if [[ "$show_help" == true ]]; then
         cat << EOF
-${CYAN}${BOLD}xdc-node restart${NC} — Restart the XDC node
+${CYAN}${BOLD}xdc restart${NC} — Restart the XDC node
 
 ${BOLD}USAGE:${NC}
-    xdc-node restart
+    xdc restart
 
 EOF
         return 0
     fi
     
     info "Restarting XDC node..."
-    if docker restart xdc-node 2>/dev/null; then
+    if docker restart xdc 2>/dev/null; then
         log "Node restarted successfully"
     else
         error "Failed to restart node"
@@ -660,10 +660,10 @@ cmd_update() {
     
     if [[ "$show_help" == true ]]; then
         cat << EOF
-${CYAN}${BOLD}xdc-node update${NC} — Update to latest version
+${CYAN}${BOLD}xdc update${NC} — Update to latest version
 
 ${BOLD}USAGE:${NC}
-    xdc-node update
+    xdc update
 
 ${BOLD}DESCRIPTION:${NC}
     Pulls the latest Docker image and recreates the container
@@ -711,10 +711,10 @@ cmd_security() {
     
     if [[ "$show_help" == true ]]; then
         cat << EOF
-${CYAN}${BOLD}xdc-node security${NC} — Server security score
+${CYAN}${BOLD}xdc security${NC} — Server security score
 
 ${BOLD}USAGE:${NC}
-    xdc-node security
+    xdc security
 
 ${BOLD}CHECKS:${NC}
     • SSH port configuration
@@ -786,7 +786,7 @@ EOF
     # Check RPC exposure
     printf "  %-45s " "RPC not exposed to 0.0.0.0:"
     local rpc_exposed=false
-    if docker inspect xdc-node 2>/dev/null | grep -qE '"0\.0\.0\.0:(8545|9545)"'; then
+    if docker inspect xdc 2>/dev/null | grep -qE '"0\.0\.0\.0:(8545|9545)"'; then
         rpc_exposed=true
     fi
     if [[ "$rpc_exposed" == false ]]; then
@@ -901,10 +901,10 @@ cmd_snapshot() {
     
     if [[ "$show_help" == true ]]; then
         cat << EOF
-${CYAN}${BOLD}xdc-node snapshot${NC} — Restore from snapshot with resume support
+${CYAN}${BOLD}xdc snapshot${NC} — Restore from snapshot with resume support
 
 ${BOLD}USAGE:${NC}
-    xdc-node snapshot [options]
+    xdc snapshot [options]
 
 ${BOLD}OPTIONS:${NC}
     --url URL        Snapshot URL (default: https://download.xinfin.network/xdcchain-mainnet.tar.gz)
@@ -914,7 +914,7 @@ ${BOLD}OPTIONS:${NC}
 ${BOLD}DESCRIPTION:${NC}
     Downloads and restores the XDC chain from an official snapshot.
     Supports resume for interrupted downloads.
-    Tracks state in /var/lib/xdc-node/snapshot-state.json
+    Tracks state in /var/lib/xdc/snapshot-state.json
 
 ${BOLD}STATE FILE:${NC}
     Tracks: stage, bytesDownloaded, totalBytes, startedAt
@@ -1021,7 +1021,7 @@ EOF
     
     # Stop node before extraction
     info "Stopping XDC node for snapshot restore..."
-    docker stop xdc-node 2>/dev/null || true
+    docker stop xdc 2>/dev/null || true
     
     # Update state
     jq '.stage = "extracting"' "$SNAPSHOT_STATE_FILE" > "${SNAPSHOT_STATE_FILE}.tmp" && mv "${SNAPSHOT_STATE_FILE}.tmp" "$SNAPSHOT_STATE_FILE"
@@ -1053,7 +1053,7 @@ EOF
     
     # Start node
     info "Starting XDC node..."
-    docker start xdc-node 2>/dev/null || true
+    docker start xdc 2>/dev/null || true
     
     log "Snapshot restored successfully"
     echo ""
@@ -1078,10 +1078,10 @@ cmd_attach() {
     
     if [[ "$show_help" == true ]]; then
         cat << EOF
-${CYAN}${BOLD}xdc-node attach${NC} — Attach to running XDC node console
+${CYAN}${BOLD}xdc attach${NC} — Attach to running XDC node console
 
 ${BOLD}USAGE:${NC}
-    xdc-node attach
+    xdc attach
 
 ${BOLD}DESCRIPTION:${NC}
     Attaches to the XDC JavaScript console via IPC.
@@ -1092,17 +1092,17 @@ EOF
     fi
     
     # Check if container is running
-    if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^xdc-node$"; then
+    if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^xdc$"; then
         error "XDC node container is not running"
         echo ""
         echo "To start the node:"
-        echo "  xdc-node start"
+        echo "  xdc start"
         echo ""
         exit 1
     fi
     
     info "Attaching to XDC console..."
-    docker exec -it xdc-node XDC attach /work/xdcchain/XDC.ipc
+    docker exec -it xdc XDC attach /work/xdcchain/XDC.ipc
 }
 
 #==============================================================================
@@ -1121,10 +1121,10 @@ cmd_info() {
     
     if [[ "$show_help" == true ]]; then
         cat << EOF
-${CYAN}${BOLD}xdc-node info${NC} — Show node information
+${CYAN}${BOLD}xdc info${NC} — Show node information
 
 ${BOLD}USAGE:${NC}
-    xdc-node info
+    xdc info
 
 ${BOLD}OUTPUT:${NC}
     • Network (mainnet/testnet)
@@ -1180,9 +1180,9 @@ EOF
     # Get uptime and image
     local uptime="N/A"
     local docker_image="N/A"
-    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^xdc-node$"; then
-        uptime=$(docker inspect --format='{{.State.StartedAt}}' xdc-node 2>/dev/null | xargs -I {} date -d "{}" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "N/A")
-        docker_image=$(docker inspect --format='{{.Config.Image}}' xdc-node 2>/dev/null || echo "N/A")
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^xdc$"; then
+        uptime=$(docker inspect --format='{{.State.StartedAt}}' xdc 2>/dev/null | xargs -I {} date -d "{}" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "N/A")
+        docker_image=$(docker inspect --format='{{.Config.Image}}' xdc 2>/dev/null || echo "N/A")
     fi
     
     printf "  ${BOLD}%-20s${NC} %s\n" "Network:" "$network"
@@ -1213,10 +1213,10 @@ cmd_peers() {
     
     if [[ "$show_help" == true ]]; then
         cat << EOF
-${CYAN}${BOLD}xdc-node peers${NC} — List connected peers
+${CYAN}${BOLD}xdc peers${NC} — List connected peers
 
 ${BOLD}USAGE:${NC}
-    xdc-node peers
+    xdc peers
 
 ${BOLD}OUTPUT:${NC}
     • Enode addresses
@@ -1262,7 +1262,7 @@ EOF
 
 cmd_backup() {
     local show_help=false
-    local backup_dir="/backup/xdc-node"
+    local backup_dir="/backup/xdc"
     
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -1274,13 +1274,13 @@ cmd_backup() {
     
     if [[ "$show_help" == true ]]; then
         cat << EOF
-${CYAN}${BOLD}xdc-node backup${NC} — Backup keystore and configs
+${CYAN}${BOLD}xdc backup${NC} — Backup keystore and configs
 
 ${BOLD}USAGE:${NC}
-    xdc-node backup [options]
+    xdc backup [options]
 
 ${BOLD}OPTIONS:${NC}
-    --output DIR     Backup destination (default: /backup/xdc-node)
+    --output DIR     Backup destination (default: /backup/xdc)
     --help           Show this help
 
 ${BOLD}BACKUP INCLUDES:${NC}
@@ -1357,10 +1357,10 @@ cmd_monitor() {
     
     if [[ "$show_help" == true ]]; then
         cat << EOF
-${CYAN}${BOLD}xdc-node monitor${NC} — Security monitoring and reminders
+${CYAN}${BOLD}xdc monitor${NC} — Security monitoring and reminders
 
 ${BOLD}USAGE:${NC}
-    xdc-node monitor [options]
+    xdc monitor [options]
 
 ${BOLD}OPTIONS:${NC}
     --rotate-done TYPE    Mark rotation as done (ssh|password|apikey)
@@ -1372,7 +1372,7 @@ ${BOLD}MONITORING:${NC}
     • API key rotation (90 days)
 
 ${BOLD}STATE FILE:${NC}
-    /var/lib/xdc-node/security-state.json
+    /var/lib/xdc/security-state.json
 
 EOF
         return 0
@@ -1437,7 +1437,7 @@ EOF
         printf "  ${BOLD}%-20s${NC} " "SSH Keys:"
         if [[ $ssh_age -gt $ninety_days ]]; then
             echo -e "${RED}${CROSS} $ssh_days days old (rotate recommended)${NC}"
-            echo -e "      ${YELLOW}→ Run: xdc-node monitor --rotate-done ssh${NC}"
+            echo -e "      ${YELLOW}→ Run: xdc monitor --rotate-done ssh${NC}"
         else
             echo -e "${GREEN}${CHECK} $ssh_days days old${NC}"
         fi
@@ -1455,7 +1455,7 @@ EOF
         printf "  ${BOLD}%-20s${NC} " "Password:"
         if [[ $pwd_age -gt $ninety_days ]]; then
             echo -e "${RED}${CROSS} $pwd_days days old (rotate recommended)${NC}"
-            echo -e "      ${YELLOW}→ Run: xdc-node monitor --rotate-done password${NC}"
+            echo -e "      ${YELLOW}→ Run: xdc monitor --rotate-done password${NC}"
         else
             echo -e "${GREEN}${CHECK} $pwd_days days old${NC}"
         fi
@@ -1473,7 +1473,7 @@ EOF
         printf "  ${BOLD}%-20s${NC} " "API Keys:"
         if [[ $api_age -gt $ninety_days ]]; then
             echo -e "${RED}${CROSS} $api_days days old (rotate recommended)${NC}"
-            echo -e "      ${YELLOW}→ Run: xdc-node monitor --rotate-done apikey${NC}"
+            echo -e "      ${YELLOW}→ Run: xdc monitor --rotate-done apikey${NC}"
         else
             echo -e "${GREEN}${CHECK} $api_days days old${NC}"
         fi
@@ -1556,7 +1556,7 @@ main() {
         *)
             error "Unknown command: $cmd"
             echo ""
-            echo "Run 'xdc-node help' for usage information."
+            echo "Run 'xdc help' for usage information."
             exit 1
             ;;
     esac

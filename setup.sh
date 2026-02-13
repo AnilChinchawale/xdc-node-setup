@@ -990,8 +990,8 @@ setup_security() {
         log "Fail2ban enabled"
     fi
     
-    # Security rotation reminders are now handled by: xdc-node monitor
-    # No cron job needed - users can check with 'xdc-node monitor' command
+    # Security rotation reminders are now handled by: xdc monitor
+    # No cron job needed - users can check with 'xdc monitor' command
     
     log "Security hardening complete"
 }
@@ -1029,7 +1029,7 @@ install_cli_tool() {
     
     # Create symlink to /usr/local/bin
     if [[ "$OS" == "linux" ]]; then
-        ln -sf "$INSTALL_DIR/scripts/xdc-node" /usr/local/bin/xdc-node
+        ln -sf "$INSTALL_DIR/scripts/xdc-node" /usr/local/bin/xdc
     else
         mkdir -p "$HOME/.local/bin"
         ln -sf "$INSTALL_DIR/scripts/xdc-node" "$HOME/.local/bin/xdc-node"
@@ -1100,7 +1100,7 @@ get_node_status() {
     if [[ -f "$INSTALL_DIR/configs/node.env" ]]; then
         status="installed"
         
-        if docker ps --format '{{.Names}}' | grep -q "xdc-node"; then
+        if docker ps --format '{{.Names}}' | grep -q "xdc"; then
             status="running"
             
             # Try to get block height
@@ -1164,8 +1164,8 @@ show_status() {
         echo ""
         echo "Useful commands:"
         echo "  xdc-node logs    - View logs"
-        echo "  xdc-node sync    - Check sync status"
-        echo "  xdc-node health  - Health check"
+        echo "  xdc sync    - Check sync status"
+        echo "  xdc health  - Health check"
     elif [[ "$status" == "installed" ]]; then
         echo -e "${YELLOW}Node is installed but not running.${NC}"
         echo "Start with: (cd $INSTALL_DIR/docker && docker compose up -d)"
@@ -1203,7 +1203,7 @@ uninstall_node() {
     fi
     
     # Remove CLI symlink
-    rm -f /usr/local/bin/xdc-node "$HOME/.local/bin/xdc-node"
+    rm -f /usr/local/bin/xdc "$HOME/.local/bin/xdc-node"
     
     # Ask about data
     read -rp "Remove blockchain data? [y/N]: " remove_data
@@ -1392,29 +1392,29 @@ print_summary() {
     fi
     
     echo -e "   ${BOLD}CLI Commands:${NC}"
-    echo "     xdc-node status     — Node status, block height, peers, sync %"
-    echo "     xdc-node sync       — Detailed sync progress with progress bar"
-    echo "     xdc-node health     — Comprehensive health check (score 0-100)"
+    echo "     xdc status     — Node status, block height, peers, sync %"
+    echo "     xdc sync       — Detailed sync progress with progress bar"
+    echo "     xdc health     — Comprehensive health check (score 0-100)"
     echo "     xdc-node security   — Server security audit (score 0-100)"
-    echo "     xdc-node snapshot   — Restore from snapshot (with resume)"
-    echo "     xdc-node attach     — Attach to node console"
+    echo "     xdc snapshot   — Restore from snapshot (with resume)"
+    echo "     xdc attach     — Attach to node console"
     echo "     xdc-node info       — Node info (network, version, enode)"
     echo "     xdc-node peers      — List connected peers"
     echo "     xdc-node backup     — Backup keystore and configs"
-    echo "     xdc-node monitor    — Security rotation reminders"
+    echo "     xdc monitor    — Security rotation reminders"
     echo "     xdc-node logs       — View node logs"
     echo "     xdc-node help       — Show all commands"
     echo ""
     echo -e "   ${BOLD}Next Steps:${NC}"
     echo "   1. Wait for sync to complete (~2-3 days for full node)"
-    echo "   2. Check sync status: xdc-node sync"
-    echo "   3. Monitor health: xdc-node health"
+    echo "   2. Check sync status: xdc sync"
+    echo "   3. Monitor health: xdc health"
     echo "   4. Check security: xdc-node security"
     echo ""
     echo -e "   ${YELLOW}${BOLD}🔒 Security Recommendations:${NC}"
     echo "   • RPC is bound to 127.0.0.1 only (not exposed externally)"
     echo "   • Change default SSH port: edit /etc/ssh/sshd_config → Port <custom>"
-    echo "   • Rotate credentials every 90 days: xdc-node monitor"
+    echo "   • Rotate credentials every 90 days: xdc monitor"
     echo "   • Disable root login: PermitRootLogin no"
     echo "   • Use SSH key auth and disable password auth after setup"
     echo "   • Review firewall rules: ufw status numbered"
