@@ -206,6 +206,7 @@ Options:
   --tg, --telegram    Telegram handle for SkyNet alerts (optional)
   --client CLIENT     Client type: xdc, geth (default: xdc)
   --type TYPE         Node type: full, archive, masternode (default: full)
+  --network NETWORK   Network: mainnet, testnet, apothem (default: mainnet)
   --status            Check current installation status
   --uninstall         Remove XDC node and all configurations
   --help, -h          Show this help message
@@ -1704,6 +1705,10 @@ main() {
                 ;;
             --type)
                 NODE_TYPE="$2"
+                shift 2
+                ;;
+            --network)
+                NETWORK="$2"
                 shift 2
                 ;;
             --status)
