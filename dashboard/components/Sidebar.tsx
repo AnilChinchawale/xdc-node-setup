@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import {
   LayoutDashboard,
   Globe,
@@ -14,6 +15,9 @@ import {
   Users,
   Activity,
   Settings,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react';
 
 interface NavItem {
@@ -56,6 +60,59 @@ function formatTimeAgoShort(ts: number): string {
   if (diff < 60) return `${diff}s ago`;
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   return `${Math.floor(diff / 3600)}h ago`;
+}
+
+function ThemeToggle({ collapsed }: { collapsed: boolean }) {
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <button className="w-full flex items-center justify-center px-3 py-2.5 rounded-lg text-[var(--text-tertiary)]">
+        <Monitor className="w-5 h-5" />
+      </button>
+    );
+  }
+
+  const currentTheme = resolvedTheme || theme;
+
+  const toggleTheme = () => {
+    if (currentTheme === 'dark') {
+      setTheme('light');
+    } else if (currentTheme === 'light') {
+      setTheme('system');
+    } else {
+      setTheme('dark');
+    }
+  };
+
+  const getIcon = () => {
+    if (theme === 'system') return <Monitor className="w-5 h-5" />;
+    if (currentTheme === 'dark') return <Moon className="w-5 h-5" />;
+    return <Sun className="w-5 h-5" />;
+  };
+
+  const getLabel = () => {
+    if (theme === 'system') return 'System';
+    return currentTheme === 'dark' ? 'Dark' : 'Light';
+  };
+
+  return (
+    <button
+      onClick={toggleTheme}
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-left text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent`}
+      title={collapsed ? `Theme: ${getLabel()}` : undefined}
+    >
+      <span className="flex-shrink-0">{getIcon()}</span>
+      {!collapsed && (
+        <span className="text-sm font-medium truncate">{getLabel()}</span>
+      )}
+    </button>
+  );
 }
 
 export default function Sidebar() {
@@ -142,7 +199,7 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-[var(--border-subtle)]">
         <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
-          <img src="https://s2.coinmarketcap.com/static/img/coins/200x200/2634.png" alt="XDC" width={36} height={36} className="rounded-lg" />
+          <img src="/xdc-logo.png" alt="XDC" width={36} height={36} className="rounded-lg" />
         </div>
         {(!collapsed || isMobile) && (
           <div className="overflow-hidden">
@@ -255,6 +312,11 @@ export default function Sidebar() {
         ))}
       </nav>
 
+      {/* Theme Toggle */}
+      <div className="px-2 py-2 border-t border-[var(--border-subtle)]">
+        <ThemeToggle collapsed={collapsed && !isMobile} />
+      </div>
+
       {/* Last Updated */}
       {(!collapsed || isMobile) && lastFetched > 0 && (
         <div className="px-4 py-2 border-t border-[var(--border-subtle)]">
@@ -289,7 +351,7 @@ export default function Sidebar() {
             </button>
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg flex items-center justify-center overflow-hidden">
-                <img src="https://s2.coinmarketcap.com/static/img/coins/200x200/2634.png" alt="XDC" width={28} height={28} className="rounded-lg" />
+                <img src="/xdc-logo.png" alt="XDC" width={28} height={28} className="rounded-lg" />
               </div>
               <span className="text-sm font-bold text-[var(--text-primary)]">XDC SkyOne</span>
             </div>
