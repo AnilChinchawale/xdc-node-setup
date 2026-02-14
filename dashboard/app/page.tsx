@@ -34,6 +34,7 @@ const defaultMetrics: MetricsData = {
   blockchain: {
     blockHeight: 0,
     highestBlock: 0,
+    networkHeight: 0,
     syncPercent: 0,
     isSyncing: false,
     peers: 0,
