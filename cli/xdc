@@ -2803,7 +2803,7 @@ main() {
         rewards)      cmd_rewards "$@" ;;
         cluster)      cmd_cluster "$@" ;;
         stake)        cmd_stake "$@" ;;
-        addpeers)     cmd_peers "add" "$@" ;;
+        addpeers|addpeer)     cmd_peers "add" "$@" ;;
         
         # General commands
         init)       cmd_init "$@" ;;

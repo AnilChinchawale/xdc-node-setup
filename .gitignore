@@ -13,6 +13,7 @@ erigon/
 # Node data directories
 /data/
 .xdc-node/
+!docker/*/.xdc-node/.gitkeep
 *.db
 *.ldb
 

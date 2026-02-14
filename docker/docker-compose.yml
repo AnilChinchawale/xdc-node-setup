@@ -20,12 +20,13 @@ services:
       - "8546:8546"
     volumes:
       - ./mainnet/xdcchain:/work/xdcchain
+      - ./mainnet/.xdc-node:/work/.xdc-node
       - ./mainnet/genesis.json:/work/genesis.json:ro
       - ./mainnet/start-node.sh:/work/start.sh:ro
       - ./mainnet/bootnodes.list:/work/bootnodes.list:ro
       - ./mainnet/.pwd:/work/.pwd:ro
       - ./mainnet/.env:/work/.env:ro
-      - ./configs/xdc.conf:/etc/xdc-node/xdc.conf:ro
+      - ./config.toml:/etc/xdc-node/config.toml:ro
       - /etc/localtime:/etc/localtime:ro
     env_file:
       - ./mainnet/.env

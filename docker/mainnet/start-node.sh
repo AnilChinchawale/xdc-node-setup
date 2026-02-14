@@ -3,17 +3,59 @@ set -e
 
 #==============================================================================
 # Load Config File (if exists) - env vars override config file
+# Supports: .conf (bash), .toml (TOML), .json (JSON)
 #==============================================================================
-CONFIG_FILE="${XDC_CONFIG:-/etc/xdc-node/xdc.conf}"
-if [[ -f "$CONFIG_FILE" ]]; then
-    # shellcheck source=/dev/null
-    source "$CONFIG_FILE"
-    echo "Loaded config from $CONFIG_FILE"
-elif [[ -f "/work/xdc.conf" ]]; then
-    # shellcheck source=/dev/null
-    source "/work/xdc.conf"
-    echo "Loaded config from /work/xdc.conf"
-fi
+load_config() {
+    local config_file="$1"
+    local ext="${config_file##*.}"
+    
+    case "$ext" in
+        conf|sh)
+            # shellcheck source=/dev/null
+            source "$config_file"
+            echo "Loaded bash config from $config_file"
+            ;;
+        toml)
+            # Simple TOML parser - extracts key = "value" lines
+            while IFS= read -r line; do
+                # Skip comments and empty lines
+                [[ "$line" =~ ^[[:space:]]*# ]] && continue
+                [[ -z "${line// /}" ]] && continue
+                
+                # Parse key = "value" or key = number
+                if [[ "$line" =~ ^[[:space:]]*([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*=[[:space:]]*(.+)$ ]]; then
+                    local key="${BASH_REMATCH[1]}"
+                    local value="${BASH_REMATCH[2]}"
+                    # Remove quotes if present
+                    value="${value%\"}"
+                    value="${value#\"}"
+                    # Remove trailing comments
+                    value="${value%%#*}"
+                    value="${value% }"
+                    # Export as env var (uppercase)
+                    export "${key^^}=$value"
+                fi
+            done < "$config_file"
+            echo "Loaded TOML config from $config_file"
+            ;;
+        json)
+            # Simple JSON parser using jq if available
+            if command -v jq &>/dev/null; then
+                while IFS='=' read -r key value; do
+                    export "$key=$value"
+                done < <(jq -r 'to_entries | .[] | "\(.key)=\(.value)"' "$config_file")
+                echo "Loaded JSON config from $config_file"
+            else
+                echo "WARN: jq not available, cannot parse JSON config"
+            fi
+            ;;
+    esac
+}
+
+# Try config files in order of preference
+for CONFIG_FILE in "${XDC_CONFIG}" "/etc/xdc-node/config.toml" "/etc/xdc-node/xdc.conf" "/work/config.toml" "/work/xdc.conf"; do
+    [[ -f "$CONFIG_FILE" ]] && { load_config "$CONFIG_FILE"; break; }
+done
 
 # Ensure XDC binary is available (some images use XDC-mainnet instead of XDC)
 if ! command -v XDC &>/dev/null; then
