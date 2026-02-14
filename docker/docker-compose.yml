@@ -10,6 +10,7 @@ services:
   #--------------------------------------------------------------------------
   xdc-node:
     image: xinfinorg/xdposchain:v2.6.8
+    platform: linux/amd64
     container_name: xdc-node
     restart: always
     ports:
