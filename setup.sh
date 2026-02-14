@@ -715,7 +715,7 @@ configure_node() {
     
     # Create directory structure only for the selected network
     mkdir -p "${PROJECT_ROOT}/${NETWORK}/xdcchain"/{XDC,keystore}
-    mkdir -p "${PROJECT_ROOT}/${NETWORK}/.xdc-node"
+    mkdir -p "${PROJECT_ROOT}/${NETWORK}/.xdc-node/logs"
     mkdir -p "${PROJECT_ROOT}"/{configs,scripts,logs}
     
     # Set permissions

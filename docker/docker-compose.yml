@@ -26,6 +26,7 @@ services:
       - ./${NETWORK:-mainnet}/.pwd:/work/.pwd:ro
       - ./entrypoint.sh:/work/entrypoint.sh:ro
       - ../${NETWORK:-mainnet}/.xdc-node/config.toml:/etc/xdc-node/config.toml:ro
+      - ../${NETWORK:-mainnet}/.xdc-node/logs:/var/log/xdc
       - /etc/localtime:/etc/localtime:ro
     env_file:
       - ../${NETWORK:-mainnet}/.xdc-node/.env
@@ -48,7 +49,7 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "100m"
+        max-size: "50m"
         max-file: "5"
     deploy:
       resources:
@@ -83,6 +84,7 @@ services:
       - ../${NETWORK:-mainnet}/.xdc-node/skynet.conf:/etc/xdc-node/skynet.conf:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc:/host/proc:ro
+      - ../${NETWORK:-mainnet}/.xdc-node/logs:/var/log/xdc
     environment:
       # RPC_URL: Container-to-container uses internal port 8545
       # For external access (dev mode), use http://localhost:${RPC_PORT}
@@ -103,8 +105,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "20m"
-        max-file: "3"
+        max-size: "50m"
+        max-file: "5"
 
 #==============================================================================
 # Networks
