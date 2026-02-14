@@ -240,7 +240,7 @@ export default function Sidebar() {
       )}
 
       {/* SkyNet Heartbeat Status */}
-      {(!collapsed || isMobile) && heartbeatStatus?.enabled && (
+      {(!collapsed || isMobile) && heartbeatStatus?.enabled && ['connected', 'pending'].includes(heartbeatStatus.statusText) && (
         <div className="px-4 py-3 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-2 text-xs">
             <span className={`w-2 h-2 rounded-full ${
@@ -265,7 +265,7 @@ export default function Sidebar() {
           )}
         </div>
       )}
-      {!isMobile && collapsed && heartbeatStatus?.enabled && (
+      {!isMobile && collapsed && heartbeatStatus?.enabled && ['connected', 'pending'].includes(heartbeatStatus.statusText) && (
         <div className="flex justify-center py-2 border-b border-[var(--border-subtle)]">
           <span className={`w-2.5 h-2.5 rounded-full ${
             heartbeatStatus.statusText === 'connected' ? 'bg-[var(--success)] animate-pulse' :

@@ -107,15 +107,29 @@ XDC Node Setup supports **three different clients** for improved network diversi
 | **Type** | Official Docker | Source build | Source build |
 | **Build Time** | Instant | ~10-15 min | ~10-15 min |
 | **RPC Port** | 8545 | 8545 | **8547** |
-| **P2P Port** | 30303 | 30303 | 30304 + 30311 |
+| **Auth RPC Port** | N/A | N/A | **8561** |
+| **Private API** | N/A | N/A | **9091** |
+| **P2P Port** | 30303 | 30303 | **30304** + 30311 |
+| **P2P Protocol** | eth/63 | eth/63 | eth/63 + eth/68 |
+| **XDC Peer Compatible** | ✅ Yes | ✅ Yes | ✅ Port 30304 only |
 | **Sync Speed** | Standard | Standard | Fast |
 | **Disk Usage** | ~500GB | ~500GB | ~400GB |
-| **Memory** | 4GB+ | 4GB+ | 8GB+ |
-| **Status** | Production | Testing | Experimental |
+| **Memory** | 4GB+ | 4GB+ | **8GB+** |
+| **Status** | Production | Testing | **Experimental** |
 
 ### Selecting a Client
 
 During setup, choose your preferred client:
+
+```bash
+# Run setup with specific client selection
+bash setup.sh --client erigon
+
+# Or run interactive setup
+bash setup.sh
+```
+
+Interactive client selection:
 
 ```bash
 Client Selection
@@ -126,6 +140,18 @@ Client Selection
 
 Select client [1-3] (default: 1):
 ```
+
+### Erigon Client
+
+The **Erigon-XDC** client provides multi-client diversity with a dual-sentry architecture:
+
+- **eth/63 sentry** on port **30304** — connects to XDC Network peers
+- **eth/68 sentry** on port **30311** — standard Ethereum P2P (for future compatibility)
+- **RPC** on port **8547** — JSON-RPC API endpoint
+
+> **Note:** Erigon builds from source which takes approximately **10-15 minutes** during initial setup.
+
+For complete Erigon setup instructions, see [**docs/ERIGON.md**](docs/ERIGON.md).
 
 ### Switching Clients
 
@@ -145,6 +171,224 @@ xdc client
 - ✅ **Performance Options**: Choose the best client for your use case
 - ✅ **Future-Proof**: Easy migration as clients evolve
 - ✅ **Diversity**: Contributes to XDC network health
+
+---
+
+## 🔷 Erigon-XDC Client Guide
+
+Erigon-XDC is an experimental high-performance client for the XDC Network. This section covers erigon-specific setup and configuration.
+
+### Installation with Erigon
+
+#### Option 1: Interactive Setup
+```bash
+./setup.sh
+# Select option 3: Erigon-XDC when prompted for client
+```
+
+#### Option 2: Command Line
+```bash
+# Start with erigon client
+xdc start --client erigon
+
+# Or set environment variable
+CLIENT=erigon ./setup.sh
+```
+
+### Erigon-Specific Configuration
+
+Erigon uses different default ports than the standard geth clients:
+
+| Port | Protocol | Purpose | XDC Compatible | Notes |
+|------|----------|---------|----------------|-------|
+| **8547** | HTTP | RPC API | N/A | Default erigon RPC port (vs 8545 for geth) |
+| **8561** | HTTP | Auth RPC | N/A | Authentication-required RPC |
+| **9091** | TCP | Private API | N/A | Internal erigon API |
+| **30304** | TCP/UDP | P2P eth/63 | ✅ Yes | **Primary peer port - XDC compatible** |
+| **30311** | TCP/UDP | P2P eth/68 | ❌ No | New protocol - NOT compatible with XDC geth nodes |
+
+**Important:** Erigon runs TWO P2P sentries simultaneously:
+- **Port 30304** uses eth/63 protocol (backward compatible with XDC geth nodes)
+- **Port 30311** uses eth/68 protocol (newer, but NOT compatible with XDC network)
+
+### Environment Variables
+
+Add to your `.env` file or export before starting:
+
+```bash
+# Erigon-specific ports
+RPC_PORT=8547                    # Erigon RPC (different from geth's 8545)
+P2P_PORT=30304                   # eth/63 compatible port
+P2P_PORT_68=30311                # eth/68 port (not XDC compatible)
+INSTANCE_NAME=Erigon_XDC_Node
+
+# Optional: Resource limits
+ERIGON_MEMORY=12G                # Erigon needs more RAM than geth
+ERIGON_CPUS=4
+```
+
+### Connecting Erigon to Existing Geth Nodes
+
+When running erigon in a mixed environment with geth nodes, you must use **port 30304** (eth/63) for peer connections:
+
+#### Step 1: Get Erigon's Enode ID
+```bash
+# From the erigon node
+curl -X POST http://localhost:8547 \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"admin_nodeInfo","params":[],"id":1}'
+```
+
+#### Step 2: Add Erigon as Trusted Peer on Geth
+```bash
+# On the geth node (port 8545), add erigon using port 30304
+curl -X POST http://localhost:8545 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "admin_addTrustedPeer",
+    "params": ["enode://<erigon_node_id>@<erigon_ip>:30304"],
+    "id": 1
+  }'
+```
+
+⚠️ **Critical:** Always use port 30304 for peer connections. Port 30311 (eth/68) is NOT compatible with XDC geth nodes.
+
+### Firewall Configuration for Erigon
+
+Erigon requires additional firewall rules:
+
+```bash
+# Allow eth/63 P2P port (XDC compatible)
+sudo ufw allow 30304/tcp comment 'Erigon P2P eth/63'
+sudo ufw allow 30304/udp comment 'Erigon P2P eth/63'
+
+# Allow eth/68 P2P port (optional, not XDC compatible)
+sudo ufw allow 30311/tcp comment 'Erigon P2P eth/68'
+sudo ufw allow 30311/udp comment 'Erigon P2P eth/68'
+
+# RPC port (binds to localhost by default, external access not recommended)
+# sudo ufw allow 8547/tcp comment 'Erigon RPC (local only recommended)'
+```
+
+### Docker Compose Override
+
+The erigon configuration uses a docker-compose override file:
+
+```bash
+# Manual start with erigon
+cd docker
+docker compose -f docker-compose.yml -f docker-compose.erigon.yml up -d
+
+# Or use the CLI
+xdc start --client erigon
+```
+
+### Switching to/from Erigon
+
+```bash
+# Switch to erigon
+xdc stop
+xdc start --client erigon
+
+# Switch back to stable
+xdc stop
+xdc start --client stable
+
+# Check current client
+xdc client
+```
+
+### Known Limitations
+
+| Limitation | Description | Workaround |
+|------------|-------------|------------|
+| **Build Time** | Erigon builds from source (10-15 min) | Pre-build image or use CI/CD |
+| **Memory Requirements** | Requires 8GB+ RAM | Ensure adequate system resources |
+| **eth/68 Incompatibility** | Port 30311 not XDC compatible | Always use port 30304 for peers |
+| **RPC Port Difference** | Uses 8547 vs geth's 8545 | Update scripts/tools to use correct port |
+| **Experimental Status** | Not production-ready | Test thoroughly before mainnet use |
+| **Snapshot Compatibility** | Erigon snapshots differ from geth | Sync from genesis or use erigon-specific snapshots |
+
+### Troubleshooting Erigon
+
+#### Check Erigon Status
+```bash
+# Verify erigon is running
+xdc status
+
+# Check erigon logs
+xdc logs --client erigon
+
+# Check erigon-specific logs
+docker logs xdc-node-erigon
+```
+
+#### Port Conflicts
+```bash
+# Check if ports are in use
+sudo ss -tlnp | grep -E '30304|30311|8547'
+
+# Find and stop conflicting services
+sudo lsof -i :30304
+```
+
+#### Peer Connection Issues
+```bash
+# Check peer count
+curl -X POST http://localhost:8547 \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}'
+
+# Manually add trusted peer (use port 30304!)
+curl -X POST http://localhost:8547 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "admin_addTrustedPeer",
+    "params": ["enode://...:30304"],
+    "id": 1
+  }'
+```
+
+#### Build Issues
+```bash
+# Clean and rebuild
+cd docker/erigon
+docker build --no-cache -t erigon-xdc:latest .
+
+# Check build logs
+docker build -t erigon-xdc:latest . 2>&1 | tee build.log
+```
+
+### Architecture Notes
+
+Erigon's dual-sentry design:
+```
+┌─────────────────────────────────────────┐
+│         Erigon-XDC Node                │
+├─────────────────────────────────────────┤
+│                                         │
+│  ┌──────────────┐    ┌──────────────┐  │
+│  │ Sentry 1     │    │ Sentry 2     │  │
+│  │ Port 30304   │    │ Port 30311   │  │
+│  │ eth/63       │    │ eth/68       │  │
+│  │ XDC compat   │    │ NOT compat   │  │
+│  └──────┬───────┘    └──────┬───────┘  │
+│         │                   │          │
+│         └─────────┬─────────┘          │
+│                   │                    │
+│            ┌──────┴──────┐             │
+│            │   Erigon    │             │
+│            │   Core      │             │
+│            └──────┬──────┘             │
+│                   │                    │
+│              RPC:8547                  │
+│              Auth:8561                 │
+│              Private:9091              │
+│                                         │
+└─────────────────────────────────────────┘
+```
 
 ---
 
