@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
-function getRpcUrl() { return process.env.RPC_URL || 'http://xdc-node:8545'; }
-function getContainerName() { return process.env.CONTAINER_NAME || 'xdc-node'; }
+// Allowed container names (whitelist)
+const ALLOWED_CONTAINER_NAMES = ['xdc-node', 'xdc-agent', 'xdc-mainnet', 'xdc-testnet'];
+
+// Validate container name to prevent injection
+function isValidContainerName(name: string): boolean {
+  // Only allow alphanumeric, hyphens, and underscores
+  return /^[a-zA-Z0-9_-]+$/.test(name) && ALLOWED_CONTAINER_NAMES.includes(name);
+}
 
 export interface DiagnosticResult {
   name: string;
@@ -16,8 +22,26 @@ export interface DiagnosticResult {
 }
 
 async function checkContainerStatus(): Promise<DiagnosticResult> {
+  const containerName = process.env.CONTAINER_NAME || 'xdc-node';
+  
+  // Validate container name
+  if (!isValidContainerName(containerName)) {
+    return {
+      name: 'Container Status',
+      category: 'infrastructure',
+      status: 'fail',
+      message: 'Invalid container name configuration',
+      details: `Container name "${containerName}" is not in the allowed list`
+    };
+  }
+  
   try {
-    const { stdout } = await execAsync(`docker inspect --format='{{.State.Status}}' ${getContainerName()} 2>/dev/null || echo "not_found"`);
+    const { stdout } = await execFileAsync('docker', [
+      'inspect',
+      '--format={{.State.Status}}',
+      containerName
+    ], { timeout: 10000 });
+    
     const status = stdout.trim();
     
     if (status === 'running') {
@@ -27,14 +51,6 @@ async function checkContainerStatus(): Promise<DiagnosticResult> {
         status: 'pass',
         message: 'Container is running',
         details: `Status: ${status}`
-      };
-    } else if (status === 'not_found') {
-      return {
-        name: 'Container Status',
-        category: 'infrastructure',
-        status: 'fail',
-        message: 'Container not found',
-        details: `Container ${getContainerName()} does not exist`
       };
     } else {
       return {
@@ -50,7 +66,7 @@ async function checkContainerStatus(): Promise<DiagnosticResult> {
       name: 'Container Status',
       category: 'infrastructure',
       status: 'fail',
-      message: 'Failed to check container status',
+      message: 'Container not found or not accessible',
       details: error instanceof Error ? error.message : 'Unknown error'
     };
   }
@@ -58,8 +74,24 @@ async function checkContainerStatus(): Promise<DiagnosticResult> {
 
 async function checkRpcHealth(): Promise<DiagnosticResult> {
   try {
+    const rpcUrl = process.env.RPC_URL || 'http://xdc-node:8545';
+    
+    // Validate RPC URL format
+    const allowedHosts = ['localhost', '127.0.0.1', 'xdc-node', 'xdc-agent', 'host.docker.internal'];
+    const url = new URL(rpcUrl);
+    
+    if (!allowedHosts.includes(url.hostname)) {
+      return {
+        name: 'RPC Health',
+        category: 'node',
+        status: 'warn',
+        message: 'RPC URL has non-standard host',
+        details: `Host: ${url.hostname}`
+      };
+    }
+    
     const start = Date.now();
-    const res = await fetch(getRpcUrl(), {
+    const res = await fetch(rpcUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_blockNumber', params: [], id: 1 }),
@@ -112,7 +144,9 @@ async function checkRpcHealth(): Promise<DiagnosticResult> {
 
 async function checkPeerConnectivity(): Promise<DiagnosticResult> {
   try {
-    const res = await fetch(getRpcUrl(), {
+    const rpcUrl = process.env.RPC_URL || 'http://xdc-node:8545';
+    
+    const res = await fetch(rpcUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jsonrpc: '2.0', method: 'admin_peers', params: [], id: 1 }),
@@ -170,7 +204,9 @@ async function checkPeerConnectivity(): Promise<DiagnosticResult> {
 
 async function checkSyncStatus(): Promise<DiagnosticResult> {
   try {
-    const res = await fetch(getRpcUrl(), {
+    const rpcUrl = process.env.RPC_URL || 'http://xdc-node:8545';
+    
+    const res = await fetch(rpcUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_syncing', params: [], id: 1 }),
@@ -231,8 +267,17 @@ async function checkSyncStatus(): Promise<DiagnosticResult> {
 
 async function checkDiskUsage(): Promise<DiagnosticResult> {
   try {
-    const { stdout } = await execAsync("df -h / | tail -1 | awk '{print $5,$4}'");
-    const [usedPercent, available] = stdout.trim().split(' ');
+    const { stdout } = await execFileAsync('df', ['-h', '/'], { timeout: 5000 });
+    const lines = stdout.trim().split('\n');
+    const dataLine = lines[1]; // Skip header
+    
+    if (!dataLine) {
+      throw new Error('Unexpected df output format');
+    }
+    
+    const parts = dataLine.split(/\s+/);
+    const usedPercent = parts[4]; // e.g., "75%"
+    const available = parts[3];
     const usedNum = parseInt(usedPercent.replace('%', ''));
     
     if (usedNum >= 90) {
@@ -273,11 +318,27 @@ async function checkDiskUsage(): Promise<DiagnosticResult> {
 
 async function checkMemoryUsage(): Promise<DiagnosticResult> {
   try {
-    const { stdout } = await execAsync("free | grep Mem | awk '{printf \"%.1f\", $3/$2 * 100.0}'");
-    const usedPercent = parseFloat(stdout.trim());
+    // Read memory info from /proc/meminfo (safe, no shell execution)
+    const fs = await import('fs');
+    const meminfo = fs.readFileSync('/proc/meminfo', 'utf8');
     
-    const { stdout: memDetails } = await execAsync("free -h | grep Mem | awk '{print $2,$3,$7}'");
-    const [total, used, available] = memDetails.trim().split(' ');
+    const totalMatch = meminfo.match(/MemTotal:\s+(\d+)/);
+    const availableMatch = meminfo.match(/MemAvailable:\s+(\d+)/);
+    
+    if (!totalMatch || !availableMatch) {
+      throw new Error('Could not parse memory info');
+    }
+    
+    const total = parseInt(totalMatch[1]) * 1024; // Convert from KB to bytes
+    const available = parseInt(availableMatch[1]) * 1024;
+    const used = total - available;
+    const usedPercent = (used / total) * 100;
+    
+    // Format for display
+    const formatBytes = (bytes: number): string => {
+      const gb = bytes / (1024 * 1024 * 1024);
+      return `${gb.toFixed(1)}G`;
+    };
     
     if (usedPercent >= 90) {
       return {
@@ -285,7 +346,7 @@ async function checkMemoryUsage(): Promise<DiagnosticResult> {
         category: 'resources',
         status: 'fail',
         message: `Memory critically high (${usedPercent.toFixed(1)}%)`,
-        details: `Total: ${total} | Used: ${used} | Available: ${available}`
+        details: `Total: ${formatBytes(total)} | Used: ${formatBytes(used)} | Available: ${formatBytes(available)}`
       };
     } else if (usedPercent >= 80) {
       return {
@@ -293,7 +354,7 @@ async function checkMemoryUsage(): Promise<DiagnosticResult> {
         category: 'resources',
         status: 'warn',
         message: `Memory usage high (${usedPercent.toFixed(1)}%)`,
-        details: `Total: ${total} | Used: ${used} | Available: ${available}`
+        details: `Total: ${formatBytes(total)} | Used: ${formatBytes(used)} | Available: ${formatBytes(available)}`
       };
     } else {
       return {
@@ -301,7 +362,7 @@ async function checkMemoryUsage(): Promise<DiagnosticResult> {
         category: 'resources',
         status: 'pass',
         message: `Memory usage: ${usedPercent.toFixed(1)}%`,
-        details: `Total: ${total} | Used: ${used} | Available: ${available}`
+        details: `Total: ${formatBytes(total)} | Used: ${formatBytes(used)} | Available: ${formatBytes(available)}`
       };
     }
   } catch (error) {
@@ -322,9 +383,10 @@ async function checkPortBindings(): Promise<DiagnosticResult> {
   
   for (const port of ports) {
     try {
-      const { stdout } = await execAsync(`ss -tlnp | grep ':${port}' | head -1 || netstat -tlnp 2>/dev/null | grep ':${port}' | head -1 || echo "not_listening"`);
+      const { stdout } = await execFileAsync('ss', ['-tlnp'], { timeout: 5000 });
+      const isListening = stdout.includes(`:${port}`);
       
-      if (stdout.includes('not_listening')) {
+      if (!isListening) {
         results.push(`Port ${port}: Not listening`);
         allPass = false;
       } else {
@@ -354,24 +416,27 @@ async function checkConfig(): Promise<DiagnosticResult> {
   
   for (const path of configPaths) {
     try {
-      const { stdout } = await execAsync(`test -f ${path} && echo "exists" || echo "not_found"`);
+      const fs = await import('fs');
       
-      if (stdout.trim() === 'exists') {
-        // Check if config is valid by looking for required sections
-        const { stdout: configContent } = await execAsync(`cat ${path} | head -50 || echo ""`);
-        
-        const hasRequiredFields = configContent.includes('[Node]') || 
-                                   configContent.includes('DataDir') ||
-                                   configContent.includes('HTTPHost');
-        
-        return {
-          name: 'Config Check',
-          category: 'configuration',
-          status: hasRequiredFields ? 'pass' : 'warn',
-          message: hasRequiredFields ? 'Config file valid' : 'Config file may be incomplete',
-          details: `Found at: ${path}`
-        };
+      if (!fs.existsSync(path)) {
+        continue;
       }
+      
+      // Read only first 50 lines to check for required sections
+      const content = fs.readFileSync(path, 'utf8');
+      const firstLines = content.split('\n').slice(0, 50).join('\n');
+      
+      const hasRequiredFields = firstLines.includes('[Node]') || 
+                                 firstLines.includes('DataDir') ||
+                                 firstLines.includes('HTTPHost');
+      
+      return {
+        name: 'Config Check',
+        category: 'configuration',
+        status: hasRequiredFields ? 'pass' : 'warn',
+        message: hasRequiredFields ? 'Config file valid' : 'Config file may be incomplete',
+        details: `Found at: ${path}`
+      };
     } catch {
       // Continue to next path
     }
