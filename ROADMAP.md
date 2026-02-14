@@ -64,24 +64,43 @@ Unlike generic cloud providers or complex DIY setups, XDC Node Setup delivers:
 - [x] config.toml generation during setup with network-specific settings
 - [x] Mount config.toml in docker-compose.yml
 
-### 🔄 In Progress
+### ✅ Completed (Feb 14, 2026 — Session 2)
+- [x] README.md comprehensive rewrite (efb2733)
+- [x] E2E install test on Linux x86_64 — all commands working (8813d0f)
+- [x] Snapshot download with resume support — wget -c / curl -C verified (171e551)
+- [x] Auto-increment ports on conflict + show access links after start (fe3875d)
+- [x] IPC socket moved to /tmp for macOS volume compat (8df2f86)
+- [x] Health check start_period increased for ARM64 (608e51f)
+- [x] Dashboard starts without waiting for node healthy (aa3ad0e)
+- [x] SkyNet-quality dashboard UX — sidebar, peers, alerts, network pages (79b374b)
+- [x] Remove Prometheus from all health routes (7aa7566)
+- [x] Default dashboard port changed to 7070 (3ca8228)
+- [x] Dockerfile: production build with Tailwind (fcbbcd6)
+- [x] RPC_URL overridable via env (490e1c7)
+- [x] Fix next.config.mjs build-time env inlining — root cause of 19090/38545 errors (4870576)
+- [x] Dashboard dev mode (no build step) (13fc4f6)
+- [x] `xdc status` fully dynamic with RPC data + setup progress bar (19e910c, eb9d480)
+- [x] `xdc attach` IPC-first with RPC fallback (e119b94)
+- [x] Security audit advisory-only by default (e98ea08)
+- [x] `xdc -h` clean help output (cb210ca)
+- [x] `xdc info` command added (8813d0f)
+- [x] `xdc peers` fixed invalid flag (8813d0f)
+- [x] Dashboard tested live on GCX (175.110.113.12:7070) — block 99.3M, 32 peers
+
+### 🔄 In Progress / Pending
+- [ ] **Log rotation**: Move prev logs to oldlogs/, compress daily, keep 90 days, auto-remove older
 - [ ] Validate config.toml is actually used by XDC binary at startup
-- [ ] Test install.sh → setup.sh flow on clean system (both repo and curl install methods)
+- [ ] Test install.sh → setup.sh flow on clean macOS ARM64
 
 ### 🔴 Bugs / High Priority
-- [ ] `admin_addPeer` RPC not available — verify `--rpcapi` includes `admin` in running container
-- [ ] Dashboard not loading on first attempt — may need wait-for-healthy logic before nginx starts
-- [ ] `top` command may fail on minimal systems (same portability issue as `free`)
+- [ ] GCX local xdc-node: BAD BLOCK at 166,500 (merkle root mismatch) — needs snapshot or newer image
+- [ ] `admin_peers` not available on public RPC — peers page shows empty on remote RPC
 - [ ] Verify Docker doesn't expose RPC externally (should be 127.0.0.1:9545 only)
 
 ### 🏗️ Technical Backlog
-- [ ] End-to-end install test on clean Ubuntu 22.04 + clean macOS ARM64
-- [ ] `xdc snapshot download` — needs real snapshot URLs in configs/snapshots.json
 - [ ] Verify `xdc config` command works with TOML
 - [ ] Verify shell completions install correctly
-- [ ] Production build validation for dashboard
 - [ ] Server hardening on 95.217.56.168 (scored 50/100)
-- [ ] Update README.md with new directory structure + CLI examples
 - [ ] Video guides / interactive tutorials
 - [ ] Man pages (referenced in CHANGELOG but not created)
 - [ ] Verify SkyNet agent scripts on remote servers use updated endpoints (netown→skynet rename)
