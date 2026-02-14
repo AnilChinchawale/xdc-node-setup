@@ -942,13 +942,7 @@ services:
       - ../${NETWORK}/.xdc-node/config.toml:/etc/xdc-node/config.toml:ro
     env_file:
       - ../${NETWORK}/.xdc-node/.env
-    entrypoint: /work/entrypoint.sh
-      --ws
-      --wsaddr 0.0.0.0
-      --wsport 8546
-      --wsorigins *
-      --port 30303
-      --maxpeers 50
+    entrypoint: ["/bin/bash", "/work/entrypoint.sh"]
     networks:
       - xdc-network
     healthcheck:
