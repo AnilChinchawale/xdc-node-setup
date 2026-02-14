@@ -56,37 +56,68 @@ function getServerStats() {
   return { cpuUsage, memUsed, memTotal, diskUsed, diskTotal };
 }
 
-function getNodeDiagnostics(): { containerStatus: string; recentLogs: string[]; errors: string[]; lastBlock: string } {
+async function dockerApiGet(path: string): Promise<any> {
+  // Call Docker API via unix socket using Node.js http module
+  return new Promise((resolve) => {
+    const http = require('http');
+    const options = { socketPath: '/var/run/docker.sock', path, timeout: 5000 };
+    const req = http.get(options, (res: any) => {
+      let data = '';
+      res.on('data', (chunk: string) => { data += chunk; });
+      res.on('end', () => { try { resolve(JSON.parse(data)); } catch { resolve(null); } });
+    });
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+  });
+}
+
+async function getNodeDiagnostics(): Promise<{ containerStatus: string; recentLogs: string[]; errors: string[]; lastBlock: string }> {
   const diag = { containerStatus: 'unknown', recentLogs: [] as string[], errors: [] as string[], lastBlock: '' };
   
   try {
-    // Get container status
-    const status = execSync('docker inspect xdc-node --format "{{.State.Status}} {{.State.Health.Status}}" 2>/dev/null', { timeout: 3000 }).toString().trim();
-    diag.containerStatus = status;
-  } catch {
-    try {
-      // Maybe we're inside Docker and can't access docker socket — check if node process exists
-      const ps = execSync('ps aux 2>/dev/null | grep -i "XDC\\|geth" | grep -v grep | head -1', { timeout: 2000 }).toString().trim();
-      diag.containerStatus = ps ? 'running (process)' : 'not running';
-    } catch { diag.containerStatus = 'unknown'; }
-  }
+    // Get container status via Docker API
+    const inspect = await dockerApiGet('/containers/xdc-node/json');
+    if (inspect?.State) {
+      const s = inspect.State;
+      diag.containerStatus = `${s.Status}${s.Health ? ' (' + s.Health.Status + ')' : ''}`;
+      if (s.Status === 'exited') diag.containerStatus += ` (exit code: ${s.ExitCode})`;
+    }
+  } catch { diag.containerStatus = 'unknown'; }
   
   try {
-    // Get recent logs (last 20 lines)
-    const logs = execSync('docker logs xdc-node --tail 20 2>&1', { timeout: 5000 }).toString();
-    diag.recentLogs = logs.split('\n').filter(l => l.trim()).slice(-15);
+    // Get recent logs via Docker API
+    const http = require('http');
+    const logs: string = await new Promise((resolve) => {
+      const options = { socketPath: '/var/run/docker.sock', path: '/containers/xdc-node/logs?stdout=1&stderr=1&tail=30', timeout: 5000 };
+      const req = http.get(options, (res: any) => {
+        let data = '';
+        res.on('data', (chunk: Buffer) => { 
+          // Docker log stream has 8-byte header per frame, strip it
+          const str = chunk.toString('utf8');
+          data += str;
+        });
+        res.on('end', () => resolve(data));
+      });
+      req.on('error', () => resolve(''));
+      req.on('timeout', () => { req.destroy(); resolve(''); });
+    });
+    
+    // Clean Docker stream headers (8-byte prefix per line) and filter
+    diag.recentLogs = logs.split('\n')
+      .map(l => l.replace(/^[\x00-\x08].{0,7}/, '').trim())
+      .filter(l => l.length > 0)
+      .slice(-20);
     
     // Extract errors
     diag.errors = diag.recentLogs.filter(l => 
       l.includes('ERROR') || l.includes('BAD BLOCK') || l.includes('FATAL') || l.includes('Synchronisation failed')
     );
     
-    // Try to find last synced block from logs
-    const blockMatch = logs.match(/Number:\s*(\d+)/);
+    // Find last synced block from logs
+    const allLogs = diag.recentLogs.join('\n');
+    const blockMatch = allLogs.match(/Number:\s*(\d+)/);
     if (blockMatch) diag.lastBlock = blockMatch[1];
-    
-    // Also check for block height in imported logs
-    const importMatch = logs.match(/Imported new chain segment.*number[= ]+(\d+)/);
+    const importMatch = allLogs.match(/Imported new chain segment.*number[= ]+(\d+)/);
     if (importMatch) diag.lastBlock = importMatch[1];
   } catch {}
   
@@ -149,7 +180,7 @@ export async function GET() {
     const epochProgress = ((blockHeight % 900) / 900) * 100;
     
     // Get diagnostics (especially useful when RPC is down)
-    const diagnostics = !rpcConnected ? getNodeDiagnostics() : { containerStatus: 'running healthy', recentLogs: [], errors: [], lastBlock: '' };
+    const diagnostics = !rpcConnected ? await getNodeDiagnostics() : { containerStatus: 'running healthy', recentLogs: [], errors: [], lastBlock: '' };
     
     // Node status determination
     let nodeStatus: 'online' | 'syncing' | 'error' | 'offline' = 'online';
@@ -218,7 +249,7 @@ export async function GET() {
     return NextResponse.json(response);
   } catch (error) {
     // Even on total failure, return diagnostics
-    const diagnostics = getNodeDiagnostics();
+    const diagnostics = await getNodeDiagnostics();
     const server = getServerStats();
     return NextResponse.json({
       nodeStatus: 'offline',

@@ -182,6 +182,43 @@ export default function Sidebar() {
         </div>
       )}
 
+      {/* SkyNet Heartbeat Status */}
+      {(!collapsed || isMobile) && heartbeatStatus?.enabled && (
+        <div className="px-4 py-3 border-b border-[var(--border-subtle)]">
+          <div className="flex items-center gap-2 text-xs">
+            <span className={`w-2 h-2 rounded-full ${
+              heartbeatStatus.statusText === 'connected' ? 'bg-[var(--success)] animate-pulse' :
+              heartbeatStatus.statusText === 'pending' ? 'bg-yellow-500' :
+              heartbeatStatus.statusText === 'offline' ? 'bg-[var(--critical)]' :
+              heartbeatStatus.statusText === 'disabled' ? 'bg-gray-500' :
+              'bg-orange-500'
+            }`} />
+            <span className="text-[var(--text-secondary)]">SkyNet {
+              heartbeatStatus.statusText === 'connected' ? 'Connected' :
+              heartbeatStatus.statusText === 'pending' ? 'Pending' :
+              heartbeatStatus.statusText === 'offline' ? 'Offline' :
+              heartbeatStatus.statusText === 'disabled' ? 'Disabled' :
+              'Error'
+            }</span>
+          </div>
+          {heartbeatStatus.lastHeartbeatSeconds !== null && (
+            <div className="text-xs text-[var(--text-tertiary)] mt-1">
+              Last heartbeat: {formatTimeAgoShort(Date.now() - (heartbeatStatus.lastHeartbeatSeconds * 1000))}
+            </div>
+          )}
+        </div>
+      )}
+      {!isMobile && collapsed && heartbeatStatus?.enabled && (
+        <div className="flex justify-center py-2 border-b border-[var(--border-subtle)]">
+          <span className={`w-2.5 h-2.5 rounded-full ${
+            heartbeatStatus.statusText === 'connected' ? 'bg-[var(--success)] animate-pulse' :
+            heartbeatStatus.statusText === 'pending' ? 'bg-yellow-500' :
+            heartbeatStatus.statusText === 'offline' ? 'bg-[var(--critical)]' :
+            'bg-gray-500'
+          }`} title={`SkyNet ${heartbeatStatus.statusText}`} />
+        </div>
+      )}
+
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-3 px-2">
         {sections.map(section => (

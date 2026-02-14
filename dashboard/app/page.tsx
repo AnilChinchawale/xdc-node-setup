@@ -10,6 +10,7 @@ import TxPoolPanel from '@/components/TxPoolPanel';
 import ServerStats from '@/components/ServerStats';
 import StoragePanel from '@/components/StoragePanel';
 import PeerMap from '@/components/PeerMap';
+import SkyNetStatus from '@/components/SkyNetStatus';
 import type { MetricsData, PeersData } from '@/lib/types';
 
 const REFRESH_INTERVAL = parseInt(process.env.NEXT_PUBLIC_REFRESH_INTERVAL || '10');
@@ -255,6 +256,9 @@ export default function Home() {
 
         {/* Stats Grid */}
         <StatsGrid metrics={metrics} />
+
+        {/* SkyNet Status */}
+        <SkyNetStatus />
 
         {/* Consensus + Sync */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
