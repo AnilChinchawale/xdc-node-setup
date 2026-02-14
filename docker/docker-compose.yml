@@ -264,8 +264,9 @@ services:
         max-file: "3"
 
   #--------------------------------------------------------------------------
-  # Dashboard - Web UI for monitoring
+  # Dashboard - Web UI + SkyNet Agent (merged)
   # Exposed on 0.0.0.0:3001 - restrict via firewall in production
+  # Includes SkyNet agent for fleet monitoring (sends data every 60s)
   #--------------------------------------------------------------------------
   dashboard:
     build:
@@ -280,6 +281,12 @@ services:
       - ../reports:/app/reports:ro
       - ../configs:/app/configs:ro
       - /var/lib/xdc-node:/app/var:rw
+      # SkyNet Agent volumes (merged)
+      - ./skynet-agent.sh:/agent.sh:ro
+      - ./skynet.conf:/etc/xdc-node/skynet.conf:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/ssh/sshd_config:/host/sshd_config:ro
+      - /proc:/host/proc:ro
     environment:
       - NODE_ENV=production
       - API_KEY=${DASHBOARD_API_KEY:-}
@@ -287,6 +294,8 @@ services:
       - CONFIGS_DIR=/app/configs
       - RPC_URL=http://xdc-node:8545
       - PROMETHEUS_URL=http://prometheus:9090
+      # SkyNet Agent env
+      - SKYNET_CONF=/etc/xdc-node/skynet.conf
     networks:
       - xdc-monitoring
     depends_on:
@@ -301,43 +310,6 @@ services:
       driver: "json-file"
       options:
         max-size: "20m"
-        max-file: "3"
-
-  #--------------------------------------------------------------------------
-  # SkyNet Agent - Fleet monitoring sidecar
-  # Reports node health, metrics, and security status to SkyNet platform
-  #--------------------------------------------------------------------------
-  skynet-agent:
-    image: alpine:3.19
-    container_name: skynet-agent
-    restart: unless-stopped
-    network_mode: host
-    volumes:
-      - ./skynet-agent.sh:/agent.sh:ro
-      - ./skynet.conf:/etc/xdc-node/skynet.conf:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro  # for docker stats
-      - /etc/ssh/sshd_config:/host/sshd_config:ro     # for security checks
-      - /proc:/host/proc:ro                             # for system metrics
-    environment:
-      - SKYNET_CONF=/etc/xdc-node/skynet.conf
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        apk add --no-cache bash curl jq bc procps >/dev/null 2>&1
-        chmod +x /agent.sh
-        echo "SkyNet Agent started - reporting every 60s"
-        while true; do
-          /agent.sh 2>/dev/null
-          sleep 60
-        done
-    depends_on:
-      - xdc-node
-    profiles:
-      - skynet
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
         max-file: "3"
 
   #--------------------------------------------------------------------------
