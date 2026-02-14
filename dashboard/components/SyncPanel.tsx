@@ -5,51 +5,12 @@ import { RefreshCw, Clock, Zap, GitBranch, CheckCircle2 } from 'lucide-react';
 import { useAnimatedNumber } from '@/lib/animations';
 import { formatNumber, formatDurationLong, getSyncColor } from '@/lib/formatters';
 import type { SyncData, BlockchainData } from '@/lib/types';
+import { Sparkline } from '@/components/charts/Sparkline';
 
 interface SyncPanelProps {
   data: SyncData;
   blockchain?: BlockchainData;
-}
-
-function Sparkline({ data, color = '#1E90FF' }: { data: number[]; color?: string }) {
-  if (data.length < 2) return null;
-  
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-  const range = max - min || 1;
-  const width = 300;
-  const height = 60;
-  const padding = 5;
-  
-  const points = data.map((val, i) => {
-    const x = (i / (data.length - 1)) * width;
-    const y = height - padding - ((val - min) / range) * (height - 2 * padding);
-    return `${x},${y}`;
-  }).join(' ');
-  
-  return (
-    <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="sparkline-gradient" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.4"/>
-          <stop offset="100%" stopColor={color} stopOpacity="0"/>
-        </linearGradient>
-      </defs>
-      <polyline
-        fill="none"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        points={points}
-        style={{ filter: `drop-shadow(0 0 4px ${color}60)` }}
-      />
-      <polygon
-        fill="url(#sparkline-gradient)"
-        points={`0,${height} ${points} ${width},${height}`}
-      />
-    </svg>
-  );
+  syncHistory?: number[];
 }
 
 function ETACountdown({ eta }: { eta: number }) {
@@ -79,7 +40,7 @@ function ETACountdown({ eta }: { eta: number }) {
   );
 }
 
-export default function SyncPanel({ data, blockchain }: SyncPanelProps) {
+export default function SyncPanel({ data, blockchain, syncHistory = [] }: SyncPanelProps) {
   const syncRatePerMin = (data.syncRate || 0) * 60;
   const displaySyncRate = useAnimatedNumber(Math.round(syncRatePerMin), 1000);
   
@@ -99,15 +60,10 @@ export default function SyncPanel({ data, blockchain }: SyncPanelProps) {
     return blocksRemaining / syncRatePerMin;
   }, [data.syncRate, blockchain]);
   
-  // Generate sparkline data based on sync rate
-  const sparklineData = useMemo(() => {
-    const base = syncRatePerMin || 100;
-    return Array.from({ length: 20 }, (_, i) => 
-      base + Math.sin(i / 3) * base * 0.3 + Math.random() * base * 0.1
-    );
-  }, [syncRatePerMin]);
-  
   const syncColor = getSyncColor(blockchain?.syncPercent || 0);
+  
+  // Only show sparkline if we have sufficient historical data
+  const showSparkline = syncHistory.length >= 2;
   
   return (
     <div id="sync" className="card-xdc">
@@ -137,13 +93,15 @@ export default function SyncPanel({ data, blockchain }: SyncPanelProps) {
         </div>
       ) : null}
       
-      {/* Block Trend Sparkline */}
-      <div className="mt-5">
-        <div className="flex items-center justify-between mb-2">
-          <span className="section-header">Block Trend (20 min)</span>
+      {/* Block Trend Sparkline - only show with real historical data */}
+      {showSparkline && (
+        <div className="mt-5">
+          <div className="flex items-center justify-between mb-2">
+            <span className="section-header">Sync Rate History</span>
+          </div>
+          <Sparkline data={syncHistory} color={syncColor} width={300} height={60} />
         </div>
-        <Sparkline data={sparklineData} color={syncColor} />
-      </div>
+      )}
       
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-4 mt-5">

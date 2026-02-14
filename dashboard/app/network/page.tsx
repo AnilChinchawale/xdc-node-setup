@@ -13,6 +13,7 @@ import {
   Globe
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
+import { LineChart } from '@/components/charts/LineChart';
 
 interface MetricsData {
   blockchain: {
@@ -34,16 +35,37 @@ interface MetricsData {
   timestamp: string;
 }
 
+interface MetricsHistory {
+  timestamps: string[];
+  blockHeight: number[];
+  peers: number[];
+  cpu: number[];
+  memory: number[];
+  disk: number[];
+  syncPercent: number[];
+  txPoolPending: number[];
+}
+
 export default function NetworkPage() {
   const [metrics, setMetrics] = useState<MetricsData | null>(null);
+  const [history, setHistory] = useState<MetricsHistory | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch('/api/metrics', { cache: 'no-store' });
-      if (res.ok) {
-        const data = await res.json();
+      const [metricsRes, historyRes] = await Promise.all([
+        fetch('/api/metrics', { cache: 'no-store' }),
+        fetch('/api/metrics/history', { cache: 'no-store' }),
+      ]);
+      
+      if (metricsRes.ok) {
+        const data = await metricsRes.json();
         setMetrics(data);
+      }
+      
+      if (historyRes.ok) {
+        const historyData = await historyRes.json();
+        setHistory(historyData);
       }
     } catch (err) {
       console.error('Failed to fetch metrics:', err);
@@ -345,6 +367,167 @@ export default function NetworkPage() {
             </div>
           </div>
         </div>
+
+        {/* Historical Charts */}
+        {history && history.timestamps.length > 0 && (
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Block Height History */}
+              <div className="card-xdc">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-[rgba(30,144,255,0.1)] flex items-center justify-center text-[var(--accent-blue)]">
+                    <Hash className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-[var(--text-primary)]">Block Height History</h2>
+                    <p className="text-xs text-[var(--text-tertiary)]">Last 30 minutes</p>
+                  </div>
+                </div>
+                <LineChart
+                  data={history.blockHeight}
+                  color="#1E90FF"
+                  height={250}
+                  width={600}
+                  showArea={true}
+                  unit=""
+                  labels={history.timestamps.map((ts) => {
+                    const date = new Date(ts);
+                    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                  })}
+                />
+              </div>
+
+              {/* Peers History */}
+              <div className="card-xdc">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-[rgba(16,185,129,0.1)] flex items-center justify-center text-[var(--success)]">
+                    <Globe className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-[var(--text-primary)]">Connected Peers</h2>
+                    <p className="text-xs text-[var(--text-tertiary)]">Last 30 minutes</p>
+                  </div>
+                </div>
+                <LineChart
+                  data={history.peers}
+                  color="#10B981"
+                  height={250}
+                  width={600}
+                  showArea={true}
+                  unit=""
+                  labels={history.timestamps.map((ts) => {
+                    const date = new Date(ts);
+                    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                  })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* CPU Usage History */}
+              <div className="card-xdc">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-[rgba(239,68,68,0.1)] flex items-center justify-center text-[var(--error)]">
+                    <Activity className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-[var(--text-primary)]">CPU Usage</h2>
+                    <p className="text-xs text-[var(--text-tertiary)]">Last 30 minutes</p>
+                  </div>
+                </div>
+                <LineChart
+                  data={history.cpu}
+                  color="#EF4444"
+                  height={250}
+                  width={600}
+                  showArea={true}
+                  unit="%"
+                  labels={history.timestamps.map((ts) => {
+                    const date = new Date(ts);
+                    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                  })}
+                />
+              </div>
+
+              {/* Memory Usage History */}
+              <div className="card-xdc">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-[rgba(245,158,11,0.1)] flex items-center justify-center text-[var(--warning)]">
+                    <Server className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-[var(--text-primary)]">Memory Usage</h2>
+                    <p className="text-xs text-[var(--text-tertiary)]">Last 30 minutes</p>
+                  </div>
+                </div>
+                <LineChart
+                  data={history.memory}
+                  color="#F59E0B"
+                  height={250}
+                  width={600}
+                  showArea={true}
+                  unit="%"
+                  labels={history.timestamps.map((ts) => {
+                    const date = new Date(ts);
+                    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                  })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Sync Progress History */}
+              <div className="card-xdc">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-[rgba(139,92,246,0.1)] flex items-center justify-center text-[var(--purple)]">
+                    <TrendingUp className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-[var(--text-primary)]">Sync Progress</h2>
+                    <p className="text-xs text-[var(--text-tertiary)]">Last 30 minutes</p>
+                  </div>
+                </div>
+                <LineChart
+                  data={history.syncPercent}
+                  color="#8B5CF6"
+                  height={250}
+                  width={600}
+                  showArea={true}
+                  unit="%"
+                  labels={history.timestamps.map((ts) => {
+                    const date = new Date(ts);
+                    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                  })}
+                />
+              </div>
+
+              {/* TX Pool Pending History */}
+              <div className="card-xdc">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-[rgba(30,144,255,0.1)] flex items-center justify-center text-[var(--accent-blue)]">
+                    <Zap className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-[var(--text-primary)]">Pending Transactions</h2>
+                    <p className="text-xs text-[var(--text-tertiary)]">Last 30 minutes</p>
+                  </div>
+                </div>
+                <LineChart
+                  data={history.txPoolPending}
+                  color="#1E90FF"
+                  height={250}
+                  width={600}
+                  showArea={true}
+                  unit=""
+                  labels={history.timestamps.map((ts) => {
+                    const date = new Date(ts);
+                    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                  })}
+                />
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </DashboardLayout>
   );

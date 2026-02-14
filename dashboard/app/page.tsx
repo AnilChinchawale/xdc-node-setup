@@ -13,6 +13,17 @@ import PeerMap from '@/components/PeerMap';
 import SkyNetStatus from '@/components/SkyNetStatus';
 import type { MetricsData, PeersData } from '@/lib/types';
 
+interface MetricsHistory {
+  timestamps: string[];
+  blockHeight: number[];
+  peers: number[];
+  cpu: number[];
+  memory: number[];
+  disk: number[];
+  syncPercent: number[];
+  txPoolPending: number[];
+}
+
 const REFRESH_INTERVAL = parseInt(process.env.NEXT_PUBLIC_REFRESH_INTERVAL || '10');
 
 const defaultMetrics: MetricsData = {
@@ -180,6 +191,16 @@ function LoadingState() {
 export default function Home() {
   const [metrics, setMetrics] = useState<MetricsData>(defaultMetrics);
   const [peers, setPeers] = useState<PeersData>(defaultPeers);
+  const [history, setHistory] = useState<MetricsHistory>({
+    timestamps: [],
+    blockHeight: [],
+    peers: [],
+    cpu: [],
+    memory: [],
+    disk: [],
+    syncPercent: [],
+    txPoolPending: [],
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
@@ -187,9 +208,10 @@ export default function Home() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [metricsRes, peersRes] = await Promise.all([
+      const [metricsRes, peersRes, historyRes] = await Promise.all([
         fetch('/api/metrics', { cache: 'no-store' }),
         fetch('/api/peers', { cache: 'no-store' }),
+        fetch('/api/metrics/history', { cache: 'no-store' }),
       ]);
 
       if (!metricsRes.ok) {
@@ -215,6 +237,11 @@ export default function Home() {
       if (peersRes.ok) {
         const peersData = await peersRes.json();
         setPeers(peersData);
+      }
+
+      if (historyRes.ok) {
+        const historyData = await historyRes.json();
+        setHistory(historyData);
       }
     } catch (err) {
       console.error('Error fetching data:', err);
@@ -309,7 +336,10 @@ export default function Home() {
           </div>
         )}
         {/* Hero - Blockchain Status */}
-        <HeroSection data={metrics.blockchain} />
+        <HeroSection 
+          data={metrics.blockchain} 
+          blockHeightHistory={history.blockHeight}
+        />
 
         {/* Stats Grid */}
         <StatsGrid metrics={metrics} />
@@ -323,7 +353,11 @@ export default function Home() {
             <ConsensusPanel data={metrics.consensus} />
           </div>
           <div className="xl:col-span-1">
-            <SyncPanel data={metrics.sync} blockchain={metrics.blockchain} />
+            <SyncPanel 
+              data={metrics.sync} 
+              blockchain={metrics.blockchain}
+              syncHistory={history.syncPercent}
+            />
           </div>
         </div>
 

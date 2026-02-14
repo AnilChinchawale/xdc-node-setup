@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { execSync } from 'child_process';
 import { pushToSkyNet } from '@/lib/skynet-bridge';
+import { addSnapshot } from '@/lib/metrics-history';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -267,6 +268,18 @@ export async function GET() {
       },
       timestamp: new Date().toISOString(),
     };
+
+    // Add snapshot to history buffer
+    addSnapshot({
+      timestamp: response.timestamp,
+      blockHeight: response.blockchain.blockHeight,
+      peers: response.blockchain.peers,
+      cpu: response.server.cpuUsage,
+      memory: response.server.memoryTotal > 0 ? (response.server.memoryUsed / response.server.memoryTotal) * 100 : 0,
+      disk: response.server.diskTotal > 0 ? (response.server.diskUsed / response.server.diskTotal) * 100 : 0,
+      syncPercent: response.blockchain.syncPercent,
+      txPoolPending: response.txpool.pending,
+    });
 
     // Push to SkyNet (fire and forget — don't await, don't block response)
     pushToSkyNet(response).catch(() => {});

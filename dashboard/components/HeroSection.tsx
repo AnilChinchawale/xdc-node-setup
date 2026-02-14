@@ -3,9 +3,11 @@
 import { useAnimatedNumber } from '@/lib/animations';
 import { formatDurationLong, getSyncColor } from '@/lib/formatters';
 import type { BlockchainData } from '@/lib/types';
+import { Sparkline } from '@/components/charts/Sparkline';
 
 interface HeroSectionProps {
   data: BlockchainData;
+  blockHeightHistory?: number[];
 }
 
 function CircularProgress({ percentage, size = 120, strokeWidth = 8 }: { percentage: number; size?: number; strokeWidth?: number }) {
@@ -53,51 +55,14 @@ function CircularProgress({ percentage, size = 120, strokeWidth = 8 }: { percent
   );
 }
 
-function Sparkline({ data, color = '#1E90FF' }: { data: number[]; color?: string }) {
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-  const range = max - min || 1;
-  const width = 200;
-  const height = 40;
-  const points = data.map((val, i) => {
-    const x = (i / (data.length - 1)) * width;
-    const y = height - ((val - min) / range) * height;
-    return `${x},${y}`;
-  }).join(' ');
-  
-  return (
-    <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
-      <polyline
-        fill="none"
-        stroke={color}
-        strokeWidth="2"
-        points={points}
-        style={{ filter: `drop-shadow(0 0 3px ${color}50)` }}
-      />
-      <defs>
-        <linearGradient id={`sparkline-gradient-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.3"/>
-          <stop offset="100%" stopColor={color} stopOpacity="0"/>
-        </linearGradient>
-      </defs>
-      <polygon
-        fill={`url(#sparkline-gradient-${color.replace('#', '')})`}
-        points={`0,${height} ${points} ${width},${height}`}
-      />
-    </svg>
-  );
-}
-
-export default function HeroSection({ data }: HeroSectionProps) {
+export default function HeroSection({ data, blockHeightHistory = [] }: HeroSectionProps) {
   const displayBlockHeight = useAnimatedNumber(data.blockHeight, 1500);
   const displayPeers = useAnimatedNumber(data.peers, 1000);
   
-  // Generate mock sparkline data based on current block height
-  const sparklineData = Array.from({ length: 20 }, (_, i) => 
-    data.blockHeight - (19 - i) * 2
-  );
-  
   const syncColor = getSyncColor(data.syncPercent);
+  
+  // Only show sparkline if we have sufficient historical data
+  const showSparkline = blockHeightHistory.length >= 2;
   
   return (
     <div className="card-hero">
@@ -136,10 +101,12 @@ export default function HeroSection({ data }: HeroSectionProps) {
             </div>
           )}
           
-          {/* Sparkline */}
-          <div className="mt-4">
-            <Sparkline data={sparklineData} color={syncColor} />
-          </div>
+          {/* Sparkline - only show with real historical data */}
+          {showSparkline && (
+            <div className="mt-4">
+              <Sparkline data={blockHeightHistory} color={syncColor} width={200} height={40} />
+            </div>
+          )}
         </div>
         
         {/* Center: Sync Progress */}
