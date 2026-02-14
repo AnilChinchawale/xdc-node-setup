@@ -1838,18 +1838,22 @@ EOF
         -H "Content-Type: application/json" \
         -d "$payload" 2>/dev/null || echo '{"error":"connection_failed"}')
     
-    # Check for API key in response (try multiple response shapes)
-    local api_key node_id
-    api_key=$(echo "$response" | jq -r '.apiKey // .data.apiKey // .data.api_key // empty' 2>/dev/null || echo "")
-    node_id=$(echo "$response" | jq -r '.nodeId // .data.nodeId // .data.node_id // .data.id // empty' 2>/dev/null || echo "")
+    info "Registration response: $response"
     
-    if [[ -n "$api_key" && "$api_key" != "null" ]]; then
-        log "✅ Node registered successfully with SkyNet!"
-        [[ -n "$node_id" ]] && info "Node ID: $node_id"
-        
-        # Write skynet.conf to the network config directory (mounted by docker-compose)
-        mkdir -p "$(dirname "$skynet_conf")"
-        cat > "$skynet_conf" <<EOF
+    # Check for API key in response (try multiple response shapes, fallback without jq)
+    local api_key="" node_id=""
+    if command -v jq >/dev/null 2>&1; then
+        api_key=$(echo "$response" | jq -r '.apiKey // .data.apiKey // .data.api_key // empty' 2>/dev/null || echo "")
+        node_id=$(echo "$response" | jq -r '.nodeId // .data.nodeId // .data.node_id // .data.id // empty' 2>/dev/null || echo "")
+    else
+        # Fallback: grep-based parsing
+        api_key=$(echo "$response" | grep -o '"apiKey":"[^"]*"' | head -1 | cut -d'"' -f4)
+        node_id=$(echo "$response" | grep -o '"nodeId":"[^"]*"' | head -1 | cut -d'"' -f4)
+    fi
+    
+    # Always write skynet.conf with whatever we have (email, telegram, role at minimum)
+    mkdir -p "$(dirname "$skynet_conf")"
+    cat > "$skynet_conf" <<EOF
 # XDC SkyNet Agent Configuration
 # Auto-generated during node setup
 
@@ -1861,7 +1865,11 @@ SKYNET_ROLE=${node_role}
 SKYNET_EMAIL=${email:-}
 SKYNET_TELEGRAM=${telegram:-}
 EOF
-        chmod 600 "$skynet_conf"
+    chmod 600 "$skynet_conf"
+    
+    if [[ -n "$api_key" && "$api_key" != "null" ]]; then
+        log "✅ Node registered successfully with SkyNet!"
+        [[ -n "$node_id" ]] && info "Node ID: $node_id"
         
         # Start xdc-monitoring container for heartbeat reporting
         if [[ -f "$PROJECT_ROOT/docker/skynet-agent.sh" ]]; then
@@ -1889,6 +1897,7 @@ EOF
         local error_msg
         error_msg=$(echo "$response" | jq -r '.error // "Registration failed"' 2>/dev/null || echo "Registration failed")
         warn "SkyNet registration failed: $error_msg"
+        info "Config saved to $skynet_conf (email/telegram preserved, fill in API key manually)"
         echo ""
         echo "You can manually register later by running:"
         echo "  $0 --register-skynet"
