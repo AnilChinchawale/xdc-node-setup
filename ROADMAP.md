@@ -2,7 +2,7 @@
 ## One-Click XDC Infrastructure
 
 **Document Version:** 1.0  
-**Last Updated:** February 2026  
+**Last Updated:** February 14, 2026  
 **Classification:** Investor-Grade Strategic Roadmap
 
 ---
@@ -38,6 +38,61 @@ Unlike generic cloud providers or complex DIY setups, XDC Node Setup delivers:
 - **Enterprise Security**: SOC 2 compliant, audit-ready configurations
 - **Visual Management**: GUI for operators who prefer clicks over commands
 - **Ecosystem Integration**: Native staking, monitoring, and backup integrations
+
+---
+
+## Current Sprint — Pending Tasks (Feb 2026)
+
+### ✅ Completed (Feb 14, 2026):
+- [x] Fix `/var/lib/xdc` permission denied — switched to configurable XDC_STATE_DIR (commit 5b430eb)
+- [x] Fix `free: command not found` — portable /proc/meminfo parsing
+- [x] Fix data directory not found — auto-create before disk checks
+- [x] Cleanup stray EOF file
+- [x] Network-based directory structure: `{network}/xdcchain` + `{network}/.xdc-node` (mainnet/testnet/devnet)
+- [x] Dashboard + Prometheus + Alertmanager auto-start with `xdc start` (removed profiles gate)
+- [x] config.toml as single source of truth for XDC startup (all 3 network start scripts)
+- [x] Relative volume paths in docker-compose (no more /opt/xdc-node hardcoded)
+- [x] SkyNet auto-registration on install
+- [x] CLI renamed xdc-node → xdc (16 commands)
+- [x] ARM64/macOS support with Rosetta emulation
+- [x] Dual RPC flag detection (--rpc vs --http)
+- [x] Docker entrypoint.sh for XDC-mainnet → XDC symlink
+- [x] TOML config support
+- [x] Shell completions (bash/zsh)
+
+### 🔴 Bugs / High Priority:
+- [ ] `admin_addPeer` RPC not available — verify `--rpcapi` includes `admin` in running container
+- [ ] Dashboard not loading on first attempt — may need wait-for-healthy logic before nginx starts
+- [ ] `top` command may fail on minimal systems (same portability issue as `free`)
+
+### 🏗️ Build & Ship:
+- [ ] End-to-end install test on clean Ubuntu 22.04 + clean macOS ARM64
+- [ ] `xdc snapshot download` — needs real snapshot URLs in configs/snapshots.json
+- [ ] Verify `xdc config` command works with TOML
+- [ ] Verify shell completions install correctly
+- [ ] Production build validation for dashboard
+
+### 🔒 Security:
+- [ ] Server hardening on 95.217.56.168 (scored 50/100)
+- [ ] Verify Docker doesn't expose RPC externally (should be 127.0.0.1:9545 only)
+
+### 📖 Docs & Polish:
+- [ ] Update README.md with new directory structure + CLI examples
+- [ ] Video guides / interactive tutorials
+- [ ] Man pages (referenced in CHANGELOG but not created)
+
+### 🚀 Q1 Roadmap Items:
+- [ ] AWS AMI (us-east-1, eu-west-1, ap-southeast-1)
+- [ ] DigitalOcean 1-Click Marketplace listing
+- [ ] Azure ARM templates
+- [ ] GCP Deployment Manager configs
+- [ ] Terraform modules validation
+- [ ] CLI v2.0 UX improvements
+
+### 🔌 Integrations:
+- [ ] Verify SkyNet agent scripts on remote servers use updated endpoints (netown→skynet rename)
+- [ ] `xdc monitor` credential rotation tracking
+- [ ] Global Node Monitor (P2P crawler, validator leaderboard, network map)
 
 ---
 
