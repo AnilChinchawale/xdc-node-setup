@@ -25,14 +25,15 @@ services:
       - ./${NETWORK:-mainnet}/start-node.sh:/work/start.sh:ro
       - ./${NETWORK:-mainnet}/bootnodes.list:/work/bootnodes.list:ro
       - ./${NETWORK:-mainnet}/.pwd:/work/.pwd:ro
-      - ./${NETWORK:-mainnet}/.env:/work/.env:ro
       - ./config.toml:/etc/xdc-node/config.toml:ro
       - /etc/localtime:/etc/localtime:ro
-    env_file:
-      - ./${NETWORK:-mainnet}/.env
     environment:
-      # Network must be set for official entry.sh to create correct symlink
       - NETWORK=${NETWORK:-mainnet}
+      - SYNC_MODE=${SYNC_MODE:-full}
+      - GC_MODE=${GC_MODE:-full}
+      - RPC_PORT=${RPC_PORT:-8545}
+      - WS_PORT=${WS_PORT:-8546}
+      - INSTANCE_NAME=${INSTANCE_NAME:-xdc-node}
     # Override image entrypoint — use our start.sh which auto-detects --rpc vs --http flags
     entrypoint: ["/bin/bash", "/work/start.sh"]
     networks:
