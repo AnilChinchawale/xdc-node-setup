@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
-import { execSync } from 'child_process';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { pushToSkyNet } from '@/lib/skynet-bridge';
 import { addSnapshot, getRawHistory } from '@/lib/metrics-history';
 import { detectIssues, DetectedIssue } from '@/lib/issue-detector';
 import { reportIssues } from '@/lib/issue-reporter';
 import { lfgCheck } from '@/lib/lfg';
+
+const execFileAsync = promisify(execFile);
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -81,7 +84,10 @@ interface StorageMetrics {
   allMounts: Array<{ device: string; mount: string; total: number; used: number; avail: number; percent: number; filesystem: string }>;
 }
 
-function getStorageMetrics(): StorageMetrics {
+// Allowed paths for disk usage checks (whitelist)
+const ALLOWED_DATA_PATHS = ['/work/xdcchain', '/work/xdcchain/XDC', '/work/xdcchain/XDC/chaindata', '/work/xdcchain/chaindata', '/data'];
+
+async function getStorageMetrics(): Promise<StorageMetrics> {
   let chainDataSize = 0;
   let databaseSize = 0;
   let dataDir = '';
@@ -90,61 +96,77 @@ function getStorageMetrics(): StorageMetrics {
   let device = '';
   let mountTotal = 0, mountUsed = 0, mountAvail = 0, mountPercent = 0;
   const allMounts: StorageMetrics['allMounts'] = [];
+  const fs = await import('fs');
   
   try {
-    // Try different paths for chaindata
-    const paths = ['/work/xdcchain/XDC/chaindata', '/work/xdcchain/chaindata', '/work/xdcchain'];
-    for (const p of paths) {
+    // Try different paths for chaindata using Node.js fs (safe, no shell)
+    for (const p of ALLOWED_DATA_PATHS) {
       try {
-        const size = execSync(`du -sb ${p} 2>/dev/null | cut -f1`, { timeout: 10000 }).toString().trim();
-        if (size && parseInt(size) > 0) {
-          if (p.includes('chaindata')) {
-            chainDataSize = parseInt(size);
+        if (fs.existsSync(p)) {
+          // Use find with hardcoded args for safer size calculation
+          const { stdout } = await execFileAsync('find', [p, '-type', 'f', '-printf', '%s\n'], { timeout: 10000 });
+          const sizes = stdout.trim().split('\n').filter(Boolean);
+          const size = sizes.reduce((sum, s) => sum + parseInt(s, 10), 0);
+          
+          if (size > 0 && p.includes('chaindata')) {
+            chainDataSize = size;
             dataDir = p;
             break;
           }
         }
       } catch {}
     }
-    if (!dataDir) dataDir = '/work/xdcchain';
+    if (!dataDir) dataDir = ALLOWED_DATA_PATHS[0];
     
-    // Get total DB directory size
+    // Get total DB directory size using find (safe)
     try {
-      const dbSizeStr = execSync(`du -sb /work/xdcchain 2>/dev/null | cut -f1`, { timeout: 10000 }).toString().trim();
-      if (dbSizeStr && parseInt(dbSizeStr) > 0) {
-        databaseSize = parseInt(dbSizeStr);
+      const { stdout } = await execFileAsync('find', [ALLOWED_DATA_PATHS[0], '-type', 'f', '-printf', '%s\n'], { timeout: 10000 });
+      const sizes = stdout.trim().split('\n').filter(Boolean);
+      databaseSize = sizes.reduce((sum, s) => sum + parseInt(s, 10), 0);
+    } catch {}
+    
+    // Get mount info for the chaindata directory using df with safe args
+    try {
+      const { stdout } = await execFileAsync('df', ['-BG', dataDir], { timeout: 3000 });
+      const lines = stdout.trim().split('\n');
+      if (lines.length >= 2) {
+        const dataLine = lines[1];
+        const parts = dataLine.split(/\s+/);
+        if (parts.length >= 6) {
+          device = parts[0];
+          mountTotal = parseFloat(parts[1]) * 1024 * 1024 * 1024; // G to bytes
+          mountUsed = parseFloat(parts[2]) * 1024 * 1024 * 1024;
+          mountAvail = parseFloat(parts[3]) * 1024 * 1024 * 1024;
+          mountPercent = parseInt(parts[4]);
+          mountPoint = parts[5];
+        }
       }
     } catch {}
     
-    // Get mount info for the chaindata directory
-    try {
-      const dfLine = execSync(`df -BG ${dataDir} 2>/dev/null | tail -1`, { timeout: 3000 }).toString().trim();
-      const parts = dfLine.split(/\s+/);
-      if (parts.length >= 6) {
-        device = parts[0];
-        mountTotal = parseFloat(parts[1]) * 1024 * 1024 * 1024; // G to bytes
-        mountUsed = parseFloat(parts[2]) * 1024 * 1024 * 1024;
-        mountAvail = parseFloat(parts[3]) * 1024 * 1024 * 1024;
-        mountPercent = parseInt(parts[4]);
-        mountPoint = parts[5];
-      }
-    } catch {}
-    
-    // Get filesystem type
+    // Get filesystem type using mount command with safe parsing
     try {
       if (mountPoint) {
-        const fsType = execSync(`mount | grep "on ${mountPoint} " | head -1`, { timeout: 3000 }).toString().trim();
-        const fsMatch = fsType.match(/type (\S+)/);
-        if (fsMatch) filesystem = fsMatch[1];
+        const { stdout } = await execFileAsync('mount', [], { timeout: 3000 });
+        const lines = stdout.split('\n');
+        for (const line of lines) {
+          if (line.includes(` on ${mountPoint} `)) {
+            const fsMatch = line.match(/type (\S+)/);
+            if (fsMatch) {
+              filesystem = fsMatch[1];
+              break;
+            }
+          }
+        }
       }
     } catch {}
     
-    // Get all mounted storage volumes (skip tmpfs, devtmpfs, proc etc)
+    // Get all mounted storage volumes using df with safe args
     try {
-      const dfAll = execSync(`df -BG -T 2>/dev/null | grep -v tmpfs | grep -v devtmpfs | grep -v overlay | tail -n +2`, { timeout: 3000 }).toString().trim();
-      for (const line of dfAll.split('\n')) {
+      const { stdout } = await execFileAsync('df', ['-BG', '-T'], { timeout: 3000 });
+      const lines = stdout.trim().split('\n').slice(1); // Skip header
+      for (const line of lines) {
         const p = line.trim().split(/\s+/);
-        if (p.length >= 7 && !p[0].startsWith('none')) {
+        if (p.length >= 7 && !p[0].startsWith('none') && !['tmpfs', 'devtmpfs', 'overlay'].includes(p[1])) {
           allMounts.push({
             device: p[0],
             filesystem: p[1],
@@ -162,8 +184,8 @@ function getStorageMetrics(): StorageMetrics {
   return { chainDataSize, databaseSize, dataDir, mountPoint, filesystem, device, mountTotal, mountUsed, mountAvail, mountPercent, allMounts };
 }
 
-function getServerStats() {
-  const fs = require('fs');
+async function getServerStats() {
+  const fs = await import('fs');
   const procPath = fs.existsSync('/host/proc/stat') ? '/host/proc' : '/proc';
   let cpuUsage = 0, memUsed = 0, memTotal = 0, diskUsed = 0, diskTotal = 0;
   let storageType = 'unknown', storageModel = '';
@@ -177,11 +199,11 @@ function getServerStats() {
     cpuUsage = Math.round(((total - idle) / total) * 100);
   } catch {}
   
-  // Fallback: use `top` for CPU in container (macOS Docker)
+  // Fallback: use `top` for CPU in container (macOS Docker) - uses execFile safely
   if (cpuUsage === 0) {
     try {
-      const topOut = execSync('top -bn1 2>/dev/null | head -5', { timeout: 3000 }).toString();
-      const cpuMatch = topOut.match(/(\d+\.?\d*)%?\s*id/);
+      const { stdout } = await execFileAsync('top', ['-bn1'], { timeout: 3000 });
+      const cpuMatch = stdout.match(/(\d+\.?\d*)%?\s*id/);
       if (cpuMatch) cpuUsage = Math.round(100 - parseFloat(cpuMatch[1]));
     } catch {}
   }
@@ -195,11 +217,11 @@ function getServerStats() {
     if (availMatch) memUsed = memTotal - (parseInt(availMatch[1]) * 1024);
   } catch {}
   
-  // Fallback: free command (works in Alpine container)
+  // Fallback: free command (works in Alpine container) - uses execFile safely
   if (memTotal === 0) {
     try {
-      const freeOut = execSync('free -b 2>/dev/null', { timeout: 3000 }).toString();
-      const memLine = freeOut.split('\n').find(l => l.startsWith('Mem:'));
+      const { stdout } = await execFileAsync('free', ['-b'], { timeout: 3000 });
+      const memLine = stdout.split('\n').find((l: string) => l.startsWith('Mem:'));
       if (memLine) {
         const parts = memLine.split(/\s+/);
         memTotal = parseInt(parts[1]) || 0;
@@ -208,23 +230,24 @@ function getServerStats() {
     } catch {}
   }
   
-  // Disk usage
+  // Disk usage using df with safe args
   try {
-    const df = execSync('df -B1 / 2>/dev/null', { timeout: 3000 }).toString();
-    const parts = df.split('\n')[1]?.split(/\s+/);
+    const { stdout } = await execFileAsync('df', ['-B1', '/'], { timeout: 3000 });
+    const parts = stdout.split('\n')[1]?.split(/\s+/);
     if (parts) { diskTotal = parseInt(parts[1]) || 0; diskUsed = parseInt(parts[2]) || 0; }
   } catch {}
   
-  // Storage type detection (SSD/HDD/NVMe)
+  // Storage type detection (SSD/HDD/NVMe) using lsblk with safe args
   try {
-    // Method 1: Check rotational flag (Linux)
-    const devices = execSync('lsblk -dno NAME,ROTA,MODEL,TRAN 2>/dev/null || true', { timeout: 3000 }).toString().trim();
-    if (devices) {
-      const lines = devices.split('\n').filter(l => l.trim());
+    const { stdout } = await execFileAsync('lsblk', ['-dno', 'NAME,ROTA,MODEL,TRAN'], { timeout: 3000 });
+    if (stdout) {
+      const lines = stdout.split('\n').filter((l: string) => l.trim());
       for (const line of lines) {
-        const [name, rota, ...rest] = line.trim().split(/\s+/);
-        const model = rest.slice(0, -1).join(' ');
-        const transport = rest[rest.length - 1] || '';
+        const parts = line.trim().split(/\s+/);
+        const name = parts[0];
+        const rota = parts[1];
+        const model = parts.slice(2, -1).join(' ');
+        const transport = parts[parts.length - 1] || '';
         if (name && !name.startsWith('loop')) {
           storageModel = model || '';
           if (transport === 'nvme' || name.startsWith('nvme')) {
@@ -240,27 +263,27 @@ function getServerStats() {
     }
   } catch {}
   
-  // Method 2: macOS — check via system_profiler or diskutil (run on host if possible)
+  // Method 2: macOS / Docker Desktop detection using mount with safe args
   if (storageType === 'unknown') {
     try {
-      // Inside Docker on macOS, /dev/vda is the VM disk — always "SSD" (backed by host storage)
-      const rootDev = execSync('mount | grep "on / " | cut -d" " -f1 2>/dev/null', { timeout: 3000 }).toString().trim();
-      if (rootDev.includes('vda') || rootDev.includes('sda')) {
-        // Docker Desktop VM — assume SSD (macOS typically has SSD/NVMe)
-        storageType = 'SSD (VM)';
+      const { stdout } = await execFileAsync('mount', [], { timeout: 3000 });
+      const rootDev = stdout.split('\n').find((l: string) => l.includes(' on / '));
+      if (rootDev) {
+        const devMatch = rootDev.match(/^(\S+)/);
+        if (devMatch && (devMatch[1].includes('vda') || devMatch[1].includes('sda'))) {
+          storageType = 'SSD (VM)';
+        }
       }
     } catch {}
   }
   
-  // IOPS benchmark (quick 4K random read test — runs once, cached)
+  // IOPS benchmark (quick 4K random read test - runs once, cached)
   let iopsEstimate = 0;
   try {
-    // Quick dd-based test: 1000 x 4K blocks
-    const ddOut = execSync(
-      'dd if=/dev/zero of=/tmp/.iops-test bs=4k count=1000 oflag=dsync 2>&1 | tail -1',
-      { timeout: 10000 }
-    ).toString();
-    const speedMatch = ddOut.match(/([\d.]+)\s*(MB|kB|GB)\/s/);
+    // Quick dd-based test: 1000 x 4K blocks - uses execFile safely
+    const { stdout, stderr } = await execFileAsync('dd', ['if=/dev/zero', 'of=/tmp/.iops-test', 'bs=4k', 'count=1000', 'oflag=dsync'], { timeout: 10000 });
+    const output = stdout + stderr;
+    const speedMatch = output.match(/([\d.]+)\s*(MB|kB|GB)\/s/);
     if (speedMatch) {
       let speedMB = parseFloat(speedMatch[1]);
       if (speedMatch[2] === 'kB') speedMB /= 1024;
@@ -268,7 +291,7 @@ function getServerStats() {
       // Estimate IOPS from sequential 4K write speed
       iopsEstimate = Math.round((speedMB * 1024) / 4); // 4K blocks
     }
-    execSync('rm -f /tmp/.iops-test 2>/dev/null', { timeout: 1000 });
+    await execFileAsync('rm', ['-f', '/tmp/.iops-test'], { timeout: 1000 });
   } catch {}
   
   return { cpuUsage, memUsed, memTotal, diskUsed, diskTotal, storageType, storageModel, iopsEstimate };
@@ -407,8 +430,8 @@ export async function GET() {
     const inbound = peersList.filter(p => p.network?.inbound === true).length;
     const outbound = peersList.length - inbound;
     
-    // Server stats
-    const server = getServerStats();
+    // Server stats - now async
+    const server = await getServerStats();
     
     // Epoch
     const epoch = Math.floor(blockHeight / 900);
@@ -438,8 +461,8 @@ export async function GET() {
     // Parse client type from nodeInfo
     const clientType = parseClientType((nodeInfo.name as string) || '');
     
-    // Get storage metrics (may be slow, runs in background)
-    const storageMetrics = getStorageMetrics();
+    // Get storage metrics - now async
+    const storageMetrics = await getStorageMetrics();
     
     // Node config from environment
     const nodeConfig = {
@@ -559,7 +582,7 @@ export async function GET() {
     // Update active issues tracker via global function
     if (typeof global !== 'undefined' && global.updateActiveIssues) {
       global.updateActiveIssues(detectedIssues);
-}
+    }
     
     // Report to SkyNet (fire and forget)
     reportIssues(detectedIssues).catch(() => {});
@@ -597,7 +620,7 @@ export async function GET() {
   } catch (error) {
     // Even on total failure, return diagnostics
     const diagnostics = await getNodeDiagnostics();
-    const server = getServerStats();
+    const server = await getServerStats();
     return NextResponse.json({
       nodeStatus: 'offline',
       rpcConnected: false,
