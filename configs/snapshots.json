@@ -1,37 +1,45 @@
 {
   "mainnet": {
     "full": {
-      "url": "https://download.xinfin.network/xdcchain-mainnet-full-latest.tar.gz",
+      "url": "N/A",
       "size": "~250GB",
       "type": "full",
-      "updated": "weekly",
-      "description": "Full node snapshot for mainnet"
+      "updated": "N/A",
+      "description": "Full node snapshot for mainnet - currently unavailable",
+      "note": "Official XDC snapshots are not publicly hosted. Users must either sync from genesis or create/share their own snapshots."
     },
     "archive": {
-      "url": "https://download.xinfin.network/xdcchain-mainnet-archive-latest.tar.gz",
+      "url": "N/A",
       "size": "~500GB",
       "type": "archive",
-      "updated": "monthly",
-      "description": "Archive node with full historical state"
+      "updated": "N/A",
+      "description": "Archive node with full historical state - currently unavailable",
+      "note": "Official XDC snapshots are not publicly hosted."
     }
   },
   "testnet": {
     "full": {
-      "url": "https://download.xinfin.network/xdcchain-testnet-full-latest.tar.gz",
+      "url": "N/A",
       "size": "~50GB",
       "type": "full",
-      "updated": "weekly",
-      "description": "Full node snapshot for Apothem testnet"
+      "updated": "N/A",
+      "description": "Full node snapshot for Apothem testnet - currently unavailable",
+      "note": "Official XDC snapshots are not publicly hosted."
     }
   },
   "sources": {
     "primary": "https://download.xinfin.network",
-    "mirrors": [
-      "https://xdc-snapshots.s3.amazonaws.com"
-    ]
+    "mirrors": [],
+    "note": "No official public mirrors available. Community members can host snapshots and share URLs via XDC_SNAPSHOT_URL environment variable."
   },
   "checksums": {
     "algorithm": "SHA256",
     "suffix": ".sha256"
+  },
+  "custom_instructions": {
+    "description": "How to use custom snapshot URLs",
+    "example": "export XDC_SNAPSHOT_URL='https://your-mirror.com/xdc-snapshot.tar.gz' && xdc snapshot download mainnet-full",
+    "create_own": "xdc snapshot create /backup/xdc-snapshots",
+    "community": "Check XDC community channels for shared snapshots"
   }
 }

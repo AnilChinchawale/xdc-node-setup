@@ -36,12 +36,8 @@ NOTIFY=false
 FULL_CHECK=false
 SECURITY_ONLY=false
 
-# Colors for terminal output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
+# Colors are defined in utils.sh (sourced above) as readonly variables
+# Do not redeclare them here to avoid "readonly variable" errors
 
 # Report data - using prefixed variables for bash 3.2 compatibility
 # Instead of associative arrays (declare -A), we use regular variables

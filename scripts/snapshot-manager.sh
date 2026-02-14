@@ -152,12 +152,62 @@ download_snapshot() {
     local network="${snapshot_type%%-*}"
     local type="${snapshot_type##*-}"
     
-    # Get URL from config
+    # Get URL from config or environment variable override
     local url
-    url=$(jq -r ".${network}.${type}.url // empty" "$SNAPSHOTS_CONFIG")
+    if [[ -n "${XDC_SNAPSHOT_URL:-}" ]]; then
+        url="$XDC_SNAPSHOT_URL"
+        info "Using custom snapshot URL from XDC_SNAPSHOT_URL"
+    else
+        url=$(jq -r ".${network}.${type}.url // empty" "$SNAPSHOTS_CONFIG")
+    fi
     
-    if [[ -z "$url" || "$url" == "null" ]]; then
-        die "Unknown snapshot type: $snapshot_type"
+    if [[ -z "$url" || "$url" == "null" || "$url" == "N/A" ]]; then
+        error "No snapshot URL configured for: $snapshot_type"
+        echo ""
+        echo -e "${YELLOW}Snapshot downloads are currently unavailable.${NC}"
+        echo ""
+        echo "Options:"
+        echo "  1. Sync from genesis (may take weeks)"
+        echo "  2. Create your own snapshot from another node:"
+        echo "     xdc snapshot create /backup/my-snapshot"
+        echo "  3. Provide custom snapshot URL:"
+        echo "     export XDC_SNAPSHOT_URL=\"https://your-mirror.com/snapshot.tar.gz\""
+        echo "     xdc snapshot download $snapshot_type"
+        echo ""
+        exit 1
+    fi
+    
+    # Try to verify URL is accessible
+    info "Checking snapshot availability..."
+    if ! curl -Isf --max-time 10 "$url" >/dev/null 2>&1; then
+        warn "Primary snapshot URL not accessible: $url"
+        
+        # Try mirrors if available
+        local mirrors
+        mirrors=$(jq -r '.sources.mirrors[]? // empty' "$SNAPSHOTS_CONFIG" 2>/dev/null)
+        
+        if [[ -n "$mirrors" ]]; then
+            info "Trying mirror sources..."
+            local mirror_found=false
+            
+            while IFS= read -r mirror_base; do
+                local mirror_url="${mirror_base}/$(basename "$url")"
+                info "Testing mirror: $mirror_url"
+                
+                if curl -Isf --max-time 10 "$mirror_url" >/dev/null 2>&1; then
+                    url="$mirror_url"
+                    log "Found working mirror: $mirror_url"
+                    mirror_found=true
+                    break
+                fi
+            done <<< "$mirrors"
+            
+            if [[ "$mirror_found" == "false" ]]; then
+                die "All snapshot sources are unavailable. See options above."
+            fi
+        else
+            die "Snapshot URL not accessible and no mirrors configured."
+        fi
     fi
     
     info "Snapshot: $snapshot_type"

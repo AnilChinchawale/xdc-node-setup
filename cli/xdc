@@ -2127,11 +2127,9 @@ EOF
         add)
             inject_peers
             ;;
-        optimize|list|test)
-            run_script "bootnode-optimize.sh" "--$action $args"
-            ;;
         *)
-            run_script "bootnode-optimize.sh" "--optimize $args"
+            # bootnode-optimize.sh doesn't use action flags, just run with args
+            run_script "bootnode-optimize.sh" "$args"
             ;;
     esac
 }
