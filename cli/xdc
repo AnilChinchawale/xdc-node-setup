@@ -140,6 +140,10 @@ $(c BOLD)XDC-SPECIFIC COMMANDS:$(c NC)
     $(c GREEN)network-stats$(c NC)  Network-wide statistics and validator rankings
     $(c GREEN)governance$(c NC)     Governance participation (proposals, voting, history)
 
+$(c BOLD)CLIENT MANAGEMENT:$(c NC)
+    $(c GREEN)client$(c NC)         Show current client information
+    $(c GREEN)start --client$(c NC) Start with specific client (stable|geth-pr5|erigon)
+
 $(c BOLD)GENERAL COMMANDS:$(c NC)
     $(c GREEN)init$(c NC)           Interactive setup wizard (wraps setup.sh)
     $(c GREEN)status$(c NC)         Quick node status overview with setup progress
@@ -773,9 +777,26 @@ EOF
             status_json="low_peers"
         fi
         
-        # Extract just client name from version string
-        local client
-        client=$(echo "$client_version" | cut -d'/' -f1)
+        # Extract and detect client name from version string
+        local client="Unknown"
+        local client_display="Unknown"
+        
+        if [[ "$client_version" == *"erigon"* ]]; then
+            client="erigon"
+            client_display="Erigon-XDC"
+        elif [[ "$client_version" == *"XDC"* ]]; then
+            # Check if it's geth-pr5 or stable based on version string
+            if [[ "$client_version" == *"feature/xdpos"* ]] || [[ "$client_version" == *"pr5"* ]]; then
+                client="geth-pr5"
+                client_display="XDC Geth PR5"
+            else
+                client="stable"
+                client_display="XDC Stable"
+            fi
+        else
+            client=$(echo "$client_version" | cut -d'/' -f1)
+            client_display="$client"
+        fi
         
         if json_output ""; then
             cat << EOF
@@ -805,11 +826,11 @@ EOF
         echo ""
         echo -e "$(c BOLD)┌─────────────────────────────────────────────────────────────────────────────┐$(c NC)"
         echo -e "$(c BOLD)│$(c NC)                       $(c CYAN)XDC Node Status$(c NC)                                      $(c BOLD)│$(c NC)"
-        echo -e "$(c BOLD)├─────────────┬───────────┬───────┬───────┬───────┬───────┬───────┬──────────┤$(c NC)"
-        echo -e "$(c BOLD)│$(c NC) $(c WHITE)Client$(c NC)      $(c BOLD)│$(c NC) $(c WHITE)Block$(c NC)     $(c BOLD)│$(c NC) $(c WHITE)Peers$(c NC) $(c BOLD)│$(c NC) $(c WHITE)Sync%$(c NC) $(c BOLD)│$(c NC) $(c WHITE)CPU$(c NC)   $(c BOLD)│$(c NC) $(c WHITE)RAM$(c NC)   $(c BOLD)│$(c NC) $(c WHITE)Disk$(c NC)  $(c BOLD)│$(c NC) $(c WHITE)Status$(c NC)   $(c BOLD)│$(c NC)"
-        echo -e "$(c BOLD)├─────────────┼───────────┼───────┼───────┼───────┼───────┼───────┼──────────┤$(c NC)"
-        printf "$(c BOLD)│$(c NC) %-11s $(c BOLD)│$(c NC) %-9s $(c BOLD)│$(c NC) %-5s $(c BOLD)│$(c NC) %-5s $(c BOLD)│$(c NC) %-5s $(c BOLD)│$(c NC) %-5s $(c BOLD)│$(c NC) %-5s $(c BOLD)│$(c NC) %b $(c BOLD)│$(c NC)\n" \
-            "${client:0:11}" \
+        echo -e "$(c BOLD)├──────────────┬───────────┬───────┬───────┬───────┬───────┬───────┬─────────┤$(c NC)"
+        echo -e "$(c BOLD)│$(c NC) $(c WHITE)Client$(c NC)       $(c BOLD)│$(c NC) $(c WHITE)Block$(c NC)     $(c BOLD)│$(c NC) $(c WHITE)Peers$(c NC) $(c BOLD)│$(c NC) $(c WHITE)Sync%$(c NC) $(c BOLD)│$(c NC) $(c WHITE)CPU$(c NC)   $(c BOLD)│$(c NC) $(c WHITE)RAM$(c NC)   $(c BOLD)│$(c NC) $(c WHITE)Disk$(c NC)  $(c BOLD)│$(c NC) $(c WHITE)Status$(c NC)  $(c BOLD)│$(c NC)"
+        echo -e "$(c BOLD)├──────────────┼───────────┼───────┼───────┼───────┼───────┼───────┼─────────┤$(c NC)"
+        printf "$(c BOLD)│$(c NC) %-12s $(c BOLD)│$(c NC) %-9s $(c BOLD)│$(c NC) %-5s $(c BOLD)│$(c NC) %-5s $(c BOLD)│$(c NC) %-5s $(c BOLD)│$(c NC) %-5s $(c BOLD)│$(c NC) %-5s $(c BOLD)│$(c NC) %b $(c BOLD)│$(c NC)\n" \
+            "${client_display:0:12}" \
             "$block_height" \
             "$peers" \
             "${sync_pct}%" \
@@ -817,10 +838,11 @@ EOF
             "${ram_usage}%" \
             "${disk_usage}%" \
             "$status"
-        echo -e "$(c BOLD)└─────────────┴───────────┴───────┴───────┴───────┴───────┴───────┴──────────┘$(c NC)"
+        echo -e "$(c BOLD)└──────────────┴───────────┴───────┴───────┴───────┴───────┴───────┴─────────┘$(c NC)"
         echo ""
         echo -e "$(c BOLD)Node Information:$(c NC)"
-        echo -e "  Client:    $(c CYAN)${client_version}$(c NC)"
+        echo -e "  Client:    $(c CYAN)${client_display}$(c NC)"
+        echo -e "  Version:   $(c CYAN)${client_version}$(c NC)"
         echo -e "  Node Name: $(c CYAN)${node_name:0:40}$(c NC)"
         echo -e "  Network:   $(c CYAN)${network} (ID: ${network_id})$(c NC)"
         echo -e "  Container: $(c CYAN)${container_status}$(c NC)"
@@ -1857,6 +1879,7 @@ EOF
 #==============================================================================
 cmd_start() {
     local network=""
+    local client_override=""
     local install_args=""
     
     while [[ $# -gt 0 ]]; do
@@ -1873,13 +1896,15 @@ $(c BOLD)DESCRIPTION:$(c NC)
 
 $(c BOLD)OPTIONS:$(c NC)
     --network NETWORK   Network: mainnet, testnet, devnet, apothem (default: mainnet)
+    --client CLIENT     Client: stable, geth-pr5, erigon (default: auto-detect from config)
     --monitoring        Start with full monitoring stack (Prometheus, Grafana, etc.)
     --help              Show this help
 
 $(c BOLD)EXAMPLES:$(c NC)
-    xdc-node start                          # Start mainnet
+    xdc-node start                          # Start mainnet with configured client
     xdc-node start --monitoring             # Start with monitoring stack
     xdc-node start --network testnet        # Start testnet
+    xdc-node start --client erigon          # Override client to use Erigon
 
 EOF
                 return 0
@@ -1887,6 +1912,10 @@ EOF
             --network)
                 network="$2"
                 install_args="$install_args --network $network"
+                shift 2
+                ;;
+            --client)
+                client_override="$2"
                 shift 2
                 ;;
             --monitoring)
@@ -2005,10 +2034,48 @@ EOF
         [[ "$p2p_port" != "$orig_p2p" ]] && warn "P2P port $orig_p2p in use → using $p2p_port"
         [[ "$dash_port" != "$orig_dash" ]] && warn "Dashboard port $orig_dash in use → using $dash_port"
         
-        # Build compose command with optional monitoring stack
-        local compose_cmd="docker compose"
+        # Detect client type from config or use override
+        local client="${client_override:-stable}"
+        if [[ -z "$client_override" ]]; then
+            local client_conf=""
+            for cf in "../${network:-mainnet}/.xdc-node/client.conf" "../mainnet/.xdc-node/client.conf" "../testnet/.xdc-node/client.conf" "../devnet/.xdc-node/client.conf"; do
+                [[ -f "$cf" ]] && client_conf="$cf" && break
+            done
+            
+            if [[ -n "$client_conf" ]]; then
+                client=$(grep -E '^CLIENT=' "$client_conf" 2>/dev/null | cut -d= -f2 || echo "stable")
+            fi
+        fi
+        
+        # Build compose command with client and optional monitoring stack
+        local compose_cmd="docker compose -f docker-compose.yml"
+        
+        # Add client-specific override
+        case "$client" in
+            erigon)
+                if [[ -f "docker-compose.erigon.yml" ]]; then
+                    compose_cmd="$compose_cmd -f docker-compose.erigon.yml"
+                    info "Using Erigon-XDC client"
+                else
+                    warn "Erigon compose file not found, using stable client"
+                fi
+                ;;
+            geth-pr5)
+                if [[ -f "docker-compose.geth-pr5.yml" ]]; then
+                    compose_cmd="$compose_cmd -f docker-compose.geth-pr5.yml"
+                    info "Using Geth PR5 client"
+                else
+                    warn "Geth PR5 compose file not found, using stable client"
+                fi
+                ;;
+            stable|*)
+                info "Using XDC Stable client (v2.6.8)"
+                ;;
+        esac
+        
+        # Add monitoring stack if requested
         if [[ "${monitoring:-false}" == "true" ]] && [[ -f "docker-compose.monitoring.yml" ]]; then
-            compose_cmd="docker compose -f docker-compose.yml -f docker-compose.monitoring.yml"
+            compose_cmd="$compose_cmd -f docker-compose.monitoring.yml"
             info "Including monitoring stack (Prometheus, Grafana, etc.)"
         fi
         
@@ -2373,6 +2440,87 @@ first_run_check() {
 #------------------------------------------------------------------------------
 
 cmd_masternode() {
+
+cmd_client() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --help|-h)
+                cat << 'HELP'
+$(c BOLD)xdc client$(c NC) — Show current client information
+
+$(c BOLD)USAGE:$(c NC)
+    xdc client
+
+$(c BOLD)DESCRIPTION:$(c NC)
+    Display information about the currently running XDC client,
+    including client type (stable, geth-pr5, erigon), version,
+    and configuration.
+
+$(c BOLD)EXAMPLES:$(c NC)
+    xdc client      # Show client info
+
+HELP
+                return 0
+                ;;
+            *) shift ;;
+        esac
+    done
+    
+    if [[ "$QUIET" != "true" ]]; then
+        print_banner
+        echo -e "$(c BOLD)XDC Client Information$(c NC)"
+        echo ""
+    fi
+    
+    # Try to detect client from config
+    local client="unknown"
+    local client_conf=""
+    for cf in "${PROJECT_DIR}"/*/".xdc-node/client.conf"; do
+        [[ -f "$cf" ]] && client_conf="$cf" && break
+    done
+    
+    if [[ -n "$client_conf" ]]; then
+        client=$(grep -E '^CLIENT=' "$client_conf" 2>/dev/null | cut -d= -f2 || echo "unknown")
+        echo -e "$(c BOLD)Configured Client:$(c NC) $(c CYAN)${client}$(c NC)"
+        echo -e "$(c DIM)  Config: ${client_conf}$(c NC)"
+        echo ""
+    fi
+    
+    # Try to get running client version from RPC
+    local rpc_url="${XDC_RPC_URL:-http://localhost:8545}"
+    local response
+    response=$(rpc_call "$rpc_url" "web3_clientVersion" 2>/dev/null || echo '{}')
+    local client_version=$(echo "$response" | jq -r '.result // "unknown"')
+    
+    if [[ "$client_version" != "unknown" ]]; then
+        echo -e "$(c BOLD)Running Client:$(c NC)"
+        echo -e "  Version: $(c CYAN)${client_version}$(c NC)"
+        
+        # Detect client type from version string
+        local detected_client="unknown"
+        if [[ "$client_version" == *"erigon"* ]]; then
+            detected_client="Erigon-XDC"
+        elif [[ "$client_version" == *"feature/xdpos"* ]] || [[ "$client_version" == *"pr5"* ]]; then
+            detected_client="XDC Geth PR5"
+        elif [[ "$client_version" == *"XDC"* ]]; then
+            detected_client="XDC Stable"
+        fi
+        echo -e "  Type:    $(c CYAN)${detected_client}$(c NC)"
+        echo ""
+    else
+        echo -e "$(c YELLOW)⚠$(c NC) Node RPC not available at $rpc_url"
+        echo ""
+    fi
+    
+    # Show available clients
+    echo -e "$(c BOLD)Available Clients:$(c NC)"
+    echo "  1. $(c GREEN)stable$(c NC)    - XDC Stable (v2.6.8) - Official Docker image"
+    echo "  2. $(c GREEN)geth-pr5$(c NC)  - XDC Geth PR5 - Latest geth with XDPoS"
+    echo "  3. $(c GREEN)erigon$(c NC)    - Erigon-XDC - Multi-client diversity"
+    echo ""
+    echo -e "$(c DIM)To switch clients, run: xdc start --client <name>$(c NC)"
+}
+
     local action=""
     
     while [[ $# -gt 0 ]]; do
@@ -3328,6 +3476,7 @@ main() {
         notify)     cmd_notify "$@" ;;
         dashboard)  cmd_dashboard "$@" ;;
         version)    cmd_version "$@" ;;
+        client)     cmd_client "$@" ;;
         help|--help|-h)
             print_help
             ;;

@@ -86,6 +86,7 @@ Unlike generic cloud providers or complex DIY setups, XDC Node Setup delivers:
 - [x] `xdc info` command added (8813d0f)
 - [x] `xdc peers` fixed invalid flag (8813d0f)
 - [x] Dashboard tested live on GCX (175.110.113.12:7070) — block 99.3M, 32 peers
+- [x] **Multi-client support** — stable, geth-pr5, erigon with client selection during setup and `xdc start --client` override
 
 ### 🔄 In Progress / Pending
 - [ ] **Log rotation**: Move prev logs to oldlogs/, compress daily, keep 90 days, auto-remove older
@@ -118,7 +119,7 @@ Unlike generic cloud providers or complex DIY setups, XDC Node Setup delivers:
 ### 🔮 Future (Q2-Q4 2026)
 - GUI Installer (React web-based) — visual deployment wizard for non-technical users
 - Auto-update system — seamless client updates with rollback capabilities
-- Multi-client support — easy switching between Geth and Erigon implementations
+- ~~Multi-client support — easy switching between Geth and Erigon implementations~~ **✅ COMPLETED (Feb 14, 2026)**
 - Node marketplace — curated directory of verified hosting providers and managed services
 - Staking integration — one-click validator setup and delegation management
 - Mobile companion app — iOS/Android monitoring and basic node controls

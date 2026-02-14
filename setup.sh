@@ -487,6 +487,7 @@ init_config() {
     # Node configuration with environment variable overrides
     NODE_TYPE="${NODE_TYPE:-full}"
     NETWORK="${NETWORK:-mainnet}"
+    CLIENT="${CLIENT:-stable}"
     SYNC_MODE="${SYNC_MODE:-full}"
     RPC_PORT="${RPC_PORT:-9545}"
     P2P_PORT="${P2P_PORT:-30303}"
@@ -580,6 +581,45 @@ prompt_node_type() {
     log "Selected node type: $NODE_TYPE"
 }
 
+prompt_client() {
+    echo ""
+    echo -e "${BOLD}Client Selection${NC}"
+    echo "================="
+    echo "1) XDC Stable (v2.6.8) - Official Docker image (recommended)"
+    echo "2) XDC Geth PR5 - Latest geth with XDPoS (builds from source, ~10-15 min)"
+    echo "3) Erigon-XDC - Multi-client diversity, experimental (builds from source, ~10-15 min)"
+    echo ""
+    echo -e "${YELLOW}Note: Building from source requires Go 1.22+ and takes 10-15 minutes${NC}"
+    echo ""
+    
+    while true; do
+        read -rp "Select client [1-3] (default: 1): " choice
+        choice=${choice:-1}
+        case $choice in
+            1) CLIENT="stable"; break ;;
+            2) 
+                warn "Geth PR5 will be built from source. This may take 10-15 minutes."
+                read -rp "Continue? [y/N]: " confirm
+                if [[ "${confirm:-N}" =~ ^[Yy]$ ]]; then
+                    CLIENT="geth-pr5"
+                    break
+                fi
+                ;;
+            3) 
+                warn "Erigon-XDC is experimental and will be built from source. This may take 10-15 minutes."
+                read -rp "Continue? [y/N]: " confirm
+                if [[ "${confirm:-N}" =~ ^[Yy]$ ]]; then
+                    CLIENT="erigon"
+                    break
+                fi
+                ;;
+            *) echo "Invalid selection. Please choose 1-3." ;;
+        esac
+    done
+    
+    log "Selected client: $CLIENT"
+}
+
 prompt_sync_mode() {
     echo ""
     echo -e "${BOLD}Sync Mode Selection${NC}"
@@ -660,6 +700,7 @@ prompt_advanced() {
     
     prompt_network
     prompt_node_type
+    prompt_client
     prompt_sync_mode
     prompt_data_dir
     prompt_ports
@@ -689,6 +730,7 @@ configure_node() {
 NETWORK=$NETWORK
 CHAIN_ID=$CHAIN_ID
 NODE_TYPE=$NODE_TYPE
+CLIENT=$CLIENT
 SYNC_MODE=$SYNC_MODE
 DATA_DIR=$DATA_DIR
 STATE_DIR=$STATE_DIR
@@ -703,7 +745,17 @@ ENABLE_UPDATES=$ENABLE_UPDATES
 EOF
     
     chmod 600 "$STATE_DIR/node.env"
-    log "Node configuration saved"
+    
+    # Create client.conf for CLI to detect client type
+    ensure_file_path "$STATE_DIR/client.conf"
+    cat > "$STATE_DIR/client.conf" << EOF
+# XDC Client Configuration
+# Generated on $(date)
+CLIENT=$CLIENT
+EOF
+    chmod 600 "$STATE_DIR/client.conf"
+    
+    log "Node configuration saved (client: $CLIENT)"
 }
 
 #==============================================================================

@@ -205,6 +205,113 @@ docker-compose up -d
 
 ---
 
+
+## Multi-Client Support
+
+XDC Node Setup supports **three different clients** for improved network diversity and resilience:
+
+### Available Clients
+
+| Client | Version | Type | Recommended For |
+|--------|---------|------|-----------------|
+| **Stable** | v2.6.8 | Official Docker image | Production, Default |
+| **Geth PR5** | Latest | Built from source | Testing latest features |
+| **Erigon-XDC** | Latest | Built from source | Multi-client diversity |
+
+### Client Features
+
+#### 🟢 XDC Stable (v2.6.8) — **Recommended**
+- Official production-ready Docker image
+- Battle-tested on mainnet
+- No build time required
+- RPC on port **8545**
+
+#### 🔵 XDC Geth PR5
+- Latest geth with XDPoS consensus (`feature/xdpos-consensus` branch)
+- Built from source with Go 1.22+
+- Same RPC API as stable
+- RPC on port **8545**
+- **Build time:** ~10-15 minutes
+
+#### 🟣 Erigon-XDC — **Experimental**
+- Multi-client diversity for network resilience
+- Built from source with Go 1.22+
+- **Dual P2P sentries:** eth/63 (port **30304**) + eth/68 (port **30311**)
+- RPC on port **8547**
+- **Build time:** ~10-15 minutes
+
+### Selecting a Client
+
+During setup, you'll be prompted to choose a client:
+
+```bash
+Client Selection
+=================
+1) XDC Stable (v2.6.8) - Official Docker image (recommended)
+2) XDC Geth PR5 - Latest geth with XDPoS (builds from source, ~10-15 min)
+3) Erigon-XDC - Multi-client diversity, experimental (builds from source, ~10-15 min)
+
+Select client [1-3] (default: 1):
+```
+
+### Starting with a Specific Client
+
+You can override the configured client at runtime:
+
+```bash
+# Start with default client (from config)
+xdc start
+
+# Start with specific client
+xdc start --client stable
+xdc start --client geth-pr5
+xdc start --client erigon
+
+# Check current client
+xdc client
+```
+
+### Client Information
+
+```bash
+$ xdc client
+XDC Client Information
+
+Configured Client: stable
+  Config: /opt/xdc-node/mainnet/.xdc-node/client.conf
+
+Running Client:
+  Version: XDPoSChain/v2.6.8-stable
+  Type:    XDC Stable
+
+Available Clients:
+  1. stable    - XDC Stable (v2.6.8) - Official Docker image
+  2. geth-pr5  - XDC Geth PR5 - Latest geth with XDPoS
+  3. erigon    - Erigon-XDC - Multi-client diversity
+
+To switch clients, run: xdc start --client <name>
+```
+
+### Network Diversity Benefits
+
+Running different clients helps:
+- ✅ Prevent single-client bugs from affecting the entire network
+- ✅ Improve network resilience and decentralization
+- ✅ Test new features before mainnet rollout
+- ✅ Catch consensus issues early
+
+### Port Configuration
+
+| Client | HTTP-RPC | P2P (eth/63) | P2P (eth/68) |
+|--------|----------|--------------|--------------|
+| Stable | 8545 | 30303 | — |
+| Geth PR5 | 8545 | 30303 | — |
+| Erigon-XDC | **8547** | **30304** | **30311** |
+
+**Note:** Erigon uses different ports to avoid conflicts with other clients.
+
+---
+
 ## SkyNet Integration
 
 XDC Node Setup automatically registers your node with **XDC SkyNet** for fleet-wide monitoring and analytics.

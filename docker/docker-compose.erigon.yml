@@ -1,0 +1,73 @@
+#==============================================================================
+# XDC Node Docker Compose — Erigon Client Override
+# Usage: docker compose -f docker-compose.yml -f docker-compose.erigon.yml up -d
+# Or simply: xdc start --client erigon
+#==============================================================================
+
+services:
+  xdc-node:
+    build:
+      context: ./erigon
+      dockerfile: Dockerfile
+    container_name: xdc-node-erigon
+    restart: always
+    ports:
+      - "${P2P_PORT:-30304}:30304"              # eth/63 (primary peer port)
+      - "${P2P_PORT:-30304}:30304/udp"
+      - "${P2P_PORT_68:-30311}:30311"           # eth/68 (new protocol)
+      - "${P2P_PORT_68:-30311}:30311/udp"
+      - "127.0.0.1:${RPC_PORT:-8547}:8547"      # HTTP-RPC
+    volumes:
+      - ../${NETWORK:-mainnet}/xdcchain:/data
+      - ./erigon/start-erigon.sh:/start.sh:ro
+      - ../${NETWORK:-mainnet}/.xdc-node/config.toml:/etc/xdc-node/config.toml:ro
+      - ./mainnet/genesis.json:/genesis.json:ro
+      - ./mainnet/bootnodes.list:/bootnodes.list:ro
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - NETWORK=${NETWORK:-mainnet}
+      - SYNC_MODE=${SYNC_MODE:-full}
+      - RPC_PORT=${RPC_PORT:-8547}
+      - INSTANCE_NAME=${INSTANCE_NAME:-Erigon_XDC_Node}
+      - P2P_PORT=${P2P_PORT:-30304}
+      - P2P_PORT_68=${P2P_PORT_68:-30311}
+    entrypoint: ["/bin/sh", "/start.sh"]
+    networks:
+      - xdc-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8547 --post-data='{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' --header='Content-Type: application/json' | grep -q 'result' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 12G
+        reservations:
+          cpus: '2'
+          memory: 6G
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+
+  # Update agent to use erigon's RPC port
+  xdc-agent:
+    environment:
+      - RPC_URL=${RPC_URL:-http://xdc-node:8547}
+      - NODE_RPC_PORT=${RPC_PORT:-8547}
+
+networks:
+  xdc-network:
+    driver: bridge

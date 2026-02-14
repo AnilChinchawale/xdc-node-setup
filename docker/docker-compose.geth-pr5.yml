@@ -1,0 +1,67 @@
+#==============================================================================
+# XDC Node Docker Compose — Geth PR5 Client Override
+# Usage: docker compose -f docker-compose.yml -f docker-compose.geth-pr5.yml up -d
+# Or simply: xdc start --client geth-pr5
+#==============================================================================
+
+services:
+  xdc-node:
+    build:
+      context: ./geth-pr5
+      dockerfile: Dockerfile
+    container_name: xdc-node-geth-pr5
+    restart: always
+    ports:
+      - "${P2P_PORT:-30303}:30303"
+      - "${P2P_PORT:-30303}:30303/udp"
+      - "127.0.0.1:${RPC_PORT:-8545}:8545"
+      - "127.0.0.1:${WS_PORT:-8546}:8546"
+    volumes:
+      - ../${NETWORK:-mainnet}/xdcchain:/work/xdcchain
+      - ./${NETWORK:-mainnet}/genesis.json:/work/genesis.json:ro
+      - ./geth-pr5/start-geth-pr5.sh:/work/start.sh:ro
+      - ./${NETWORK:-mainnet}/bootnodes.list:/work/bootnodes.list:ro
+      - ./${NETWORK:-mainnet}/.pwd:/work/.pwd:ro
+      - ../${NETWORK:-mainnet}/.xdc-node/config.toml:/etc/xdc-node/config.toml:ro
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - NETWORK=${NETWORK:-mainnet}
+      - SYNC_MODE=${SYNC_MODE:-full}
+      - GC_MODE=${GC_MODE:-full}
+      - RPC_PORT=${RPC_PORT:-8545}
+      - WS_PORT=${WS_PORT:-8546}
+      - INSTANCE_NAME=${INSTANCE_NAME:-XDC_Geth_PR5}
+    entrypoint: ["/bin/bash", "/work/start.sh"]
+    networks:
+      - xdc-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8545 --post-data='{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' --header='Content-Type: application/json' | grep -q 'result' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+        reservations:
+          cpus: '2'
+          memory: 4G
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+
+networks:
+  xdc-network:
+    driver: bridge
