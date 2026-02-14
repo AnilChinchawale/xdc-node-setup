@@ -52,17 +52,9 @@ if [[ -z "${OS:-}" ]]; then
 fi
 
 # Set OS-specific paths
-if [[ "$OS" == "macos" ]]; then
-    readonly DEFAULT_DATA_DIR="${PWD}/xdcchain"
-    readonly LOG_FILE="${PWD}/xdc-node-setup.log"
-    readonly INSTALL_DIR="${PWD}/.xdc-node"
-    readonly CONFIG_DIR="${PWD}/.xdc-config"
-else
-    readonly DEFAULT_DATA_DIR="${PWD}/xdcchain"
-    readonly LOG_FILE="${PWD}/xdc-node-setup.log"
-    readonly INSTALL_DIR="${PWD}/.xdc-node"
-    readonly CONFIG_DIR="${PWD}/.xdc-config"
-fi
+# Project root is where setup.sh runs from
+readonly PROJECT_ROOT="${PWD}"
+readonly LOG_FILE="${PROJECT_ROOT}/xdc-node-setup.log"
 
 #==============================================================================
 # Colors & UI
@@ -478,10 +470,14 @@ init_config() {
     NODE_TYPE="${NODE_TYPE:-full}"
     NETWORK="${NETWORK:-mainnet}"
     SYNC_MODE="${SYNC_MODE:-full}"
-    DATA_DIR="${DATA_DIR:-$DEFAULT_DATA_DIR}"
     RPC_PORT="${RPC_PORT:-9545}"
     P2P_PORT="${P2P_PORT:-30303}"
     WS_PORT="${WS_PORT:-8546}"
+    
+    # Derive paths from NETWORK and PROJECT_ROOT
+    DATA_DIR="${DATA_DIR:-${PROJECT_ROOT}/${NETWORK}/xdcchain}"
+    STATE_DIR="${PROJECT_ROOT}/${NETWORK}/.xdc-node"
+    CONFIG_DIR="${PROJECT_ROOT}/configs"
     
     # Feature flags
     ENABLE_MONITORING="${ENABLE_MONITORING:-false}"
@@ -584,8 +580,9 @@ prompt_data_dir() {
     echo ""
     echo -e "${BOLD}Data Directory${NC}"
     echo "==============="
-    read -rp "Data directory [$DEFAULT_DATA_DIR]: " input
-    DATA_DIR="${input:-$DEFAULT_DATA_DIR}"
+    local default_data_dir="${PROJECT_ROOT}/${NETWORK}/xdcchain"
+    read -rp "Data directory [$default_data_dir]: " input
+    DATA_DIR="${input:-$default_data_dir}"
     log "Data directory: $DATA_DIR"
 }
 
@@ -650,28 +647,22 @@ prompt_advanced() {
 configure_node() {
     log "Configuring XDC node..."
     
-    # Create network-based directory structure
-    mkdir -p "${INSTALL_DIR}/mainnet/xdcchain"/{XDC,keystore}
-    mkdir -p "${INSTALL_DIR}/mainnet/.xdc-node"
-    mkdir -p "${INSTALL_DIR}/testnet/xdcchain"/{XDC,keystore}
-    mkdir -p "${INSTALL_DIR}/testnet/.xdc-node"
-    mkdir -p "${INSTALL_DIR}/devnet/xdcchain"/{XDC,keystore}
-    mkdir -p "${INSTALL_DIR}/devnet/.xdc-node"
-    
-    # Create legacy DATA_DIR for backward compatibility (if set)
-    if [[ -n "${DATA_DIR:-}" ]]; then
-        mkdir -p "$DATA_DIR"/{XDC,keystore}
-    fi
-    mkdir -p "$INSTALL_DIR"/{configs,scripts,logs}
+    # Create network-based directory structure at project root level
+    mkdir -p "${PROJECT_ROOT}/mainnet/xdcchain"/{XDC,keystore}
+    mkdir -p "${PROJECT_ROOT}/mainnet/.xdc-node"
+    mkdir -p "${PROJECT_ROOT}/testnet/xdcchain"/{XDC,keystore}
+    mkdir -p "${PROJECT_ROOT}/testnet/.xdc-node"
+    mkdir -p "${PROJECT_ROOT}/devnet/xdcchain"/{XDC,keystore}
+    mkdir -p "${PROJECT_ROOT}/devnet/.xdc-node"
+    mkdir -p "${PROJECT_ROOT}"/{configs,scripts,logs,docker}
     
     # Set permissions
     chmod 750 "$DATA_DIR"
     chmod 700 "$DATA_DIR/keystore" 2>/dev/null || true
-    chmod 750 "$INSTALL_DIR"
     
     # Create environment file
-    ensure_file_path "$INSTALL_DIR/configs/node.env"
-    cat > "$INSTALL_DIR/configs/node.env" << EOF
+    ensure_file_path "$CONFIG_DIR/node.env"
+    cat > "$CONFIG_DIR/node.env" << EOF
 # XDC Node Configuration
 # Generated on $(date)
 NETWORK=$NETWORK
@@ -679,6 +670,8 @@ CHAIN_ID=$CHAIN_ID
 NODE_TYPE=$NODE_TYPE
 SYNC_MODE=$SYNC_MODE
 DATA_DIR=$DATA_DIR
+STATE_DIR=$STATE_DIR
+CONFIG_DIR=$CONFIG_DIR
 RPC_PORT=$RPC_PORT
 WS_PORT=$WS_PORT
 P2P_PORT=$P2P_PORT
@@ -688,7 +681,7 @@ ENABLE_NOTIFICATIONS=$ENABLE_NOTIFICATIONS
 ENABLE_UPDATES=$ENABLE_UPDATES
 EOF
     
-    chmod 600 "$INSTALL_DIR/configs/node.env"
+    chmod 600 "$CONFIG_DIR/node.env"
     log "Node configuration saved"
 }
 
@@ -698,7 +691,7 @@ EOF
 setup_docker_compose() {
     log "Setting up Docker Compose..."
     
-    mkdir -p "$INSTALL_DIR/docker"
+    mkdir -p "$PROJECT_ROOT/docker"
     
     # Determine Docker image based on platform
     local arch
@@ -711,7 +704,7 @@ setup_docker_compose() {
         warn "ARM64 detected — using linux/amd64 emulation (may be slower)"
         info "Ensure Docker Desktop has 'Use Rosetta for x86_64/amd64 emulation' enabled"
     fi
-    local docker_dir="$INSTALL_DIR/docker"
+    local docker_dir="$PROJECT_ROOT/docker"
     local network_dir="$docker_dir/mainnet"
     
     mkdir -p "$network_dir"
@@ -864,7 +857,7 @@ services:
       - "${P2P_PORT}:30303"
       - "${P2P_PORT}:30303/udp"
     volumes:
-      - ${DATA_DIR}:/work/xdcchain
+      - ../${NETWORK}/xdcchain:/work/xdcchain
       - ./mainnet/genesis.json:/work/genesis.json
       - ./mainnet/start-node.sh:/work/start.sh
       - ./entrypoint.sh:/work/entrypoint.sh
@@ -891,7 +884,7 @@ EOF
 
     # Add monitoring services if enabled
     if [[ "$ENABLE_MONITORING" == "true" ]]; then
-        cat >> "$INSTALL_DIR/docker/docker-compose.yml" << 'EOF'
+        cat >> "$PROJECT_ROOT/docker/docker-compose.yml" << 'EOF'
 
   prometheus:
     image: prom/prometheus:latest
@@ -946,7 +939,7 @@ EOF
     fi
 
     # Add unified xdc-monitoring container (Prometheus exporter + SkyNet agent)
-    cat >> "$INSTALL_DIR/docker/docker-compose.yml" << 'EOF'
+    cat >> "$PROJECT_ROOT/docker/docker-compose.yml" << 'EOF'
 
   xdc-monitoring:
     image: alpine:3.19
@@ -981,18 +974,18 @@ EOF
 EOF
     
     # Copy skynet agent files
-    cp "$SCRIPT_DIR/scripts/skynet-agent.sh" "$INSTALL_DIR/docker/skynet-agent.sh" 2>/dev/null || \
-        curl -sSL "https://raw.githubusercontent.com/XDC-Node-Setup/main/scripts/skynet-agent.sh" -o "$INSTALL_DIR/docker/skynet-agent.sh"
-    chmod +x "$INSTALL_DIR/docker/skynet-agent.sh"
+    cp "$SCRIPT_DIR/scripts/skynet-agent.sh" "$PROJECT_ROOT/docker/skynet-agent.sh" 2>/dev/null || \
+        curl -sSL "https://raw.githubusercontent.com/XDC-Node-Setup/main/scripts/skynet-agent.sh" -o "$PROJECT_ROOT/docker/skynet-agent.sh"
+    chmod +x "$PROJECT_ROOT/docker/skynet-agent.sh"
     
     # Create initial skynet.conf from template (will be updated after registration)
-    if [[ ! -f "$INSTALL_DIR/docker/skynet.conf" ]]; then
-        cp "$SCRIPT_DIR/configs/skynet.conf.template" "$INSTALL_DIR/docker/skynet.conf" 2>/dev/null || \
-            curl -sSL "https://raw.githubusercontent.com/XDC-Node-Setup/main/configs/skynet.conf.template" -o "$INSTALL_DIR/docker/skynet.conf"
+    if [[ ! -f "$PROJECT_ROOT/docker/skynet.conf" ]]; then
+        cp "$SCRIPT_DIR/configs/skynet.conf.template" "$PROJECT_ROOT/docker/skynet.conf" 2>/dev/null || \
+            curl -sSL "https://raw.githubusercontent.com/XDC-Node-Setup/main/configs/skynet.conf.template" -o "$PROJECT_ROOT/docker/skynet.conf"
     fi
 
     # Close the compose file
-    cat >> "$INSTALL_DIR/docker/docker-compose.yml" << EOF
+    cat >> "$PROJECT_ROOT/docker/docker-compose.yml" << EOF
 
 networks:
   xdc-network:
@@ -1014,11 +1007,11 @@ setup_monitoring() {
     
     log "Setting up monitoring stack..."
     
-    mkdir -p "$INSTALL_DIR/docker/grafana/provisioning"/{dashboards,datasources}
+    mkdir -p "$PROJECT_ROOT/docker/grafana/provisioning"/{dashboards,datasources}
     
     # Create Prometheus config
-    ensure_file_path "$INSTALL_DIR/docker/prometheus.yml"
-    cat > "$INSTALL_DIR/docker/prometheus.yml" << EOF
+    ensure_file_path "$PROJECT_ROOT/docker/prometheus.yml"
+    cat > "$PROJECT_ROOT/docker/prometheus.yml" << EOF
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
@@ -1039,8 +1032,8 @@ scrape_configs:
 EOF
 
     # Create Grafana datasource config
-    ensure_file_path "$INSTALL_DIR/docker/grafana/provisioning/datasources/datasource.yml"
-    cat > "$INSTALL_DIR/docker/grafana/provisioning/datasources/datasource.yml" << 'EOF'
+    ensure_file_path "$PROJECT_ROOT/docker/grafana/provisioning/datasources/datasource.yml"
+    cat > "$PROJECT_ROOT/docker/grafana/provisioning/datasources/datasource.yml" << 'EOF'
 apiVersion: 1
 
 datasources:
@@ -1053,8 +1046,8 @@ datasources:
 EOF
 
     # Create Grafana dashboard provider config
-    ensure_file_path "$INSTALL_DIR/docker/grafana/provisioning/dashboards/dashboard.yml"
-    cat > "$INSTALL_DIR/docker/grafana/provisioning/dashboards/dashboard.yml" << 'EOF'
+    ensure_file_path "$PROJECT_ROOT/docker/grafana/provisioning/dashboards/dashboard.yml"
+    cat > "$PROJECT_ROOT/docker/grafana/provisioning/dashboards/dashboard.yml" << 'EOF'
 apiVersion: 1
 
 providers:
@@ -1138,40 +1131,40 @@ install_cli_tool() {
     # Copy CLI script from bundled cli/xdc-node
     local cli_source="${SCRIPT_DIR}/cli/xdc-node"
     
-    mkdir -p "$INSTALL_DIR/scripts"
+    mkdir -p "$PROJECT_ROOT/scripts"
     
     if [[ -f "$cli_source" ]]; then
-        cp "$cli_source" "$INSTALL_DIR/scripts/xdc-node"
-        chmod +x "$INSTALL_DIR/scripts/xdc-node"
+        cp "$cli_source" "$PROJECT_ROOT/scripts/xdc-node"
+        chmod +x "$PROJECT_ROOT/scripts/xdc-node"
         log "Installed CLI from bundled cli/xdc-node"
     else
         warn "CLI source not found at $cli_source, downloading..."
         curl -fsSL "https://raw.githubusercontent.com/AnilChinchawale/xdc-node-setup/main/cli/xdc-node" \
-            -o "$INSTALL_DIR/scripts/xdc-node" 2>/dev/null || {
+            -o "$PROJECT_ROOT/scripts/xdc-node" 2>/dev/null || {
             error "Failed to download CLI tool"
             return 1
         }
-        chmod +x "$INSTALL_DIR/scripts/xdc-node"
+        chmod +x "$PROJECT_ROOT/scripts/xdc-node"
     fi
     
     # Create state directories for CLI (legacy location for shared state)
     mkdir -p /var/lib/xdc-node
     chmod 750 /var/lib/xdc-node
     
-    # Ensure network-specific directories exist
-    mkdir -p "${INSTALL_DIR}/mainnet/.xdc-node"
-    mkdir -p "${INSTALL_DIR}/testnet/.xdc-node"
-    mkdir -p "${INSTALL_DIR}/devnet/.xdc-node"
+    # Ensure network-specific directories exist (already created in configure_node)
+    mkdir -p "${PROJECT_ROOT}/mainnet/.xdc-node"
+    mkdir -p "${PROJECT_ROOT}/testnet/.xdc-node"
+    mkdir -p "${PROJECT_ROOT}/devnet/.xdc-node"
     
     # Create symlink — try /usr/local/bin first, fall back to ~/.local/bin
     if [[ -w /usr/local/bin ]]; then
-        ln -sf "$INSTALL_DIR/scripts/xdc-node" /usr/local/bin/xdc
+        ln -sf "$PROJECT_ROOT/scripts/xdc-node" /usr/local/bin/xdc
         log "CLI installed at /usr/local/bin/xdc"
-    elif sudo ln -sf "$INSTALL_DIR/scripts/xdc-node" /usr/local/bin/xdc 2>/dev/null; then
+    elif sudo ln -sf "$PROJECT_ROOT/scripts/xdc-node" /usr/local/bin/xdc 2>/dev/null; then
         log "CLI installed at /usr/local/bin/xdc (via sudo)"
     else
         mkdir -p "$HOME/.local/bin"
-        ln -sf "$INSTALL_DIR/scripts/xdc-node" "$HOME/.local/bin/xdc"
+        ln -sf "$PROJECT_ROOT/scripts/xdc-node" "$HOME/.local/bin/xdc"
         log "CLI installed at $HOME/.local/bin/xdc"
         # Add to PATH if needed
         if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
@@ -1191,7 +1184,7 @@ install_cli_tool() {
 start_services() {
     log "Starting XDC node services..."
     
-    cd "$INSTALL_DIR/docker"
+    cd "$PROJECT_ROOT/docker"
     
     # Pull images
     info "Pulling Docker images..."
@@ -1217,7 +1210,7 @@ start_services() {
     
     # Verify critical files exist and are actual files (not directories)
     for f in mainnet/start-node.sh mainnet/genesis.json mainnet/.pwd; do
-        local fpath="$INSTALL_DIR/docker/$f"
+        local fpath="$PROJECT_ROOT/docker/$f"
         if [[ -d "$fpath" ]]; then
             warn "$f was created as a directory (Docker artifact). Removing and recreating..."
             rm -rf "$fpath"
@@ -1276,13 +1269,13 @@ start_services() {
                 log "Added peers from SkyNet network"
             fi
             # Also add from bootnodes.list if available
-            if [[ -f "$INSTALL_DIR/docker/mainnet/bootnodes.list" ]]; then
+            if [[ -f "$PROJECT_ROOT/docker/mainnet/bootnodes.list" ]]; then
                 while IFS= read -r enode; do
                     [[ -z "$enode" || "$enode" == \#* ]] && continue
                     curl -s -m 5 -X POST http://127.0.0.1:${RPC_PORT:-9545} \
                         -H "Content-Type: application/json" \
                         -d "{\"jsonrpc\":\"2.0\",\"method\":\"admin_addPeer\",\"params\":[\"$enode\"],\"id\":1}" >/dev/null 2>&1 || true
-                done < "$INSTALL_DIR/docker/mainnet/bootnodes.list"
+                done < "$PROJECT_ROOT/docker/mainnet/bootnodes.list"
                 log "Added peers from bootnodes.list"
             fi
         else
@@ -1302,7 +1295,7 @@ get_node_status() {
     local peers="N/A"
     local sync_status="unknown"
     
-    if [[ -f "$INSTALL_DIR/configs/node.env" ]]; then
+    if [[ -f "$CONFIG_DIR/node.env" ]]; then
         status="installed"
         
         if docker ps --format '{{.Names}}' | grep -q "xdc"; then
@@ -1351,8 +1344,8 @@ show_status() {
     IFS='|' read -r status block_height peers sync_status <<< "$(get_node_status)"
     
     # Load config if exists
-    if [[ -f "$INSTALL_DIR/configs/node.env" ]]; then
-        source "$INSTALL_DIR/configs/node.env"
+    if [[ -f "$CONFIG_DIR/node.env" ]]; then
+        source "$CONFIG_DIR/node.env"
     fi
     
     echo -e "  ${BLUE}Status:${NC}      $status"
@@ -1373,7 +1366,7 @@ show_status() {
         echo "  xdc health  - Health check"
     elif [[ "$status" == "installed" ]]; then
         echo -e "${YELLOW}Node is installed but not running.${NC}"
-        echo "Start with: (cd $INSTALL_DIR/docker && docker compose up -d)"
+        echo "Start with: (cd $PROJECT_ROOT/docker && docker compose up -d)"
     else
         echo -e "${RED}XDC node is not installed.${NC}"
         echo "Run this script to install: $0"
@@ -1395,8 +1388,8 @@ uninstall_node() {
     log "Uninstalling XDC node..."
     
     # Stop and remove containers
-    if [[ -f "$INSTALL_DIR/docker/docker-compose.yml" ]]; then
-        (cd "$INSTALL_DIR/docker" && docker compose down -v 2>/dev/null) || true
+    if [[ -f "$PROJECT_ROOT/docker/docker-compose.yml" ]]; then
+        (cd "$PROJECT_ROOT/docker" && docker compose down -v 2>/dev/null) || true
     fi
     
     # Remove systemd service
@@ -1421,9 +1414,11 @@ uninstall_node() {
         log "Blockchain data preserved at: $DATA_DIR"
     fi
     
-    # Remove installation
-    rm -rf "$INSTALL_DIR"
-    rm -f "$CONFIG_DIR"
+    # Remove installation (configs, scripts, logs, docker)
+    rm -rf "$PROJECT_ROOT/configs"
+    rm -rf "$PROJECT_ROOT/scripts"
+    rm -rf "$PROJECT_ROOT/logs"
+    rm -rf "$PROJECT_ROOT/docker"
     
     log "XDC node uninstalled successfully"
     echo ""
@@ -1441,7 +1436,7 @@ register_with_skynet() {
     local public_ip
     local node_role
     local rpc_port
-    local skynet_conf="$INSTALL_DIR/docker/skynet.conf"
+    local skynet_conf="$PROJECT_ROOT/docker/skynet.conf"
     
     log "Setting up SkyNet registration..."
     
@@ -1614,10 +1609,10 @@ EOF
         chmod 600 "$skynet_conf"
         
         # Start xdc-monitoring container for heartbeat reporting
-        if [[ -f "$INSTALL_DIR/docker/skynet-agent.sh" ]]; then
-            if grep -q "xdc-monitoring:" "$INSTALL_DIR/docker/docker-compose.yml" 2>/dev/null; then
-                (cd "$INSTALL_DIR/docker" && docker compose up -d xdc-monitoring 2>/dev/null) || \
-                    warn "Could not start xdc-monitoring container. Start manually with: cd $INSTALL_DIR/docker && docker compose up -d xdc-monitoring"
+        if [[ -f "$PROJECT_ROOT/docker/skynet-agent.sh" ]]; then
+            if grep -q "xdc-monitoring:" "$PROJECT_ROOT/docker/docker-compose.yml" 2>/dev/null; then
+                (cd "$PROJECT_ROOT/docker" && docker compose up -d xdc-monitoring 2>/dev/null) || \
+                    warn "Could not start xdc-monitoring container. Start manually with: cd $PROJECT_ROOT/docker && docker compose up -d xdc-monitoring"
             fi
             
             log "SkyNet agent running as Docker container (heartbeat every 60s)"
