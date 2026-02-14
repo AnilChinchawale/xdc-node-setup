@@ -1176,6 +1176,12 @@ EOF
     if [[ ! -f "$STATE_DIR/skynet.conf" ]]; then
         cp "$SCRIPT_DIR/configs/skynet.conf.template" "$STATE_DIR/skynet.conf" 2>/dev/null || \
             curl -sSL "https://raw.githubusercontent.com/XDC-Node-Setup/main/configs/skynet.conf.template" -o "$STATE_DIR/skynet.conf"
+        # Pre-fill SkyNet API URL and prompt for API key
+        sed -i.bak "s|^SKYNET_API_URL=.*|SKYNET_API_URL=https://net.xdc.network/api/v1|" "$STATE_DIR/skynet.conf" 2>/dev/null
+        sed -i.bak "s|^SKYNET_NODE_NAME=.*|SKYNET_NODE_NAME=$(hostname)-${NETWORK}|" "$STATE_DIR/skynet.conf" 2>/dev/null
+        sed -i.bak "s|^SKYNET_ROLE=.*|SKYNET_ROLE=fullnode|" "$STATE_DIR/skynet.conf" 2>/dev/null
+        rm -f "$STATE_DIR/skynet.conf.bak" 2>/dev/null
+        chmod 600 "$STATE_DIR/skynet.conf"
     fi
 
     # Close the compose file

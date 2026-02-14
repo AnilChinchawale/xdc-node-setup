@@ -21,6 +21,9 @@ SKYNET_API_URL=https://net.xdc.network/api/v1
 #     Set file permissions: chmod 600 skynet.conf
 SKYNET_API_KEY=
 
+# Node ID (auto-populated on first boot if empty — do not edit manually)
+SKYNET_NODE_ID=
+
 #------------------------------------------------------------------------------
 # Node Identity
 #------------------------------------------------------------------------------

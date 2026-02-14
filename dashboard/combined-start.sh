@@ -1,7 +1,38 @@
 #!/bin/bash
 # Combined startup script for XDC Agent (Dashboard + SkyNet)
 
-# Start SkyNet Agent in background
+# Load SkyNet config if available (provides SKYNET_NODE_ID, SKYNET_API_KEY, etc.)
+SKYNET_CONF="${SKYNET_CONF:-/etc/xdc-node/skynet.conf}"
+if [ -f "$SKYNET_CONF" ]; then
+  echo "Loading SkyNet config from $SKYNET_CONF"
+  set -a  # auto-export all vars
+  source "$SKYNET_CONF"
+  set +a
+
+  # Auto-register with SkyNet if no NODE_ID yet
+  if [ -z "$SKYNET_NODE_ID" ] && [ -n "$SKYNET_API_KEY" ] && [ -n "$SKYNET_API_URL" ]; then
+    echo "No SKYNET_NODE_ID found, auto-registering..."
+    NODE_NAME="${SKYNET_NODE_NAME:-$(hostname)-$(curl -s -m 3 https://api.ipify.org | tail -c 8)}"
+    PUBLIC_IP=$(curl -s -m 5 https://api.ipify.org || echo "unknown")
+    REG_RESPONSE=$(curl -s -m 10 -X POST "${SKYNET_API_URL}/nodes/register" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer ${SKYNET_API_KEY}" \
+      -d "{\"name\":\"${NODE_NAME}\",\"host\":\"${PUBLIC_IP}\",\"role\":\"${SKYNET_ROLE:-fullnode}\"}")
+    
+    NEW_ID=$(echo "$REG_RESPONSE" | jq -r '.data.nodeId // empty' 2>/dev/null)
+    if [ -n "$NEW_ID" ]; then
+      echo "SKYNET_NODE_ID=$NEW_ID" >> "$SKYNET_CONF"
+      export SKYNET_NODE_ID="$NEW_ID"
+      echo "✅ Registered with SkyNet as $NODE_NAME (ID: $NEW_ID)"
+    else
+      echo "⚠️  SkyNet registration failed: $REG_RESPONSE"
+    fi
+  fi
+else
+  echo "No SkyNet config found at $SKYNET_CONF — heartbeats disabled"
+fi
+
+# Start SkyNet Agent in background (legacy bash agent)
 echo "Starting SkyNet Agent..."
 (
   sleep 10  # wait for node to be ready
