@@ -1503,8 +1503,7 @@ $(c BOLD)USAGE:$(c NC)
 $(c BOLD)DESCRIPTION:$(c NC)
     Stops all XDC-related Docker containers including:
     - xdc-node (main blockchain node)
-    - xdc-dashboard (web dashboard)
-    - skynet-agent (fleet monitoring)
+    - xdc-agent (Next.js dashboard + SkyNet monitoring)
     - xdc-metrics-collector (metrics collection)
 
 $(c BOLD)OPTIONS:$(c NC)
@@ -1538,7 +1537,7 @@ EOF
     fi
     
     # Try specific container names as fallback
-    local specific_containers="xdc-node xdc-dashboard skynet-agent xdc-metrics-collector"
+    local specific_containers="xdc-node xdc-agent xdc-metrics-collector"
     local found_any=false
     
     for container in $specific_containers; do

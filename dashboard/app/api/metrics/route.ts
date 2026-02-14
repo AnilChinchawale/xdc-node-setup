@@ -4,7 +4,7 @@ import { queryPrometheus, PROMETHEUS_QUERIES } from '@/lib/prometheus';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-const RPC_URL = process.env.RPC_URL || 'http://127.0.0.1:38545';
+const RPC_URL = process.env.RPC_URL || 'http://xdc-node:8545';
 
 async function rpcCall(method: string, params: unknown[] = []): Promise<unknown> {
   try {
