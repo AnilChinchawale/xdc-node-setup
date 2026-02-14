@@ -487,7 +487,7 @@ init_config() {
     # Node configuration with environment variable overrides
     NODE_TYPE="${NODE_TYPE:-full}"
     NETWORK="${NETWORK:-mainnet}"
-    CLIENT="${CLIENT:-stable}"
+    CLIENT="${CLIENT:-stable}"  # Preserves value set by --client flag
     SYNC_MODE="${SYNC_MODE:-full}"
     RPC_PORT="${RPC_PORT:-9545}"
     P2P_PORT="${P2P_PORT:-30303}"
@@ -2007,6 +2007,16 @@ main() {
         esac
     done
     
+    # Map CLI args to config variables (before init_config)
+    # --client flag sets NODE_CLIENT; map to CLIENT used by the rest of the script
+    case "${NODE_CLIENT:-xdc}" in
+        erigon)   CLIENT="erigon" ;;
+        geth-pr5) CLIENT="geth-pr5" ;;
+        stable|xdc|geth) CLIENT="stable" ;;
+        *) CLIENT="stable" ;;
+    esac
+    export CLIENT
+
     # Initialize
     init_logging
     show_banner
