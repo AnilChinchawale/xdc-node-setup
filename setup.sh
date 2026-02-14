@@ -1688,7 +1688,7 @@ register_with_skynet() {
     local public_ip
     local node_role
     local rpc_port
-    local skynet_conf="$PROJECT_ROOT/docker/skynet.conf"
+    local skynet_conf="$PROJECT_ROOT/${NETWORK:-mainnet}/.xdc-node/skynet.conf"
     
     log "Setting up SkyNet registration..."
     
@@ -1838,20 +1838,23 @@ EOF
         -H "Content-Type: application/json" \
         -d "$payload" 2>/dev/null || echo '{"error":"connection_failed"}')
     
-    # Check for API key in response
-    local api_key
-    api_key=$(echo "$response" | jq -r '.apiKey // empty' 2>/dev/null || echo "")
+    # Check for API key in response (try multiple response shapes)
+    local api_key node_id
+    api_key=$(echo "$response" | jq -r '.apiKey // .data.apiKey // .data.api_key // empty' 2>/dev/null || echo "")
+    node_id=$(echo "$response" | jq -r '.nodeId // .data.nodeId // .data.node_id // .data.id // empty' 2>/dev/null || echo "")
     
     if [[ -n "$api_key" && "$api_key" != "null" ]]; then
         log "✅ Node registered successfully with SkyNet!"
+        [[ -n "$node_id" ]] && info "Node ID: $node_id"
         
-        # Create skynet.conf with the API key
+        # Write skynet.conf to the network config directory (mounted by docker-compose)
         mkdir -p "$(dirname "$skynet_conf")"
         cat > "$skynet_conf" <<EOF
 # XDC SkyNet Agent Configuration
 # Auto-generated during node setup
 
 SKYNET_API_URL=https://net.xdc.network/api/v1
+SKYNET_NODE_ID=${node_id}
 SKYNET_NODE_NAME=${node_name}
 SKYNET_API_KEY=${api_key}
 SKYNET_ROLE=${node_role}
