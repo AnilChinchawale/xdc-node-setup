@@ -1199,17 +1199,20 @@ install_cli_tool() {
     
     log "Installing XDC CLI tool..."
     
-    # Copy CLI script from bundled cli/xdc-node
-    local cli_source="${SCRIPT_DIR}/cli/xdc-node"
+    # Copy CLI script — prefer cli/xdc (full version) over cli/xdc-node (legacy)
+    local cli_source="${SCRIPT_DIR}/cli/xdc"
+    [[ ! -f "$cli_source" ]] && cli_source="${SCRIPT_DIR}/cli/xdc-node"
     
     mkdir -p "$PROJECT_ROOT/scripts"
     
     if [[ -f "$cli_source" ]]; then
         cp "$cli_source" "$PROJECT_ROOT/scripts/xdc-node"
         chmod +x "$PROJECT_ROOT/scripts/xdc-node"
-        log "Installed CLI from bundled cli/xdc-node"
+        log "Installed CLI from bundled $(basename "$cli_source")"
     else
-        warn "CLI source not found at $cli_source, downloading..."
+        warn "CLI source not found, downloading..."
+        curl -fsSL "https://raw.githubusercontent.com/AnilChinchawale/xdc-node-setup/main/cli/xdc" \
+            -o "$PROJECT_ROOT/scripts/xdc-node" 2>/dev/null || \
         curl -fsSL "https://raw.githubusercontent.com/AnilChinchawale/xdc-node-setup/main/cli/xdc-node" \
             -o "$PROJECT_ROOT/scripts/xdc-node" 2>/dev/null || {
             error "Failed to download CLI tool"
