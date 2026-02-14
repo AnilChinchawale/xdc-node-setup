@@ -1016,7 +1016,7 @@ EOF
     fi
 
     # Add unified xdc-monitoring container (Prometheus exporter + SkyNet agent)
-    cat >> "$PROJECT_ROOT/docker/docker-compose.yml" << 'EOF'
+    cat >> "$PROJECT_ROOT/docker/docker-compose.yml" << EOF
 
   xdc-monitoring:
     image: alpine:3.19
@@ -1041,7 +1041,7 @@ EOF
         echo "=== XDC Monitoring Container ==="
         echo "SkyNet Agent: heartbeat every 60s"
         while true; do
-          /opt/skynet/agent.sh 2>/dev/null && echo "[$(date '+%H:%M:%S')] heartbeat ok" || echo "[$(date '+%H:%M:%S')] heartbeat failed"
+          /opt/skynet/agent.sh 2>/dev/null && echo "[\$(date '+%H:%M:%S')] heartbeat ok" || echo "[\$(date '+%H:%M:%S')] heartbeat failed"
           sleep 60
         done
     depends_on:
