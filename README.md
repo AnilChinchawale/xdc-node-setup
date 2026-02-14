@@ -310,6 +310,14 @@ Running different clients helps:
 
 **Note:** Erigon uses different ports to avoid conflicts with other clients.
 
+### Learn More
+
+For detailed setup instructions, configuration options, and troubleshooting for each client:
+
+- **[Erigon-XDC Client Guide](docs/ERIGON.md)** — Multi-client diversity, dual P2P sentries, peer connection guide
+- **[Geth PR5 Client Guide](docs/GETH-PR5.md)** — Latest go-ethereum with XDPoS, state schemes, comparison table
+- **[Dashboard Setup Guide](docs/DASHBOARD.md)** — SkyOne monitoring dashboard configuration
+
 ---
 
 ## SkyNet Integration
