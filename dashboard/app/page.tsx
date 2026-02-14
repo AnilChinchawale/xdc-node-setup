@@ -13,6 +13,8 @@ import StoragePanel from '@/components/StoragePanel';
 import PeerMap from '@/components/PeerMap';
 import SkyNetStatus from '@/components/SkyNetStatus';
 import { LFGBadge } from '@/components/LFGBadge';
+import TroubleshootPanel from '@/components/TroubleshootPanel';
+import MetricsHistoryPanel from '@/components/MetricsHistoryPanel';
 import type { MetricsData, PeersData } from '@/lib/types';
 
 interface MetricsHistory {
@@ -406,6 +408,12 @@ export default function Home() {
 
         {/* Storage */}
         <StoragePanel data={metrics.storage} />
+
+        {/* Metrics History with Time Range Selector */}
+        <MetricsHistoryPanel history={history} />
+
+        {/* Troubleshoot / Diagnostics Panel */}
+        <TroubleshootPanel />
 
         {/* World Peer Map */}
         <PeerMap peers={peers} />
