@@ -14,8 +14,8 @@ const SKYNET_API_KEY = process.env.SKYNET_API_KEY || '';
  * Fires and forgets - doesn't block or throw on failure
  */
 export async function pushToSkyNet(metrics: any, peersList?: any[]): Promise<void> {
-  // Skip if not configured
-  if (!SKYNET_API_KEY || !SKYNET_NODE_ID) {
+  // Skip if no node ID (API key optional — SkyNet accepts keyless heartbeats for registered nodes)
+  if (!SKYNET_NODE_ID) {
     return;
   }
   
@@ -47,7 +47,7 @@ export async function pushToSkyNet(metrics: any, peersList?: any[]): Promise<voi
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SKYNET_API_KEY}`,
+        ...(SKYNET_API_KEY ? { 'Authorization': `Bearer ${SKYNET_API_KEY}` } : {}),
       },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(5000),
