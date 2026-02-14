@@ -10,26 +10,96 @@
 # Strict error handling - exit on any error, undefined vars, pipe failures
 set -euo pipefail
 
+#==============================================================================
+# Load Config File (if exists) - env vars override config file
+# Supports: .conf (bash), .toml (TOML), .json (JSON)
+#
+# NOTE: XDC binary (v2.6.8) does NOT support --config flag natively.
+# We parse config.toml into env vars, then build CLI args from those vars.
+# This makes config.toml the single source of truth for configuration.
+#==============================================================================
+load_config() {
+    local config_file="$1"
+    local ext="${config_file##*.}"
+    
+    case "$ext" in
+        conf|sh)
+            # shellcheck source=/dev/null
+            source "$config_file"
+            echo "[INFO] Loaded bash config from $config_file"
+            ;;
+        toml)
+            # Simple TOML parser - extracts key = "value" lines
+            while IFS= read -r line; do
+                # Skip comments and empty lines
+                [[ "$line" =~ ^[[:space:]]*# ]] && continue
+                [[ -z "${line// /}" ]] && continue
+                
+                # Parse key = "value" or key = number
+                if [[ "$line" =~ ^[[:space:]]*([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*=[[:space:]]*(.+)$ ]]; then
+                    local key="${BASH_REMATCH[1]}"
+                    local value="${BASH_REMATCH[2]}"
+                    # Remove quotes if present
+                    value="${value%\"}"
+                    value="${value#\"}"
+                    # Remove trailing comments
+                    value="${value%%#*}"
+                    value="${value% }"
+                    # Export as env var (uppercase)
+                    export "${key^^}=$value"
+                fi
+            done < "$config_file"
+            echo "[INFO] Loaded TOML config from $config_file"
+            ;;
+        json)
+            # Simple JSON parser using jq if available
+            if command -v jq &>/dev/null; then
+                while IFS='=' read -r key value; do
+                    export "$key=$value"
+                done < <(jq -r 'to_entries | .[] | "\(.key)=\(.value)"' "$config_file")
+                echo "[INFO] Loaded JSON config from $config_file"
+            else
+                echo "[WARN] jq not available, cannot parse JSON config"
+            fi
+            ;;
+    esac
+}
+
+# Try config files in order of preference
+CONFIG_LOADED=false
+for CONFIG_FILE in "${XDC_CONFIG}" "/etc/xdc-node/config.toml" "/etc/xdc-node/xdc.conf" "/work/config.toml" "/work/xdc.conf"; do
+    if [[ -f "$CONFIG_FILE" ]]; then
+        load_config "$CONFIG_FILE"
+        CONFIG_LOADED=true
+        break
+    fi
+done
+
 #------------------------------------------------------------------------------
 # Configuration via Environment Variables
+# Config.toml is the single source of truth - these are fallback defaults
 #------------------------------------------------------------------------------
 
+if [[ "$CONFIG_LOADED" != "true" ]]; then
+    echo "[WARN] No config file found, using hardcoded defaults"
+fi
+
 # Network configuration (defaults to testnet)
-NETWORK="${NETWORK:-testnet}"
-INSTANCE_NAME="${INSTANCE_NAME:-xdc-testnet-node}"
+NETWORK="${NAME:-${NETWORK:-testnet}}"
+INSTANCE_NAME="${INSTANCE_NAME:-${NAME:-xdc-testnet-node}}"
 
 # Sync and storage configuration
 SYNC_MODE="${SYNC_MODE:-full}"           # full or fast
 GC_MODE="${GC_MODE:-archive}"            # full or archive
-LOG_LEVEL="${LOG_LEVEL:-2}"              # 0=silent, 1=error, 2=warn, 3=info, 4=debug, 5=detail
+LOG_LEVEL="${LEVEL:-${LOG_LEVEL:-2}}"    # 0=silent, 1=error, 2=warn, 3=info, 4=debug, 5=detail
 
 # RPC configuration (enabled by default)
-ENABLE_RPC="${ENABLE_RPC:-true}"
-RPC_ADDR="${RPC_ADDR:-0.0.0.0}"
-RPC_PORT="${RPC_PORT:-8545}"
-RPC_API="${RPC_API:-eth,net,web3,XDPoS}"
-RPC_CORS_DOMAIN="${RPC_CORS_DOMAIN:-*}"
-RPC_VHOSTS="${RPC_VHOSTS:-*}"
+ENABLE_RPC="${ENABLED:-${ENABLE_RPC:-true}}"
+RPC_ADDR="${ADDR:-${RPC_ADDR:-0.0.0.0}}"
+RPC_PORT="${PORT:-${RPC_PORT:-8545}}"
+RPC_API="${API:-${RPC_API:-eth,net,web3,XDPoS}}"
+RPC_CORS_DOMAIN="${CORS_DOMAIN:-${RPC_CORS_DOMAIN:-*}}"
+RPC_VHOSTS="${VHOSTS:-${RPC_VHOSTS:-*}}"
 
 # WebSocket configuration
 WS_ADDR="${WS_ADDR:-0.0.0.0}"

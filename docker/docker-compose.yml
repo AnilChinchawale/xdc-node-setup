@@ -73,6 +73,7 @@ services:
 
   #--------------------------------------------------------------------------
   # Prometheus - Metrics collection
+  # Auto-starts with xdc-node for dashboard alerts
   #--------------------------------------------------------------------------
   prometheus:
     image: prom/prometheus:v2.48.0
@@ -82,8 +83,8 @@ services:
     ports:
       - "127.0.0.1:9090:9090"
     volumes:
-      - /opt/xdc-node/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - /opt/xdc-node/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ../monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus-data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -99,8 +100,6 @@ services:
       - xdc-monitoring
     depends_on:
       - xdc-node
-    profiles:
-      - monitoring
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy || exit 1"]
       interval: 30s
@@ -240,6 +239,7 @@ services:
 
   #--------------------------------------------------------------------------
   # Alertmanager - Alert routing (optional, for Telegram notifications)
+  # Auto-starts with xdc-node for dashboard alerts
   #--------------------------------------------------------------------------
   alertmanager:
     image: prom/alertmanager:v0.26.0
@@ -248,7 +248,7 @@ services:
     ports:
       - "127.0.0.1:9093:9093"
     volumes:
-      - /opt/xdc-node/configs/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ../configs/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - alertmanager-data:/alertmanager
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
@@ -257,8 +257,6 @@ services:
       - '--web.listen-address=:9093'
     networks:
       - xdc-monitoring
-    profiles:
-      - alertmanager
     logging:
       driver: "json-file"
       options:

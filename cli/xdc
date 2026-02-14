@@ -1676,14 +1676,14 @@ EOF
         [[ -n "$network" ]] && network_env="NETWORK=$network"
         
         if [[ -n "$network_env" ]]; then
-            if $network_env docker compose up -d xdc-node xdc-dashboard 2>/dev/null; then
+            if $network_env docker compose up -d 2>/dev/null; then
                 stop_spinner true "Node started ($network)"
             else
                 stop_spinner false "Start failed"
                 die "Failed to start XDC node. Check 'docker compose logs' for details."
             fi
         else
-            if docker compose up -d xdc-node xdc-dashboard 2>/dev/null; then
+            if docker compose up -d 2>/dev/null; then
                 stop_spinner true "Node started"
             else
                 stop_spinner false "Start failed"

@@ -4,6 +4,10 @@ set -e
 #==============================================================================
 # Load Config File (if exists) - env vars override config file
 # Supports: .conf (bash), .toml (TOML), .json (JSON)
+#
+# NOTE: XDC binary (v2.6.8) does NOT support --config flag natively.
+# We parse config.toml into env vars, then build CLI args from those vars.
+# This makes config.toml the single source of truth for configuration.
 #==============================================================================
 load_config() {
     local config_file="$1"
@@ -53,8 +57,13 @@ load_config() {
 }
 
 # Try config files in order of preference
+CONFIG_LOADED=false
 for CONFIG_FILE in "${XDC_CONFIG}" "/etc/xdc-node/config.toml" "/etc/xdc-node/xdc.conf" "/work/config.toml" "/work/xdc.conf"; do
-    [[ -f "$CONFIG_FILE" ]] && { load_config "$CONFIG_FILE"; break; }
+    if [[ -f "$CONFIG_FILE" ]]; then
+        load_config "$CONFIG_FILE"
+        CONFIG_LOADED=true
+        break
+    fi
 done
 
 # Ensure XDC binary is available (some images use XDC-mainnet instead of XDC)
@@ -91,22 +100,39 @@ RPC_STYLE=$(detect_rpc_style)
 echo "RPC flag style: $RPC_STYLE"
 
 # ============================================================
-# Defaults (env vars override these)
+# Defaults - Only used if config.toml is missing
+# Config.toml is the single source of truth
 # ============================================================
-: "${SYNC_MODE:=full}"
-: "${GC_MODE:=full}"
-: "${LOG_LEVEL:=2}"
-: "${INSTANCE_NAME:=XDC_Node}"
-: "${ENABLE_RPC:=true}"
-: "${RPC_ADDR:=0.0.0.0}"
-: "${RPC_PORT:=8545}"
-: "${RPC_API:=admin,eth,net,web3,XDPoS}"
-: "${RPC_CORS_DOMAIN:=*}"
-: "${RPC_VHOSTS:=*}"
-: "${WS_ADDR:=0.0.0.0}"
-: "${WS_PORT:=8546}"
-: "${WS_API:=eth,net,web3,XDPoS}"
-: "${WS_ORIGINS:=*}"
+if [[ "$CONFIG_LOADED" != "true" ]]; then
+    echo "WARN: No config file found, using hardcoded defaults"
+    export SYNC_MODE="${SYNC_MODE:-full}"
+    export GC_MODE="${GC_MODE:-full}"
+    export LEVEL="${LEVEL:-2}"
+    export INSTANCE_NAME="${INSTANCE_NAME:-XDC_Node}"
+    export ENABLED="${ENABLED:-true}"
+    export ADDR="${ADDR:-0.0.0.0}"
+    export PORT="${PORT:-8545}"
+    export API="${API:-admin,eth,net,web3,XDPoS}"
+    export CORS_DOMAIN="${CORS_DOMAIN:-*}"
+    export VHOSTS="${VHOSTS:-*}"
+    export WS_ADDR="${WS_ADDR:-0.0.0.0}"
+    export WS_PORT="${WS_PORT:-8546}"
+    export WS_API="${WS_API:-eth,net,web3,XDPoS}"
+    export WS_ORIGINS="${WS_ORIGINS:-*}"
+else
+    # Use values from config.toml (loaded as env vars)
+    # Map TOML section.key format to flat env vars for backward compat
+    export SYNC_MODE="${SYNC_MODE:-full}"
+    export GC_MODE="${GC_MODE:-full}"
+    export LOG_LEVEL="${LEVEL:-2}"
+    export INSTANCE_NAME="${INSTANCE_NAME:-XDC_Node}"
+    export ENABLE_RPC="${ENABLED:-true}"
+    export RPC_ADDR="${ADDR:-0.0.0.0}"
+    export RPC_PORT="${PORT:-8545}"
+    export RPC_API="${API:-admin,eth,net,web3,XDPoS}"
+    export RPC_CORS_DOMAIN="${CORS_DOMAIN:-*}"
+    export RPC_VHOSTS="${VHOSTS:-*}"
+fi
 
 echo "Config: sync=$SYNC_MODE gc=$GC_MODE log=$LOG_LEVEL rpc=$ENABLE_RPC"
 
