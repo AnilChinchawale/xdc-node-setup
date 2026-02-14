@@ -1,712 +1,381 @@
-# XDC-Node-Setup
+# XDC Node Setup
 
-<p align="center">
-  <img src="https://www.xdc.dev/images/logos/site-logo.png" alt="XDC Network" width="200"/>
-</p>
+<div align="center">
 
-<p align="center">
-  <strong>Enterprise-grade XDC Network node deployment toolkit</strong>
-</p>
+**Production-ready XDC Network node deployment in minutes**
 
-<p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
-  <img src="https://img.shields.io/badge/Version-2.2.0-green.svg" alt="Version: 2.2.0">
-  <img src="https://img.shields.io/badge/XDC-v2.6.0-blue.svg" alt="XDC: v2.6.0">
-  <img src="https://img.shields.io/badge/Standards-Compliant-brightgreen.svg" alt="Standards: Compliant">
-</p>
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/Docker-20.10+-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![XDC Network](https://img.shields.io/badge/XDC-Network-brightgreen)](https://xdc.network/)
+
+</div>
 
 ---
 
-## OS Compatibility
+## Features
 
-| OS | Status | Notes |
-|---|---|---|
-| Ubuntu 20.04/22.04/24.04 | ✅ Full | Recommended for production |
-| Debian 11/12 | ✅ Full | Fully supported |
-| CentOS/RHEL 8/9 | ✅ Full | Enterprise deployments |
-| macOS 13+ (Intel) | ✅ Full | Docker Desktop required |
-| macOS 13+ (Apple Silicon) | ✅ Full | Native ARM64 images |
-| Windows 10/11 | ✅ via WSL2 | Docker Desktop + WSL2 required |
-
----
-
-## Overview
-
-**XDC-Node-Setup** is a comprehensive toolkit for deploying, securing, and managing XDC Network nodes according to industry-grade infrastructure standards. It provides automated security hardening, continuous monitoring, version management, and compliance reporting.
-
-### Key Features
-
-- 🔒 **Security Hardening** — SSH hardening, firewall, fail2ban, audit logging
-- 📊 **Monitoring Stack** — Prometheus + Grafana with pre-configured dashboards
-- 📦 **Version Management** — Automated version checking with optional auto-update
-- 🏥 **Health Monitoring** — Continuous health checks with notifications
-- 💾 **Backup & Recovery** — Incremental backups with GPG encryption
-- 🚀 **One-Line Setup** — Deploy a production-ready node in minutes
+- 🚀 **One-command deployment** — Get a node running in under 5 minutes
+- 🔒 **Security hardened** — SSH hardening, firewall, fail2ban, audit logging
+- 📊 **Built-in monitoring** — Prometheus + Grafana dashboards on port 8888
+- 🌐 **Multi-network support** — Mainnet, Testnet (Apothem), Devnet
+- 📡 **SkyNet integration** — Auto-registers with XDC SkyNet for fleet monitoring
+- 💾 **Fast sync** — Snapshot download with resume support
+- 🔄 **Version management** — Automatic updates and health checks
+- 🛠️ **Powerful CLI** — Single `xdc` command for all operations
 
 ---
 
-## 🚀 Quick Start
-
-### Universal Installer (All Platforms)
+## Quick Start
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/AnilChinchawale/xdc-node-setup/main/install.sh | bash
-```
-
-### Linux (Ubuntu/Debian)
-
-```bash
-curl -sSL https://raw.githubusercontent.com/AnilChinchawale/xdc-node-setup/main/setup.sh | sudo bash
-```
-
-### macOS
-
-```bash
-# Install Homebrew first if needed: https://brew.sh
-curl -sSL https://raw.githubusercontent.com/AnilChinchawale/xdc-node-setup/main/setup.sh | bash
-```
-
-### Windows (WSL2)
-
-```powershell
-# In PowerShell (Admin)
-wsl --install
-# Then in WSL2 Ubuntu:
-curl -sSL https://raw.githubusercontent.com/AnilChinchawale/xdc-node-setup/main/setup.sh | bash
-```
-
-### Manual Installation
-
-```bash
+# 1. Clone the repository
 git clone https://github.com/AnilChinchawale/XDC-Node-Setup.git
 cd XDC-Node-Setup
-./setup.sh
-```
 
-### Advanced Setup
-
-```bash
-curl -sSL https://raw.githubusercontent.com/AnilChinchawale/xdc-node-setup/main/setup.sh | sudo bash -s -- --advanced
-```
-
----
-
-## 📖 Platform-Specific Guides
-
-- [Windows Setup Guide](docs/WINDOWS-SETUP.md) — WSL2 + Docker Desktop
-- [macOS Setup Guide](docs/MACOS-SETUP.md) — Intel & Apple Silicon
-- [Linux Setup](docs/XDC-NODE-STANDARDS.md) — Production deployment standards
-
-### Manual Installation
-
-```bash
-git clone https://github.com/AnilChinchawale/XDC-Node-Setup.git
-cd XDC-Node-Setup
+# 2. Run the installer
 sudo ./setup.sh
+
+# 3. Check node status
+xdc status
 ```
 
-### Environment Variables
-
-Configure via environment variables (works in both modes):
-
-```bash
-# Simple mode with custom settings
-sudo NODE_TYPE=archive NETWORK=mainnet RPC_PORT=8545 ./setup.sh
-
-# Advanced mode with pre-configured values
-sudo NODE_TYPE=rpc NETWORK=testnet ENABLE_MONITORING=true ./setup.sh --advanced
-```
-
-Available variables:
-- `NODE_TYPE`: full, archive, rpc, masternode (default: full)
-- `NETWORK`: mainnet, testnet (default: mainnet)
-- `DATA_DIR`: Data directory path
-- `RPC_PORT`: RPC port (default: 8545)
-- `P2P_PORT`: P2P port (default: 30303)
-- `ENABLE_MONITORING`: true/false (default: true)
-- `ENABLE_SECURITY`: true/false (default: true, Linux only)
-- `ENABLE_UPDATES`: true/false (default: true)
-
-### Implement All Standards
-
-```bash
-sudo ./scripts/implement-standards.sh
-```
-
-### Configure Notifications
-
-Set up alerts via the XDC Gateway platform (recommended) or direct Telegram:
-
-```bash
-# Copy the notification config template
-sudo mkdir -p /etc/xdc-node
-sudo cp configs/notify.conf.template /etc/xdc-node/notify.conf
-
-# Edit the config with your settings
-sudo nano /etc/xdc-node/notify.conf
-```
-
-**Option 1: XDC Gateway Platform (Recommended)**
-```bash
-NOTIFY_CHANNELS="platform"
-NOTIFY_PLATFORM_API_KEY="your-api-key-from-cloud.xdcrpc.com"
-```
-
-**Option 2: Direct Telegram**
-```bash
-NOTIFY_CHANNELS="telegram"
-NOTIFY_TELEGRAM_BOT_TOKEN="your-bot-token"
-NOTIFY_TELEGRAM_CHAT_ID="your-chat-id"
-```
-
-**Option 3: Email Notifications**
-```bash
-NOTIFY_CHANNELS="email"
-NOTIFY_EMAIL_ENABLED="true"
-NOTIFY_EMAIL_TO="admin@example.com"
-NOTIFY_EMAIL_SMTP_HOST="smtp.gmail.com"
-NOTIFY_EMAIL_SMTP_USER="your-email@gmail.com"
-NOTIFY_EMAIL_SMTP_PASS="your-app-password"
-```
-
-Test your notifications:
-```bash
-./scripts/notify-test.sh
-```
+Your node will be running and syncing. Access the dashboard at `http://localhost:8888`
 
 ---
 
-## 🖥️ CLI Tool (`xdc`)
+## Requirements
 
-The `xdc` CLI provides a unified command interface for all node management tasks.
+| Component | Requirement |
+|-----------|-------------|
+| **OS** | Linux x86_64 (Ubuntu 20.04+, Debian 11+, RHEL 8+) |
+| **Docker** | 20.10+ with Docker Compose v2+ |
+| **RAM** | 4GB minimum, 16GB+ recommended |
+| **Disk** | 100GB minimum, 500GB+ SSD recommended |
+| **Network** | Stable internet connection, 100 Mbps+ |
 
-### CLI Installation
+---
 
-```bash
-# Install the CLI (creates symlink to /usr/local/bin)
-cd XDC-Node-Setup
-sudo ./cli/install.sh
+## CLI Reference
 
-# Or manually create a symlink
-sudo ln -s $(pwd)/cli/xdc /usr/local/bin/xdc-node
-```
+The `xdc` command provides full control over your node:
 
-### CLI Commands
+| Command | Description |
+|---------|-------------|
+| `xdc status` | Display current node status and sync progress |
+| `xdc start` | Start the XDC node container |
+| `xdc stop` | Stop the XDC node container |
+| `xdc restart` | Restart the node (graceful) |
+| `xdc logs` | View node logs (follow mode) |
+| `xdc attach` | Attach to the XDC console |
+| `xdc peers` | List connected peers |
+| `xdc health` | Run full health check with security score |
+| `xdc info` | Show detailed node and chain info |
+| `xdc sync` | Check sync status and block height |
+| `xdc backup` | Create encrypted backup of node data |
+| `xdc snapshot` | Download and apply chain snapshot for fast sync |
+| `xdc security` | Run security audit and apply hardening |
+| `xdc monitor` | Open monitoring dashboard |
+| `xdc update` | Check for and apply version updates |
+| `xdc help` | Show command help |
 
-```
-xdc — XDC Network Node Management CLI
-
-Usage: xdc <command> [options]
-
-Commands:
-  init          Interactive setup wizard (wraps setup.sh)
-  status        Quick node status overview
-  health        Run health check (wraps node-health-check.sh)
-  security      Run security audit (wraps security-harden.sh)
-  update        Check and apply version updates (wraps version-check.sh)
-  backup        Trigger backup (wraps backup.sh)
-  restore       Restore from backup
-  logs          Tail node logs
-  restart       Graceful node restart
-  stop          Stop node
-  start         Start node
-  config        View/edit configuration
-  notify        Test notifications or send custom alert
-  dashboard     Start web dashboard
-  version       Show CLI and client versions
-  help          Show help
-
-Global Options:
-  --json        Output in JSON format
-  --quiet       Suppress non-essential output
-  --verbose     Show detailed output
-  --no-color    Disable colored output
-```
-
-### CLI Examples
+**Examples:**
 
 ```bash
-# Initialize a new node
-xdc init
-
-# Quick setup with defaults
-xdc init --quick
-
-# Check node status
-xdc status
-
-# Monitor status in real-time (refreshes every 5s)
+# Watch status in real-time
 xdc status --watch
 
-# Get status as JSON (for scripting)
-xdc status --json
-
-# Run full health check with notifications
-xdc health --full --notify
-
-# Security audit only (no changes)
-xdc security --audit-only
-
-# Apply security fixes
-sudo xdc security --fix
-
-# Check for updates
-xdc update --check
-
-# Apply updates
-sudo xdc update --apply
-
-# Create encrypted backup
-sudo xdc backup --encrypt
-
-# List available backups
-xdc backup --list
-
-# Restore from backup
-sudo xdc restore /backup/xdc-node/daily/xdc-backup-2024-01-15.tar.gz
-
-# Follow logs in real-time
+# Follow logs
 xdc logs --follow
 
-# View last 100 lines
-xdc logs --lines 100
+# Download and apply snapshot for fast sync
+xdc snapshot download --network mainnet
+xdc snapshot apply
 
-# Graceful restart
-sudo xdc restart --graceful
+# Start with monitoring stack
+xdc start --monitoring
 
-# View configuration
-xdc config list
-
-# Get specific config value
-xdc config get network
-
-# Set config value
-sudo xdc config set telegram_enabled true
-
-# Test notifications
-xdc notify --test
-
-# Send custom alert
-xdc notify --send "Maintenance starting" --level warning
-
-# Show version info
-xdc version
-```
-
-### Shell Completions
-
-The CLI supports bash and zsh completions for enhanced productivity:
-
-```bash
-# Bash: Add to ~/.bashrc
-source /etc/bash_completion.d/xdc-node
-
-# Zsh: Completions are auto-loaded if installed to site-functions
-# Or add to ~/.zshrc:
-fpath=(/usr/local/share/zsh/site-functions $fpath)
-autoload -Uz compinit && compinit
+# Run health check with notifications
+xdc health --full --notify
 ```
 
 ---
 
-## 🏗️ Architecture
+## Dashboard
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        XDC Node Infrastructure                               │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-                              ┌─────────────────┐
-                              │   Internet      │
-                              │   (P2P Network) │
-                              └────────┬────────┘
-                                       │
-                              ┌────────▼────────┐
-                              │    Firewall     │
-                              │    (UFW)        │
-                              │  ┌───────────┐  │
-                              │  │Port 12141 │──┼──► SSH
-                              │  │Port 30303 │──┼──► XDC P2P
-                              │  └───────────┘  │
-                              └────────┬────────┘
-                                       │
-┌──────────────────────────────────────┼──────────────────────────────────────┐
-│  Docker Network                      │                                       │
-│  ┌───────────────────────────────────▼───────────────────────────────────┐  │
-│  │                           xdc-network                                  │  │
-│  │  ┌─────────────────┐                                                  │  │
-│  │  │    XDC Node     │◄──────────────────────────────────────────────┐  │  │
-│  │  │  (Port 8545/46) │                                               │  │  │
-│  │  │                 │                                               │  │  │
-│  │  │ ┌─────────────┐ │         ┌─────────────────────────────────┐  │  │  │
-│  │  │ │ Chain Data  │ │         │      xdc-monitoring (internal)  │  │  │  │
-│  │  │ │  /xdcchain  │ │         │  ┌───────────┐  ┌───────────┐   │  │  │  │
-│  │  │ └─────────────┘ │         │  │Prometheus │  │  Grafana  │   │  │  │  │
-│  │  └─────────────────┘         │  │  :9090    │  │   :3000   │   │  │  │  │
-│  │                              │  └─────┬─────┘  └─────┬─────┘   │  │  │  │
-│  │                              │        │              │         │  │  │  │
-│  │                              │  ┌─────▼─────┐  ┌─────▼─────┐   │  │  │  │
-│  │                              │  │  Node     │  │ cAdvisor  │   │  │  │  │
-│  │                              │  │ Exporter  │  │  :8080    │   │  │  │  │
-│  │                              │  │  :9100    │  │           │   │  │  │  │
-│  │                              │  └───────────┘  └───────────┘   │  │  │  │
-│  │                              └─────────────────────────────────┘  │  │  │
-│  └───────────────────────────────────────────────────────────────────┘  │  │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  Scheduled Tasks (Cron)                                                      │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
-│  │Health Check │  │Version Check│  │   Backup    │  │Security Scan│         │
-│  │  (15 min)   │  │   (6 hrs)   │  │  (Daily 3AM)│  │ (Daily 6AM) │         │
-│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘         │
-│         │                │                │                │                 │
-│         └────────────────┴────────────────┴────────────────┘                 │
-│                                   │                                          │
-│                          ┌────────▼────────┐                                 │
-│                          │    Telegram     │                                 │
-│                          │   Notifications │                                 │
-│                          └─────────────────┘                                 │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 📁 Directory Structure
-
-```
-XDC-Node-Setup/
-├── configs/                    # Configuration templates
-│   ├── versions.json           # Version mapping & auto-update config
-│   ├── alertmanager.yml        # Alertmanager configuration
-│   ├── mainnet.env             # Mainnet environment
-│   ├── testnet.env             # Testnet environment
-│   ├── firewall.rules          # UFW rules reference
-│   ├── fail2ban.conf           # Fail2ban config
-│   └── sshd_config.template    # Hardened SSH config
-├── docker/                     # Docker deployment
-│   ├── docker-compose.yml      # Full stack compose
-│   └── Dockerfile              # XDC node build
-├── docs/                       # Documentation
-│   ├── XDC-NODE-STANDARDS.md   # Infrastructure standards
-│   ├── COMPLIANCE.md           # Compliance matrix
-│   ├── SECURITY.md             # Security guide
-│   ├── MONITORING.md           # Monitoring guide
-│   ├── ARCHITECTURE.md         # Architecture docs
-│   └── TROUBLESHOOTING.md      # Troubleshooting guide
-├── monitoring/                 # Prometheus & Grafana
-│   ├── prometheus.yml          # Prometheus config
-│   ├── alerts.yml              # Alert rules
-│   └── grafana/                # Grafana provisioning
-│       ├── dashboards/         # Dashboard JSON
-│       └── datasources.yml     # Datasource config
-├── scripts/                    # Utility scripts
-│   ├── security-harden.sh      # Security hardening
-│   ├── node-health-check.sh    # Health monitoring
-│   ├── version-check.sh        # Version management
-│   ├── backup.sh               # Backup system
-│   └── implement-standards.sh  # Master implementation
-├── systemd/                    # Systemd services
-│   └── xdc-node.service        # Node service
-├── cron/                       # Scheduled tasks
-│   └── setup-crons.sh          # Cron installation
-├── setup.sh                    # Main installer
-├── LICENSE                     # MIT License
-└── README.md                   # This file
-```
-
----
-
-## 🔒 Security Scorecard
-
-Each deployment is scored on a 100-point scale:
-
-| Check | Points | Description |
-|-------|--------|-------------|
-| SSH key-only auth | 10 | `PasswordAuthentication no` |
-| Non-standard SSH port | 5 | Port 12141 instead of 22 |
-| Firewall active (UFW) | 10 | `ufw status: active` |
-| Fail2ban running | 5 | `systemctl is-active fail2ban` |
-| Unattended upgrades | 5 | Auto security updates |
-| OS patches current | 10 | No pending updates |
-| Client version current | 15 | Latest XDC client |
-| Monitoring active | 10 | Prometheus + Grafana running |
-| Backup configured | 10 | Backup cron + recent backup |
-| Audit logging | 10 | Auditd running |
-| Disk encryption (LUKS) | 10 | Encrypted volumes |
-| **Total** | **100** | |
-
-### Score Interpretation
-
-| Score | Rating | Status |
-|-------|--------|--------|
-| 90-100 | 🟢 Excellent | Production ready |
-| 70-89 | 🟡 Good | Minor improvements needed |
-| 50-69 | 🟠 Fair | Significant gaps |
-| <50 | 🔴 Poor | Not suitable for production |
-
----
-
-## 📊 Monitoring & Alerts
-
-### Alert Conditions
-
-| Condition | Severity | Description |
-|-----------|----------|-------------|
-| Node offline > 5 min | 🔴 Critical | Node not responding |
-| Block height behind > 100 | 🟡 Warning | Sync falling behind |
-| Peer count = 0 | 🟡 Warning | Network isolation |
-| Disk usage > 85% | 🟡 Warning | Storage running low |
-| Disk usage > 95% | 🔴 Critical | Immediate action needed |
-| CPU > 90% | 🟡 Warning | High resource usage |
-| Memory > 90% | 🟡 Warning | Memory pressure |
-| New version available | ℹ️ Info | Update available |
-| Security score < 70 | 🟡 Warning | Security review needed |
-
-### Grafana Dashboards
-
-- **XDC Node Overview**: Block height, peers, sync status
-- **System Metrics**: CPU, RAM, disk, network
-- **Container Metrics**: Docker resource usage
-- **Alerts History**: Alert timeline and status
-
----
-
-## 🖥️ Web Dashboard
-
-The XDC Node Dashboard provides a modern web interface for monitoring and managing your XDC nodes.
+The built-in web dashboard provides real-time monitoring on **port 8888**:
 
 ![Dashboard Screenshot](docs/images/dashboard-overview.png)
 
-### Features
+**Features:**
+- Live block height and sync status
+- Peer count and network health
+- CPU, memory, and disk usage
+- Security score with recommendations
+- Alert timeline and notifications
 
-- **Overview** — Summary cards, network stats, and recent alerts at a glance
-- **Node Management** — View all nodes with status, metrics, and filtering
-- **Security Dashboard** — Fleet-wide security scores and recommendations
-- **Version Management** — Track client versions with auto-update support
-- **Alert System** — Timeline view with acknowledge/dismiss functionality
-- **Settings** — Notification config, node registration, and API keys
-
-### Quick Start
-
-```bash
-# Navigate to dashboard
-cd dashboard
-
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-### Docker Deployment
-
-```bash
-# From the root directory
-docker-compose up dashboard
-```
-
-Or build standalone:
-
-```bash
-cd dashboard
-docker build -t xdc-dashboard .
-docker run -p 3000:3000 -v $(pwd)/../reports:/app/reports:ro xdc-dashboard
-```
-
-### CLI Integration
-
-```bash
-# Start dashboard via CLI
-xdc dashboard
-
-# Start with custom port
-xdc dashboard --port 8080
-```
-
-See [dashboard/README.md](dashboard/README.md) for full documentation.
+Access at: `http://localhost:8888` (or `http://<your-server-ip>:8888`)
 
 ---
 
-## 📜 Scripts Reference
+## Monitoring (Optional)
 
-### `setup.sh`
-
-Main installer script with interactive and non-interactive modes.
+Enable the full Prometheus + Grafana monitoring stack:
 
 ```bash
-# Interactive
-sudo ./setup.sh
-
-# Non-interactive
-sudo NODE_TYPE=full NETWORK=mainnet ./setup.sh --non-interactive
+xdc start --monitoring
 ```
 
-### `scripts/security-harden.sh`
+**Includes:**
+- **Prometheus** — Metrics collection (port 9090)
+- **Grafana** — Visualization dashboards (port 3000)
+- **Node Exporter** — System metrics
+- **cAdvisor** — Container metrics
 
-Applies all security hardening measures.
+**Grafana Access:**
+- URL: `http://localhost:3000`
+- Default credentials: `admin` / `admin`
+- Pre-configured dashboards for XDC node metrics
 
-```bash
-sudo ./scripts/security-harden.sh
+---
+
+## Configuration
+
+Configuration files are stored in `{network}/.xdc-node/config.toml`
+
+### Location by Network
+
+- **Mainnet:** `mainnet/.xdc-node/config.toml`
+- **Testnet:** `testnet/.xdc-node/config.toml`
+- **Devnet:** `devnet/.xdc-node/config.toml`
+
+### Key Settings
+
+```toml
+[node]
+NetworkId = 50           # 50 = mainnet, 51 = testnet
+DataDir = "/xdcchain"
+HTTPPort = 8545
+WSPort = 8546
+Port = 30303
+
+[eth]
+SyncMode = "full"        # full, fast, or archive
+GCMode = "full"
+
+[networking]
+MaxPeers = 50
+NAT = "any"
 ```
 
-### `scripts/node-health-check.sh`
-
-Monitors node health and generates reports.
+**Edit configuration:**
 
 ```bash
-# Quick check
-./scripts/node-health-check.sh
+# View current config
+xdc config list
 
-# Full check with notification
-./scripts/node-health-check.sh --full --notify
+# Edit config file
+nano mainnet/.xdc-node/config.toml
 
-# Security score only
-./scripts/node-health-check.sh --security-only
-```
-
-### `scripts/version-check.sh`
-
-Checks for and optionally applies updates.
-
-```bash
-./scripts/version-check.sh
-```
-
-### `scripts/backup.sh`
-
-Creates encrypted backups.
-
-```bash
-./scripts/backup.sh
-```
-
-### `scripts/implement-standards.sh`
-
-Implements all standards and generates compliance report.
-
-```bash
-sudo ./scripts/implement-standards.sh
+# Apply changes
+xdc restart
 ```
 
 ---
 
-## ⚙️ Configuration
+## Networks
 
-### Environment Variables
+XDC Node Setup supports multiple networks:
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `NODE_TYPE` | full, archive, or rpc | full |
-| `NETWORK` | mainnet or testnet | mainnet |
-| `TELEGRAM_BOT_TOKEN` | Telegram notifications | - |
-| `TELEGRAM_CHAT_ID` | Telegram chat ID | - |
-| `GRAFANA_ADMIN_PASSWORD` | Grafana password | admin |
+| Network | Network ID | Use Case | Snapshot Available |
+|---------|------------|----------|-------------------|
+| **Mainnet** | 50 | Production | ✅ Yes |
+| **Testnet (Apothem)** | 51 | Development & Testing | ✅ Yes |
+| **Devnet** | 551 | Local Development | ❌ No |
 
-### versions.json
-
-```json
-{
-  "clients": {
-    "XDPoSChain": {
-      "repo": "XinFinOrg/XDPoSChain",
-      "current": "v2.6.0",
-      "autoUpdate": false
-    }
-  }
-}
-```
-
-### Backup Configuration
-
-Create `/root/.xdc-backup.conf`:
+**Switch networks:**
 
 ```bash
-BACKUP_DIR=/backup/xdc-node
-RETENTION_DAILY=7
-RETENTION_WEEKLY=4
-RETENTION_MONTHLY=12
-# GPG_RECIPIENT=your-key-id
-# S3_BUCKET=your-bucket
+# Configure during setup
+sudo NETWORK=testnet ./setup.sh
+
+# Or manually switch
+cd testnet
+docker-compose up -d
 ```
 
 ---
 
-## 🔧 Requirements
+## SkyNet Integration
 
-### Hardware
+XDC Node Setup automatically registers your node with **XDC SkyNet** for fleet-wide monitoring and analytics.
 
-| Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| **CPU** | 4 cores | 8+ cores |
-| **RAM** | 16GB | 32GB+ |
-| **Disk** | 500GB SSD | 1TB NVMe SSD |
-| **Network** | 100 Mbps | 1 Gbps |
+**Features:**
+- 📊 Centralized dashboard for all your nodes
+- 🔔 Unified alerting across your fleet
+- 📈 Historical metrics and analytics
+- 🌍 Network-wide statistics
 
-### Operating Systems
+**How it works:**
+1. During setup, the installer creates a unique node identifier
+2. Node metrics are automatically reported to SkyNet every 15 minutes
+3. Access your fleet at: [https://skynet.xdc.network](https://skynet.xdc.network)
 
-| OS | Version | Notes |
-|---|---|---|
-| **Ubuntu** | 20.04 / 22.04 / 24.04 | Recommended for production |
-| **Debian** | 11 / 12 | Fully supported |
-| **CentOS/RHEL** | 8 / 9 | Enterprise deployments |
-| **macOS** | 13+ (Ventura) | Docker Desktop required |
-| **Windows** | 10 / 11 | WSL2 + Docker Desktop required |
+**Disable SkyNet (optional):**
 
-### Software Prerequisites
+```bash
+# Edit config
+xdc config set skynet_enabled false
+xdc restart
+```
 
-- **Docker** 20.10+ and Docker Compose v2+
-- **curl** or **wget**
-- **jq** (JSON processor)
-- **git** (for manual installation)
+---
 
-## 🤝 Contributing
+## Snapshot Download
 
-Contributions are welcome! Please read our contributing guidelines:
+Fast-sync your node using official XDC Network snapshots instead of syncing from genesis.
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/my-feature`
-3. Commit changes: `git commit -am 'Add my feature'`
-4. Push to branch: `git push origin feature/my-feature`
-5. Submit a Pull Request
+**Download and apply snapshot:**
 
-### Development Guidelines
+```bash
+# Download latest mainnet snapshot
+xdc snapshot download --network mainnet
 
-- All scripts must have `set -euo pipefail`
-- Use shellcheck for linting
-- Add logging for all operations
-- Include error handling
+# Apply snapshot (node must be stopped)
+xdc stop
+xdc snapshot apply
+xdc start
+```
+
+**Features:**
+- ⚡ **Fast sync** — Skip weeks of blockchain sync
+- 🔄 **Resume support** — Interrupted downloads can resume
+- ✅ **Verification** — Automatic checksum validation
+- 🗜️ **Compressed** — Reduced download size
+
+**Manual download (if needed):**
+
+```bash
+# Check available snapshots
+xdc snapshot list
+
+# Download specific snapshot
+xdc snapshot download --date 2026-02-10
+
+# Verify snapshot integrity
+xdc snapshot verify snapshot-mainnet-2026-02-10.tar.gz
+```
+
+Snapshots are updated daily and hosted at: `https://download.xdc.network/snapshots/`
+
+---
+
+## Troubleshooting
+
+### Node won't sync
+
+```bash
+# Check if node is running
+xdc status
+
+# Check peer count
+xdc peers
+
+# If no peers, restart with fresh peer discovery
+xdc stop
+rm -rf mainnet/.xdc-node/geth/nodes
+xdc start
+```
+
+### High CPU/Memory usage
+
+```bash
+# Check resource usage
+xdc info
+
+# Reduce cache if needed (edit config.toml)
+[node]
+Cache = 2048  # Reduce from default 4096
+
+# Restart to apply
+xdc restart
+```
+
+### Disk space running out
+
+```bash
+# Check disk usage
+df -h
+
+# Enable pruning (archive nodes excluded)
+xdc config set prune_mode full
+xdc restart
+
+# Or use a snapshot to start fresh
+xdc backup create  # Backup first!
+xdc snapshot apply
+```
+
+### Can't access dashboard
+
+```bash
+# Check if port 8888 is open
+sudo ufw allow 8888
+
+# Check if dashboard is running
+docker ps | grep dashboard
+
+# Restart dashboard
+xdc monitor restart
+```
+
+### Connection refused (RPC)
+
+```bash
+# Check RPC is enabled
+xdc config get rpc_enabled  # Should be true
+
+# Check RPC is listening
+netstat -tlnp | grep 8545
+
+# Allow RPC port if needed
+sudo ufw allow 8545
+```
+
+**More help:**
+- [Full Troubleshooting Guide](docs/TROUBLESHOOTING.md)
+- [GitHub Issues](https://github.com/AnilChinchawale/XDC-Node-Setup/issues)
+- [XDC Network Docs](https://docs.xdc.community/)
+
+---
+
+## Contributing
+
+Contributions are welcome! Here's how to get started:
+
+1. **Fork** the repository
+2. **Create** a feature branch: `git checkout -b feature/my-feature`
+3. **Commit** your changes: `git commit -am 'Add new feature'`
+4. **Push** to the branch: `git push origin feature/my-feature`
+5. **Submit** a Pull Request
+
+**Development guidelines:**
+- All scripts must pass `shellcheck` linting
+- Include error handling (`set -euo pipefail`)
+- Add tests for new features
 - Update documentation
 
 ---
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🆘 Support
-
-- **XDC Network Docs**: https://docs.xdc.community/
-- **XDPoSChain GitHub**: https://github.com/XinFinOrg/XDPoSChain
-- **Issues**: https://github.com/AnilChinchawale/XDC-Node-Setup/issues
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 📚 Additional Documentation
+<div align="center">
 
-- [XDC Node Standards](docs/XDC-NODE-STANDARDS.md) - Complete infrastructure standards
-- [Compliance Matrix](docs/COMPLIANCE.md) - Standards to implementation mapping
-- [Security Guide](docs/SECURITY.md) - Security best practices
-- [Monitoring Guide](docs/MONITORING.md) - Monitoring setup
-- [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues
+**[Documentation](docs/)** • **[Issues](https://github.com/AnilChinchawale/XDC-Node-Setup/issues)** • **[XDC Network](https://xdc.network/)**
 
----
+Built with ❤️ for the XDC Network community
 
-<p align="center">
-  Built with ❤️ for the XDC Network community
-</p>
+</div>
