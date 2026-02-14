@@ -153,7 +153,7 @@ $(c BOLD)GENERAL COMMANDS:$(c NC)
     $(c GREEN)stop$(c NC)          Stop node
     $(c GREEN)start$(c NC)         Start node
     $(c GREEN)addpeers$(c NC)      Add peers from bootnodes.list (manual injection)
-    $(c GREEN)attach$(c NC)        Attach to XDC console via RPC
+    $(c GREEN)attach$(c NC)        Attach to XDC console (tries IPC first, falls back to RPC)
     $(c GREEN)config$(c NC)        View/edit configuration
     $(c GREEN)notify$(c NC)        Test notifications or send custom alert
     $(c GREEN)dashboard$(c NC)     Start web dashboard
@@ -165,6 +165,7 @@ $(c BOLD)GLOBAL OPTIONS:$(c NC)
     --quiet       Suppress non-essential output
     --verbose     Show detailed output
     --no-color    Disable colored output
+    --rpc URL     Override RPC endpoint URL
 
 $(c BOLD)EXAMPLES:$(c NC)
     xdc-node init                    # Start interactive setup wizard
@@ -429,7 +430,13 @@ detect_client() {
 
 # Get RPC URL from config or use default
 get_rpc_url() {
-    local default_url="http://127.0.0.1:9545"
+    # Check if --rpc flag was used
+    if [[ -n "${XDC_RPC_URL:-}" ]]; then
+        echo "$XDC_RPC_URL"
+        return
+    fi
+    
+    local default_url="http://127.0.0.1:${RPC_PORT:-8545}"
     local config_url
     config_url=$(get_config ".rpc_url" "")
     if [[ -n "$config_url" && "$config_url" != "null" ]]; then
@@ -751,6 +758,12 @@ EOF
             "${disk_usage}%" \
             "$status"
         echo -e "$(c BOLD)└─────────────┴───────────┴───────┴───────┴───────┴───────┴───────┴──────────┘$(c NC)"
+        echo ""
+        echo -e "$(c BOLD)RPC Endpoints:$(c NC)"
+        echo -e "  HTTP: $(c CYAN)${rpc_url}$(c NC)"
+        echo -e "  WS:   $(c CYAN)ws://127.0.0.1:${WS_PORT:-8546}$(c NC)"
+        echo -e "  IPC:  $(c CYAN)${XDC_DATA}/XDC.ipc$(c NC)"
+        echo -e "  Dashboard: $(c CYAN)http://localhost:8888$(c NC)"
         echo ""
         echo -e "$(c DIM)Updated: $(date '+%Y-%m-%d %H:%M:%S')$(c NC)"
     }
@@ -2843,24 +2856,32 @@ EOF
 # Command: attach
 #==============================================================================
 cmd_attach() {
-    local rpc_url="${1:-http://127.0.0.1:8545}"
-    
-    # Detect container
+    local target="${1:-}"
     local container
     container=$(find_container)
     
     if [[ -n "$container" ]]; then
-        info "Attaching to XDC node in container: $container"
-        docker exec -it "$container" XDC attach "$rpc_url"
-    else
-        # Try direct attach via RPC
-        local xdc_bin
-        xdc_bin=$(which XDC 2>/dev/null || which xdc 2>/dev/null || echo "")
-        
-        if [[ -n "$xdc_bin" ]]; then
-            "$xdc_bin" attach "$rpc_url"
+        # Try IPC first (inside container)
+        local ipc_path="/work/xdcchain/XDC.ipc"
+        if docker exec "$container" test -S "$ipc_path" 2>/dev/null; then
+            info "Attaching via IPC: $ipc_path"
+            docker exec -it "$container" XDC attach "$ipc_path"
         else
-            die "No XDC binary found. Cannot attach."
+            # Fall back to RPC
+            local rpc_url="${target:-$(get_rpc_url)}"
+            info "IPC not available, attaching via RPC: $rpc_url"
+            docker exec -it "$container" XDC attach "$rpc_url"
+        fi
+    else
+        # No container — try local IPC then RPC
+        local ipc_path="${XDC_DATA}/XDC.ipc"
+        if [[ -S "$ipc_path" ]]; then
+            info "Attaching via IPC: $ipc_path"
+            XDC attach "$ipc_path" 2>/dev/null || xdc attach "$ipc_path"
+        else
+            local rpc_url="${target:-$(get_rpc_url)}"
+            info "Attaching via RPC: $rpc_url"
+            XDC attach "$rpc_url" 2>/dev/null || xdc attach "$rpc_url"
         fi
     fi
 }
@@ -2877,6 +2898,10 @@ main() {
             --quiet|-q) QUIET=true; shift ;;
             --verbose|-v) VERBOSE=true; shift ;;
             --no-color) NO_COLOR=true; shift ;;
+            --rpc)
+                export XDC_RPC_URL="$2"
+                shift 2
+                ;;
             *) args+=("$1"); shift ;;
         esac
     done
