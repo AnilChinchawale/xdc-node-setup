@@ -1,6 +1,20 @@
 #!/bin/bash
 set -e
 
+#==============================================================================
+# Load Config File (if exists) - env vars override config file
+#==============================================================================
+CONFIG_FILE="${XDC_CONFIG:-/etc/xdc-node/xdc.conf}"
+if [[ -f "$CONFIG_FILE" ]]; then
+    # shellcheck source=/dev/null
+    source "$CONFIG_FILE"
+    echo "Loaded config from $CONFIG_FILE"
+elif [[ -f "/work/xdc.conf" ]]; then
+    # shellcheck source=/dev/null
+    source "/work/xdc.conf"
+    echo "Loaded config from /work/xdc.conf"
+fi
+
 # Ensure XDC binary is available (some images use XDC-mainnet instead of XDC)
 if ! command -v XDC &>/dev/null; then
     for bin in XDC-mainnet XDC-testnet XDC-devnet XDC-local; do
