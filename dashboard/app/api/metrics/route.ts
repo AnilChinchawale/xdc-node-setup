@@ -1,11 +1,32 @@
 import { NextResponse } from 'next/server';
 import { execSync } from 'child_process';
+import { pushToSkyNet } from '@/lib/skynet-bridge';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 function getRpcUrl() { return process.env.RPC_URL || 'http://xdc-node:8545'; }
 function getMainnetRpc() { return process.env.MAINNET_RPC || 'https://erpc.xinfin.network'; }
+
+/**
+ * Get the public IPv4 address of the server
+ * Prefers non-internal IPv4 addresses from network interfaces
+ */
+function getPublicIPv4(): string {
+  try {
+    const os = require('os');
+    const nets = os.networkInterfaces();
+    for (const name of Object.keys(nets)) {
+      for (const net of nets[name]) {
+        // Skip internal addresses and IPv6
+        if (net.family === 'IPv4' && !net.internal) {
+          return net.address;
+        }
+      }
+    }
+  } catch {}
+  return '0.0.0.0';
+}
 
 async function rpcCall(url: string, method: string, params: unknown[] = []): Promise<{ result: unknown; error: string | null }> {
   try {
@@ -199,6 +220,7 @@ export async function GET() {
       rpcConnected,
       rpcUrl: getRpcUrl(),
       rpcError: blockNumberRes.error,
+      ipv4: getPublicIPv4(), // Public IPv4 address for display
       
       // Diagnostics (shows even when RPC is dead)
       diagnostics: {
@@ -246,6 +268,9 @@ export async function GET() {
       timestamp: new Date().toISOString(),
     };
 
+    // Push to SkyNet (fire and forget — don't await, don't block response)
+    pushToSkyNet(response).catch(() => {});
+
     return NextResponse.json(response);
   } catch (error) {
     // Even on total failure, return diagnostics
@@ -256,6 +281,7 @@ export async function GET() {
       rpcConnected: false,
       rpcUrl: getRpcUrl(),
       rpcError: (error as Error).message,
+      ipv4: getPublicIPv4(),
       diagnostics: {
         containerStatus: diagnostics.containerStatus,
         recentLogs: diagnostics.recentLogs,

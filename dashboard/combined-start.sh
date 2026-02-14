@@ -12,6 +12,8 @@ echo "Starting SkyNet Agent..."
 ) &
 
 # Start Dashboard (dev mode — no build step needed)
-echo "Starting XDC Dashboard on port 3000..."
+# Use PORT env var if set, otherwise default to 3000
+DASHBOARD_PORT=${PORT:-3000}
+echo "Starting XDC Dashboard on port $DASHBOARD_PORT..."
 cd /app
-exec npx next dev -p 3000 -H 0.0.0.0
+exec npx next dev -p "$DASHBOARD_PORT" -H 0.0.0.0
