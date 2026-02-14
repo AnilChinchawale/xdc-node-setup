@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-const RPC_URL = process.env.RPC_URL || 'http://127.0.0.1:38545';
+// RPC_URL not needed for liveness check
 
 export const dynamic = 'force-dynamic';
 
