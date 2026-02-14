@@ -70,7 +70,19 @@ export interface NetworkData {
   connectionErrors: number;
 }
 
+export interface DiagnosticsData {
+  containerStatus: string;
+  recentLogs: string[];
+  errors: string[];
+  lastKnownBlock: string;
+}
+
 export interface MetricsData {
+  nodeStatus?: 'online' | 'syncing' | 'error' | 'offline';
+  rpcConnected?: boolean;
+  rpcUrl?: string;
+  rpcError?: string | null;
+  diagnostics?: DiagnosticsData;
   blockchain: BlockchainData;
   consensus: ConsensusData;
   sync: SyncData;
