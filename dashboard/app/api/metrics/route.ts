@@ -1,187 +1,191 @@
 import { NextResponse } from 'next/server';
-import { queryPrometheus, PROMETHEUS_QUERIES } from '@/lib/prometheus';
+import { execSync } from 'child_process';
+import os from 'os';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const RPC_URL = process.env.RPC_URL || 'http://xdc-node:8545';
+const MAINNET_RPC = 'https://erpc.xinfin.network';
 
-async function rpcCall(method: string, params: unknown[] = []): Promise<unknown> {
+async function rpcCall(url: string, method: string, params: unknown[] = []): Promise<unknown> {
   try {
-    const res = await fetch(RPC_URL, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jsonrpc: '2.0', method, params, id: 1 }),
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(5000),
     });
     const data = await res.json();
     return data.result;
   } catch { return null; }
 }
 
+function hexToNumber(hex: string | null | undefined): number {
+  if (!hex || hex === '0x' || hex === 'null') return 0;
+  return parseInt(hex as string, 16) || 0;
+}
+
+function getServerStats() {
+  // Try reading from /host/proc (Docker mount) first, then /proc
+  const procPath = require('fs').existsSync('/host/proc/stat') ? '/host/proc' : '/proc';
+  
+  let cpuUsage = 0;
+  let memUsed = 0;
+  let memTotal = 0;
+  let diskUsed = 0;
+  let diskTotal = 0;
+  
+  try {
+    // CPU from /proc/stat
+    const stat = require('fs').readFileSync(`${procPath}/stat`, 'utf8');
+    const cpuLine = stat.split('\n')[0].split(/\s+/);
+    const user = parseInt(cpuLine[1]);
+    const system = parseInt(cpuLine[3]);
+    const idle = parseInt(cpuLine[4]);
+    const total = user + parseInt(cpuLine[2]) + system + idle + parseInt(cpuLine[5]) + parseInt(cpuLine[6]) + parseInt(cpuLine[7]);
+    cpuUsage = Math.round(((total - idle) / total) * 100);
+  } catch {}
+  
+  try {
+    // Memory from /proc/meminfo
+    const meminfo = require('fs').readFileSync(`${procPath}/meminfo`, 'utf8');
+    const totalMatch = meminfo.match(/MemTotal:\s+(\d+)/);
+    const availMatch = meminfo.match(/MemAvailable:\s+(\d+)/);
+    if (totalMatch) memTotal = parseInt(totalMatch[1]) * 1024; // KB to bytes
+    if (availMatch) memUsed = memTotal - (parseInt(availMatch[1]) * 1024);
+  } catch {}
+  
+  try {
+    // Disk usage
+    const df = execSync('df -B1 / 2>/dev/null', { timeout: 3000 }).toString();
+    const parts = df.split('\n')[1]?.split(/\s+/);
+    if (parts) {
+      diskTotal = parseInt(parts[1]) || 0;
+      diskUsed = parseInt(parts[2]) || 0;
+    }
+  } catch {}
+  
+  return { cpuUsage, memUsed, memTotal, diskUsed, diskTotal };
+}
+
 export async function GET() {
   try {
-    // Query coinbase and node info via RPC (parallel with Prometheus)
-    const [coinbaseResult, nodeInfoResult] = await Promise.all([
-      rpcCall('eth_coinbase'),
-      rpcCall('admin_nodeInfo'),
-    ]);
-
-    const coinbase = (coinbaseResult as string) || '';
-    const nodeInfo = nodeInfoResult as Record<string, unknown> || {};
-    
-    // Extract ethstats name: prefer NODE_NAME env, fallback to node name
-    const nodeName = process.env.NODE_NAME || '';
-    const clientName = (nodeInfo.name as string) || '';
-    const ethstatsName = nodeName || '';
-
-    // Query all metrics in parallel
-    const results = await Promise.all([
-      // Blockchain
-      queryPrometheus(PROMETHEUS_QUERIES.blockHeight),
-      queryPrometheus(PROMETHEUS_QUERIES.highestBlock),
-      queryPrometheus(PROMETHEUS_QUERIES.peers),
-      queryPrometheus(PROMETHEUS_QUERIES.peersInbound),
-      queryPrometheus(PROMETHEUS_QUERIES.peersOutbound),
-      queryPrometheus(PROMETHEUS_QUERIES.uptime),
-      
-      // Consensus
-      queryPrometheus(PROMETHEUS_QUERIES.epoch),
-      queryPrometheus(PROMETHEUS_QUERIES.epochProgress),
-      queryPrometheus(PROMETHEUS_QUERIES.signingRate),
-      queryPrometheus(PROMETHEUS_QUERIES.stakeAmount),
-      queryPrometheus(PROMETHEUS_QUERIES.walletBalance),
-      queryPrometheus(PROMETHEUS_QUERIES.totalRewards),
-      queryPrometheus(PROMETHEUS_QUERIES.penalties),
-      
-      // Sync
-      queryPrometheus(PROMETHEUS_QUERIES.syncRate),
-      queryPrometheus(PROMETHEUS_QUERIES.reorgsAdd),
-      queryPrometheus(PROMETHEUS_QUERIES.reorgsDrop),
-      
-      // TxPool
-      queryPrometheus(PROMETHEUS_QUERIES.txPending),
-      queryPrometheus(PROMETHEUS_QUERIES.txQueued),
-      queryPrometheus(PROMETHEUS_QUERIES.txSlots),
-      queryPrometheus(PROMETHEUS_QUERIES.txValid),
-      queryPrometheus(PROMETHEUS_QUERIES.txInvalid),
-      queryPrometheus(PROMETHEUS_QUERIES.txUnderpriced),
-      
-      // Server
-      queryPrometheus(PROMETHEUS_QUERIES.cpuUsage),
-      queryPrometheus(PROMETHEUS_QUERIES.memoryUsed),
-      queryPrometheus(PROMETHEUS_QUERIES.memoryTotal),
-      queryPrometheus(PROMETHEUS_QUERIES.diskUsed),
-      queryPrometheus(PROMETHEUS_QUERIES.diskTotal),
-      queryPrometheus(PROMETHEUS_QUERIES.goroutines),
-      queryPrometheus(PROMETHEUS_QUERIES.sysLoad),
-      queryPrometheus(PROMETHEUS_QUERIES.procLoad),
-      
-      // Storage
-      queryPrometheus(PROMETHEUS_QUERIES.chainDataSize),
-      queryPrometheus(PROMETHEUS_QUERIES.diskReadRate),
-      queryPrometheus(PROMETHEUS_QUERIES.diskWriteRate),
-      queryPrometheus(PROMETHEUS_QUERIES.compactTime),
-      queryPrometheus(PROMETHEUS_QUERIES.trieCacheHitRate),
-      queryPrometheus(PROMETHEUS_QUERIES.trieCacheMiss),
-      
-      // Network
-      queryPrometheus(PROMETHEUS_QUERIES.inboundTraffic),
-      queryPrometheus(PROMETHEUS_QUERIES.outboundTraffic),
-      queryPrometheus(PROMETHEUS_QUERIES.dialSuccess),
-      queryPrometheus(PROMETHEUS_QUERIES.dialTotal),
-      queryPrometheus(PROMETHEUS_QUERIES.eth100Traffic),
-      queryPrometheus(PROMETHEUS_QUERIES.eth63Traffic),
-      queryPrometheus(PROMETHEUS_QUERIES.connectionErrors),
-    ]);
-
+    // Parallel RPC calls
     const [
-      blockHeight, highestBlock, peers, peersInbound, peersOutbound, uptime,
-      epoch, epochProgress, signingRate, stakeAmount, walletBalance, totalRewards, penalties,
-      syncRate, reorgsAdd, reorgsDrop,
-      txPending, txQueued, txSlots, txValid, txInvalid, txUnderpriced,
-      cpuUsage, memoryUsed, memoryTotal, diskUsed, diskTotal, goroutines, sysLoad, procLoad,
-      chainDataSize, diskReadRate, diskWriteRate, compactTime, trieCacheHitRate, trieCacheMiss,
-      inboundTraffic, outboundTraffic, dialSuccess, dialTotal, eth100Traffic, eth63Traffic, connectionErrors,
-    ] = results;
+      blockNumberResult,
+      syncingResult,
+      peerCountResult,
+      nodeInfoResult,
+      coinbaseResult,
+      txpoolResult,
+      peersResult,
+      mainnetBlockResult,
+    ] = await Promise.all([
+      rpcCall(RPC_URL, 'eth_blockNumber'),
+      rpcCall(RPC_URL, 'eth_syncing'),
+      rpcCall(RPC_URL, 'net_peerCount'),
+      rpcCall(RPC_URL, 'admin_nodeInfo'),
+      rpcCall(RPC_URL, 'eth_coinbase'),
+      rpcCall(RPC_URL, 'txpool_status'),
+      rpcCall(RPC_URL, 'admin_peers'),
+      rpcCall(MAINNET_RPC, 'eth_blockNumber'),
+    ]);
 
-    // Calculate sync percentage
-    const currentHeight = blockHeight || 0;
-    const highest = highestBlock || currentHeight;
-    const syncPercent = highest > 0 ? Math.min(100, (currentHeight / highest) * 100) : 100;
-    const isSyncing = syncPercent < 99.9;
-
-    // Determine masternode status (fallback logic)
-    const signingRateVal = signingRate || 0;
-    let masternodeStatus: 'Active' | 'Inactive' | 'Slashed' = 'Inactive';
-    if (signingRateVal >= 90) masternodeStatus = 'Active';
-    else if (signingRateVal > 0 && signingRateVal < 90) masternodeStatus = 'Slashed';
-
+    const blockHeight = hexToNumber(blockNumberResult as string);
+    const mainnetHeight = hexToNumber(mainnetBlockResult as string);
+    const peers = hexToNumber(peerCountResult as string);
+    const nodeInfo = (nodeInfoResult || {}) as Record<string, any>;
+    const coinbase = (coinbaseResult as string) || '';
+    const txpool = (txpoolResult || {}) as Record<string, string>;
+    const peersList = (peersResult || []) as Array<Record<string, any>>;
+    
+    // Sync info
+    let isSyncing = false;
+    let highestBlock = mainnetHeight || blockHeight;
+    if (syncingResult && typeof syncingResult === 'object') {
+      isSyncing = true;
+      const syncData = syncingResult as Record<string, string>;
+      highestBlock = hexToNumber(syncData.highestBlock) || highestBlock;
+    }
+    const syncPercent = highestBlock > 0 ? Math.min(100, (blockHeight / highestBlock) * 100) : 100;
+    
+    // Peer breakdown
+    const inbound = peersList.filter(p => p.network?.inbound === true).length;
+    const outbound = peersList.length - inbound;
+    
+    // Server stats from /proc
+    const server = getServerStats();
+    
+    // Epoch estimate (XDPoS: ~900 blocks per epoch)
+    const epoch = Math.floor(blockHeight / 900);
+    const epochProgress = ((blockHeight % 900) / 900) * 100;
+    
     const response = {
       blockchain: {
-        blockHeight: Math.floor(currentHeight),
-        highestBlock: Math.floor(highest),
+        blockHeight,
+        highestBlock,
         syncPercent: Math.round(syncPercent * 10) / 10,
         isSyncing,
-        peers: Math.floor(peers || 0),
-        peersInbound: Math.floor(peersInbound || 0),
-        peersOutbound: Math.floor(peersOutbound || 0),
-        uptime: uptime || 0,
+        peers,
+        peersInbound: inbound,
+        peersOutbound: outbound,
+        uptime: 0,
         chainId: '50',
         coinbase: coinbase ? coinbase.replace('0x', 'xdc') : '',
-        ethstatsName,
-        clientVersion: clientName,
+        ethstatsName: process.env.NODE_NAME || '',
+        clientVersion: (nodeInfo.name as string) || '',
       },
       consensus: {
-        epoch: Math.floor(epoch || 0),
-        epochProgress: Math.round((epochProgress || 0) * 10) / 10,
-        masternodeStatus,
-        signingRate: Math.round((signingRate || 0) * 10) / 10,
-        stakeAmount: stakeAmount || 0,
-        walletBalance: walletBalance || 0,
-        totalRewards: totalRewards || 0,
-        penalties: Math.floor(penalties || 0),
+        epoch,
+        epochProgress: Math.round(epochProgress * 10) / 10,
+        masternodeStatus: 'Inactive' as string,
+        signingRate: 0,
+        stakeAmount: 0,
+        walletBalance: 0,
+        totalRewards: 0,
+        penalties: 0,
       },
       sync: {
-        syncRate: syncRate || 0,
-        reorgsAdd: Math.floor(reorgsAdd || 0),
-        reorgsDrop: Math.floor(reorgsDrop || 0),
+        syncRate: 0,
+        reorgsAdd: 0,
+        reorgsDrop: 0,
       },
       txpool: {
-        pending: Math.floor(txPending || 0),
-        queued: Math.floor(txQueued || 0),
-        slots: Math.floor(txSlots || 0),
-        valid: Math.floor(txValid || 0),
-        invalid: Math.floor(txInvalid || 0),
-        underpriced: Math.floor(txUnderpriced || 0),
+        pending: hexToNumber(txpool.pending),
+        queued: hexToNumber(txpool.queued),
+        slots: 0,
+        valid: 0,
+        invalid: 0,
+        underpriced: 0,
       },
       server: {
-        cpuUsage: Math.round((cpuUsage || 0) * 10) / 10,
-        memoryUsed: memoryUsed || 0,
-        memoryTotal: memoryTotal || (memoryUsed ? memoryUsed * 2 : 16 * 1024 * 1024 * 1024),
-        diskUsed: diskUsed || 0,
-        diskTotal: diskTotal || (diskUsed ? diskUsed * 1.5 : 500 * 1024 * 1024 * 1024),
-        goroutines: Math.floor(goroutines || 0),
-        sysLoad: sysLoad || 0,
-        procLoad: procLoad || 0,
+        cpuUsage: server.cpuUsage,
+        memoryUsed: server.memUsed,
+        memoryTotal: server.memTotal,
+        diskUsed: server.diskUsed,
+        diskTotal: server.diskTotal,
+        goroutines: 0,
+        sysLoad: 0,
+        procLoad: 0,
       },
       storage: {
-        chainDataSize: chainDataSize || 0,
-        diskReadRate: diskReadRate || 0,
-        diskWriteRate: diskWriteRate || 0,
-        compactTime: compactTime || 0,
-        trieCacheHitRate: Math.round((trieCacheHitRate || 0) * 10) / 10,
-        trieCacheMiss: Math.floor(trieCacheMiss || 0),
+        chainDataSize: 0,
+        diskReadRate: 0,
+        diskWriteRate: 0,
+        compactTime: 0,
+        trieCacheHitRate: 0,
+        trieCacheMiss: 0,
       },
       network: {
-        totalPeers: Math.floor(peers || 0),
-        inboundTraffic: inboundTraffic || 0,
-        outboundTraffic: outboundTraffic || 0,
-        dialSuccess: Math.floor(dialSuccess || 0),
-        dialTotal: Math.floor(dialTotal || 0),
-        eth100Traffic: eth100Traffic || 0,
-        eth63Traffic: eth63Traffic || 0,
-        connectionErrors: Math.floor(connectionErrors || 0),
+        totalPeers: peers,
+        inboundTraffic: 0,
+        outboundTraffic: 0,
+        dialSuccess: 0,
+        dialTotal: 0,
+        eth100Traffic: 0,
+        eth63Traffic: 0,
+        connectionErrors: 0,
       },
       timestamp: new Date().toISOString(),
     };
