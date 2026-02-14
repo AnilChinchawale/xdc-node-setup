@@ -2064,7 +2064,14 @@ EOF
         info "Found $count XDC container(s)"
         start_spinner "Stopping all XDC containers"
         
-        if docker stop $containers >/dev/null 2>&1; then
+        # Stop each container individually to handle spaces in names safely
+        local stop_failed=false
+        while IFS= read -r container; do
+            [[ -n "$container" ]] || continue
+            docker stop "$container" >/dev/null 2>&1 || stop_failed=true
+        done <<< "$containers"
+        
+        if [[ "$stop_failed" == "false" ]]; then
             stop_spinner true "All containers stopped"
             log "Stopped $count XDC container(s)"
         else

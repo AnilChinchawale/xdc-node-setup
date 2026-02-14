@@ -1345,7 +1345,27 @@ setup_security() {
 # Log Rotation Cron Setup
 #==============================================================================
 setup_log_rotation_cron() {
-    log "Setting up log rotation cron job..."
+    log "Setting up log rotation..."
+    
+    # Install logrotate configuration file (Issue #29)
+    local logrotate_conf_src="${SCRIPT_DIR}/configs/logrotate/xdc-node"
+    local logrotate_conf_dest="/etc/logrotate.d/xdc-node"
+    
+    if [[ -f "$logrotate_conf_src" ]]; then
+        if [[ -d "/etc/logrotate.d" ]]; then
+            cp "$logrotate_conf_src" "$logrotate_conf_dest"
+            chmod 644 "$logrotate_conf_dest"
+            log "Logrotate config installed to $logrotate_conf_dest"
+        else
+            warn "/etc/logrotate.d not found, skipping system logrotate config"
+        fi
+    else
+        warn "Logrotate config not found at $logrotate_conf_src"
+    fi
+    
+    # Ensure log directory exists
+    mkdir -p /var/log/xdc
+    chmod 755 /var/log/xdc
     
     # Ensure log rotation script exists and is executable
     local log_rotate_script="${SCRIPT_DIR}/scripts/log-rotate.sh"

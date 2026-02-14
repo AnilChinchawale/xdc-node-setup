@@ -391,7 +391,121 @@ print_post_install() {
 # Main
 #==============================================================================
 main() {
+    # Parse command line arguments
+    local verify_checksum_flag=false
+    local verify_gpg_flag=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --yes|-y)
+                SKIP_CONFIRMATION=true
+                shift
+                ;;
+            --dry-run)
+                DRY_RUN=true
+                shift
+                ;;
+            --verify)
+                verify_checksum_flag=true
+                shift
+                ;;
+            --verify-gpg)
+                verify_checksum_flag=true
+                verify_gpg_flag=true
+                shift
+                ;;
+            --help|-h)
+                cat << EOF
+XDC Node Setup Installer
+
+Usage: curl -sSL https://raw.githubusercontent.com/AnilChinchawale/xdc-node-setup/main/install.sh | bash -s -- [OPTIONS]
+
+Options:
+  --yes, -y        Skip confirmation prompts (for CI/CD)
+  --dry-run        Show what will be done without executing
+  --verify         Verify SHA256 checksum before execution
+  --verify-gpg     Verify GPG signature (implies --verify)
+  --help, -h       Show this help message
+
+Environment Variables:
+  SKIP_CONFIRMATION=true   Same as --yes flag
+
+Examples:
+  # Standard installation
+  curl -sSL https://.../install.sh | bash
+
+  # CI/CD (no prompts)
+  curl -sSL https://.../install.sh | bash -s -- --yes
+
+  # Preview changes
+  curl -sSL https://.../install.sh | bash -s -- --dry-run
+
+  # With verification
+  curl -sSL https://.../install.sh | bash -s -- --verify
+
+Safer alternative:
+  git clone ${REPO_URL}.git
+  cd xdc-node-setup && bash install.sh
+
+EOF
+                exit 0
+                ;;
+            *)
+                warn "Unknown option: $1"
+                shift
+                ;;
+        esac
+    done
+    
+    # Check environment variable for skip confirmation
+    if [[ "${SKIP_CONFIRMATION:-false}" == "true" ]]; then
+        SKIP_CONFIRMATION=true
+    fi
+    
+    # Handle dry-run mode
+    if [[ "$DRY_RUN" == "true" ]]; then
+        print_dry_run_summary
+        exit 0
+    fi
+    
+    # If called with --verify or --verify-gpg, verify this script
+    if [[ "$verify_checksum_flag" == "true" ]]; then
+        # When piped, we can't verify the running script, so download and verify
+        info "Verification mode - downloading and verifying script..."
+        local temp_script
+        temp_script=$(mktemp)
+        if curl -fsSL "${RAW_URL}/install.sh" -o "$temp_script" 2>/dev/null; then
+            if verify_checksum "$temp_script"; then
+                log "Checksum verification passed"
+                if [[ "$verify_gpg_flag" == "true" ]]; then
+                    verify_gpg_signature "$temp_script"
+                fi
+                info "Verification complete. You can now run: bash $temp_script"
+                exit 0
+            else
+                error "Verification failed!"
+                rm -f "$temp_script"
+                exit 1
+            fi
+        else
+            error "Could not download script for verification"
+            rm -f "$temp_script"
+            exit 1
+        fi
+    fi
+    
     show_banner
+    
+    # Print security warning (unless --yes was used)
+    if [[ "$SKIP_CONFIRMATION" != "true" ]]; then
+        print_security_warning
+        echo ""
+        read -rp "Do you want to continue? [y/N]: " confirm
+        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+            info "Installation cancelled by user"
+            exit 0
+        fi
+    fi
     
     # Check OS compatibility
     if ! check_os_compatibility; then

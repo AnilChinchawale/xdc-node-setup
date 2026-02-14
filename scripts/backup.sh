@@ -408,8 +408,8 @@ upload_to_ftp() {
 set ssl:verify-certificate no
 set net:max-retries 3
 set net:timeout 30
-mkdir -p $remote_path
-cd $remote_path
+mkdir -p "$remote_path"
+cd "$remote_path"
 put "$file"
 bye
 EOF
