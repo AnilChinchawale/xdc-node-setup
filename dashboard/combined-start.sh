@@ -3,6 +3,11 @@
 
 # Load SkyNet config if available (provides SKYNET_NODE_ID, SKYNET_API_KEY, etc.)
 SKYNET_CONF="${SKYNET_CONF:-/etc/xdc-node/skynet.conf}"
+# Docker may create skynet.conf as a directory if mount source was missing — skip if so
+if [ -d "$SKYNET_CONF" ]; then
+  echo "WARNING: $SKYNET_CONF is a directory (Docker mount artifact). Skipping SkyNet config."
+  SKYNET_CONF=""
+fi
 if [ -f "$SKYNET_CONF" ]; then
   echo "Loading SkyNet config from $SKYNET_CONF"
   set -a  # auto-export all vars

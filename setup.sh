@@ -1173,9 +1173,14 @@ EOF
     chmod +x "$PROJECT_ROOT/docker/skynet-agent.sh"
     
     # Create initial skynet.conf from template (will be updated after registration)
+    # Docker creates a directory if mount source doesn't exist — remove it first
+    if [[ -d "$STATE_DIR/skynet.conf" ]]; then
+        rm -rf "$STATE_DIR/skynet.conf"
+    fi
     if [[ ! -f "$STATE_DIR/skynet.conf" ]]; then
         cp "$SCRIPT_DIR/configs/skynet.conf.template" "$STATE_DIR/skynet.conf" 2>/dev/null || \
-            curl -sSL "https://raw.githubusercontent.com/XDC-Node-Setup/main/configs/skynet.conf.template" -o "$STATE_DIR/skynet.conf"
+            curl -sSL "https://raw.githubusercontent.com/XDC-Node-Setup/main/configs/skynet.conf.template" -o "$STATE_DIR/skynet.conf" 2>/dev/null || \
+            touch "$STATE_DIR/skynet.conf"
         # Pre-fill SkyNet API URL and prompt for API key
         sed -i.bak "s|^SKYNET_API_URL=.*|SKYNET_API_URL=https://net.xdc.network/api/v1|" "$STATE_DIR/skynet.conf" 2>/dev/null
         sed -i.bak "s|^SKYNET_NODE_NAME=.*|SKYNET_NODE_NAME=$(hostname)-${NETWORK}|" "$STATE_DIR/skynet.conf" 2>/dev/null
