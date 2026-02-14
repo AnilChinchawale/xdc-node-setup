@@ -104,7 +104,7 @@ export default function HeroSection({ data, nodeConfig, blockHeightHistory = [],
   const showSparkline = blockHeightHistory.length >= 2;
   
   // Calculate sync ETA
-  const remainingBlocks = data.highestBlock - data.blockHeight;
+  const remainingBlocks = (data.networkHeight || data.highestBlock) - data.blockHeight;
   const estimatedMinutes = blocksPerMinute > 0 ? remainingBlocks / blocksPerMinute : 0;
   const showETA = data.isSyncing && blocksPerMinute > 0 && estimatedMinutes > 0;
   
@@ -131,9 +131,9 @@ export default function HeroSection({ data, nodeConfig, blockHeightHistory = [],
             {data.blockHeight > 0 ? displayBlockHeight.toLocaleString() : '—'}
           </div>
           <div className="flex items-center gap-2 text-sm mb-2">
-            <span className="text-[var(--text-tertiary)]">Highest:</span>
+            <span className="text-[var(--text-tertiary)]">Network:</span>
             <span className="font-mono-nums text-[var(--text-secondary)]">
-              {data.highestBlock > 0 ? data.highestBlock.toLocaleString() : '—'}
+              {(data.networkHeight || data.highestBlock) > 0 ? (data.networkHeight || data.highestBlock).toLocaleString() : '—'}
             </span>
           </div>
           

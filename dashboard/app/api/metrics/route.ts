@@ -230,13 +230,30 @@ export async function GET() {
     const txpool = (txpoolRes.result || {}) as Record<string, string>;
     const peersList = (peersRes.result || []) as Array<Record<string, any>>;
     
-    // Sync info
+    // Sync info — use SkyNet network height for accurate sync percentage
     let isSyncing = false;
     let highestBlock = mainnetHeight || blockHeight;
     if (syncingRes.result && typeof syncingRes.result === 'object') {
       isSyncing = true;
       const syncData = syncingRes.result as Record<string, string>;
       highestBlock = hexToNumber(syncData.highestBlock) || highestBlock;
+    }
+    
+    // Fetch network height from SkyNet for accurate comparison
+    const skynetUrl = process.env.SKYNET_API_URL || 'https://net.xdc.network/api/v1';
+    try {
+      const skynetRes = await fetch(`${skynetUrl}/network/health`, {
+        signal: AbortSignal.timeout(3000),
+      }).then(r => r.json()).catch(() => null);
+      const networkHeight = skynetRes?.data?.maxBlockHeight || skynetRes?.maxBlockHeight || 0;
+      if (networkHeight > highestBlock) {
+        highestBlock = networkHeight;
+      }
+    } catch {}
+    
+    if (highestBlock <= blockHeight && blockHeight > 0) {
+      // Node reports equal or higher — check if truly synced
+      isSyncing = false;
     }
     const syncPercent = highestBlock > 0 ? Math.min(100, (blockHeight / highestBlock) * 100) : (blockHeight === 0 ? 0 : 100);
     
@@ -307,6 +324,7 @@ export async function GET() {
       blockchain: {
         blockHeight,
         highestBlock,
+        networkHeight: highestBlock,
         syncPercent: Math.round(syncPercent * 10) / 10,
         isSyncing,
         peers,
