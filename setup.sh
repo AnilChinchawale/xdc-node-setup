@@ -146,7 +146,7 @@ spinner() {
     local message="${2:-Processing...}"
     local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
     local i=0
-    
+
     tput civis 2>/dev/null || true
     while kill -0 "$pid" 2>/dev/null; do
         i=$(( (i+1) % 10 ))
@@ -175,8 +175,8 @@ show_banner() {
 
     ██╗  ██╗██████╗  ██████╗    ███╗   ██╗ ██████╗ ██████╗ ███████╗
     ╚██╗██╔╝██╔══██╗██╔════╝    ████╗  ██║██╔═══██╗██╔══██╗██╔════╝
-     ╚███╔╝ ██║  ██║██║         ██╔██╗ ██║██║   ██║██║  ██║█████╗  
-     ██╔██╗ ██║  ██║██║         ██║╚██╗██║██║   ██║██║  ██║██╔══╝  
+     ╚███╔╝ ██║  ██║██║         ██╔██╗ ██║██║   ██║██║  ██║█████╗
+     ██╔██╗ ██║  ██║██║         ██║╚██╗██║██║   ██║██║  ██║██╔══╝
     ██╔╝ ██╗██████╔╝╚██████╗    ██║ ╚████║╚██████╔╝██████╔╝███████╗
     ╚═╝  ╚═╝╚═════╝  ╚═════╝    ╚═╝  ╚═══╝ ╚═════╝ ╚═════╝ ╚══════╝
 
@@ -303,9 +303,9 @@ check_os_compatibility() {
 
 check_hardware() {
     info "Checking hardware requirements..."
-    
+
     local cpu_cores ram_gb disk_gb
-    
+
     if [[ "$OS" == "macos" ]]; then
         cpu_cores=$(sysctl -n hw.ncpu)
         ram_gb=$(($(sysctl -n hw.memsize) / 1024 / 1024 / 1024))
@@ -315,35 +315,35 @@ check_hardware() {
         ram_gb=$(free -g | awk '/^Mem:/{print $2}')
         disk_gb=$(df -BG / | awk 'NR==2 {print $4}' | tr -d 'G')
     fi
-    
+
     echo -e "  ${BLUE}CPU Cores:${NC} $cpu_cores"
     echo -e "  ${BLUE}RAM:${NC} ${ram_gb}GB"
     echo -e "  ${BLUE}Disk Available:${NC} ${disk_gb}GB"
-    
+
     # Check minimums
     local warnings=0
-    
+
     if [[ $cpu_cores -lt 4 ]]; then
         warn "Minimum 4 CPU cores recommended (found: $cpu_cores)"
         warnings=$((warnings + 1))
     fi
-    
+
     if [[ $ram_gb -lt 16 ]]; then
         warn "Minimum 16GB RAM recommended (found: ${ram_gb}GB)"
         warnings=$((warnings + 1))
     fi
-    
+
     if [[ $disk_gb -lt 500 ]]; then
         warn "Minimum 500GB disk space recommended (found: ${disk_gb}GB)"
         warnings=$((warnings + 1))
     fi
-    
+
     if [[ $warnings -gt 0 ]]; then
-        warn "Hardware does not meet recommended specs — node may run slowly"
+        warn "Hardware does not meet recommended specs - node may run slowly"
         warn "Proceeding with setup anyway..."
         sleep 2
     fi
-    
+
     log "Hardware check complete"
 }
 
@@ -361,12 +361,12 @@ check_docker() {
 #==============================================================================
 install_docker_linux() {
     log "Installing Docker on Linux..."
-    
+
     # Respect proxy settings
     local env_vars=""
     [[ -n "${HTTP_PROXY:-}" ]] && env_vars="$env_vars -e HTTP_PROXY=$HTTP_PROXY"
     [[ -n "${HTTPS_PROXY:-}" ]] && env_vars="$env_vars -e HTTPS_PROXY=$HTTPS_PROXY"
-    
+
     # Install dependencies
     apt-get update -qq
     apt-get install -y -qq \
@@ -375,30 +375,30 @@ install_docker_linux() {
         gnupg \
         lsb-release \
         software-properties-common
-    
+
     # Add Docker GPG key
     install -m 0755 -d /etc/apt/keyrings
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg 2>/dev/null || \
         curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
     chmod a+r /etc/apt/keyrings/docker.gpg
-    
+
     # Add Docker repository
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$(. /etc/os-release && echo "$ID") $(lsb_release -cs) stable" | \
         tee /etc/apt/sources.list.d/docker.list > /dev/null
-    
+
     # Install Docker
     apt-get update -qq
     apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-compose-plugin
-    
+
     # Start Docker
     systemctl enable docker
     systemctl start docker
-    
+
     # Add user to docker group if not root
     if [[ -n "${SUDO_USER:-}" ]]; then
         usermod -aG docker "$SUDO_USER" 2>/dev/null || true
     fi
-    
+
     log "Docker installed successfully"
 }
 
@@ -406,11 +406,11 @@ check_docker_macos() {
     if ! command -v docker &> /dev/null; then
         fatal "Docker Desktop is required on macOS. Please install from https://www.docker.com/products/docker-desktop"
     fi
-    
+
     if ! docker info &> /dev/null; then
         fatal "Docker Desktop is installed but not running. Please start Docker Desktop."
     fi
-    
+
     log "Docker Desktop detected and running"
 }
 
@@ -419,7 +419,7 @@ install_docker() {
         log "Docker already installed"
         return 0
     fi
-    
+
     if [[ "$OS" == "macos" ]]; then
         check_docker_macos
     else
@@ -432,13 +432,13 @@ install_docker() {
 #==============================================================================
 install_dependencies() {
     log "Installing dependencies..."
-    
+
     if [[ "$OS" == "macos" ]]; then
         # macOS dependencies
         if ! command -v brew &> /dev/null; then
             fatal "Homebrew is required. Install from https://brew.sh"
         fi
-        
+
         local deps=(jq curl wget)
         for dep in "${deps[@]}"; do
             if ! command -v "$dep" &> /dev/null; then
@@ -460,7 +460,7 @@ install_dependencies() {
             fail2ban \
             2>/dev/null || true
     fi
-    
+
     log "Dependencies installed"
 }
 
@@ -499,12 +499,12 @@ init_config() {
     P2P_PORT=$(find_free_port "$P2P_PORT")
     WS_PORT=$(find_free_port "$WS_PORT")
     DASHBOARD_PORT=$(find_free_port "$DASHBOARD_PORT")
-    
+
     # Derive paths from NETWORK and PROJECT_ROOT
     DATA_DIR="${DATA_DIR:-${PROJECT_ROOT}/${NETWORK}/xdcchain}"
     STATE_DIR="${PROJECT_ROOT}/${NETWORK}/.xdc-node"
     CONFIG_DIR="${PROJECT_ROOT}/configs"
-    
+
     # Feature flags
     ENABLE_MONITORING="${ENABLE_MONITORING:-false}"
     ENABLE_SKYNET="${ENABLE_SKYNET:-false}"
@@ -512,7 +512,7 @@ init_config() {
     ENABLE_NOTIFICATIONS="${ENABLE_NOTIFICATIONS:-false}"
     ENABLE_UPDATES="${ENABLE_UPDATES:-true}"
     INSTALL_CLI="${INSTALL_CLI:-true}"
-    
+
     # Chain ID based on network
     case "${NETWORK:-mainnet}" in
         mainnet)
@@ -541,7 +541,7 @@ prompt_network() {
     echo "2) Testnet (Apothem - Development) - Chain ID: 51"
     echo "3) Devnet (Local Development) - Chain ID: 551"
     echo ""
-    
+
     while true; do
         read -rp "Select network [1-3] (default: 1): " choice
         choice=${choice:-1}
@@ -552,7 +552,7 @@ prompt_network() {
             *) echo "Invalid selection. Please choose 1-3." ;;
         esac
     done
-    
+
     log "Selected network: $NETWORK (Chain ID: $CHAIN_ID)"
 }
 
@@ -565,7 +565,7 @@ prompt_node_type() {
     echo "3) RPC Node - Optimized for RPC requests"
     echo "4) Masternode - XDC Network validator node"
     echo ""
-    
+
     while true; do
         read -rp "Select node type [1-4] (default: 1): " choice
         choice=${choice:-1}
@@ -577,7 +577,7 @@ prompt_node_type() {
             *) echo "Invalid selection. Please choose 1-4." ;;
         esac
     done
-    
+
     log "Selected node type: $NODE_TYPE"
 }
 
@@ -591,13 +591,13 @@ prompt_client() {
     echo ""
     echo -e "${YELLOW}Note: Building from source requires Go 1.22+ and takes 10-15 minutes${NC}"
     echo ""
-    
+
     while true; do
         read -rp "Select client [1-3] (default: 1): " choice
         choice=${choice:-1}
         case $choice in
             1) CLIENT="stable"; break ;;
-            2) 
+            2)
                 warn "Geth PR5 will be built from source. This may take 10-15 minutes."
                 read -rp "Continue? [y/N]: " confirm
                 if [[ "${confirm:-N}" =~ ^[Yy]$ ]]; then
@@ -605,7 +605,7 @@ prompt_client() {
                     break
                 fi
                 ;;
-            3) 
+            3)
                 warn "Erigon-XDC is experimental and will be built from source. This may take 10-15 minutes."
                 read -rp "Continue? [y/N]: " confirm
                 if [[ "${confirm:-N}" =~ ^[Yy]$ ]]; then
@@ -616,7 +616,7 @@ prompt_client() {
             *) echo "Invalid selection. Please choose 1-3." ;;
         esac
     done
-    
+
     log "Selected client: $CLIENT"
 }
 
@@ -627,7 +627,7 @@ prompt_sync_mode() {
     echo "1) Full Sync - Complete verification (slower, most secure)"
     echo "2) Snap Sync - Fast snapshot sync (faster, recommended)"
     echo ""
-    
+
     while true; do
         read -rp "Select sync mode [1-2] (default: 2): " choice
         choice=${choice:-2}
@@ -637,7 +637,7 @@ prompt_sync_mode() {
             *) echo "Invalid selection. Please choose 1-2." ;;
         esac
     done
-    
+
     log "Selected sync mode: $SYNC_MODE"
 }
 
@@ -655,13 +655,13 @@ prompt_ports() {
     echo ""
     echo -e "${BOLD}Port Configuration${NC}"
     echo "==================="
-    
+
     read -rp "RPC port [9545]: " input
     RPC_PORT="${input:-9545}"
-    
+
     read -rp "P2P port [30303]: " input
     P2P_PORT="${input:-30303}"
-    
+
     log "RPC port: $RPC_PORT, P2P port: $P2P_PORT"
 }
 
@@ -669,27 +669,27 @@ prompt_features() {
     echo ""
     echo -e "${BOLD}Feature Configuration${NC}"
     echo "======================"
-    
+
     read -rp "Enable monitoring (Grafana + Prometheus)? [y/N]: " input
     [[ "${input:-N}" =~ ^[Yy]$ ]] && ENABLE_MONITORING="true" || ENABLE_MONITORING="false"
-    
+
     read -rp "Enable SkyNet fleet monitoring? [y/N]: " input
     [[ "${input:-N}" =~ ^[Yy]$ ]] && ENABLE_SKYNET="true" || ENABLE_SKYNET="false"
-    
+
     if [[ "$OS" == "linux" ]]; then
         read -rp "Enable security hardening (SSH, UFW, fail2ban)? [Y/n]: " input
         [[ ! "${input:-Y}" =~ ^[Nn]$ ]] && ENABLE_SECURITY="true" || ENABLE_SECURITY="false"
     fi
-    
+
     read -rp "Enable notifications? [y/N]: " input
     [[ "${input:-N}" =~ ^[Yy]$ ]] && ENABLE_NOTIFICATIONS="true" || ENABLE_NOTIFICATIONS="false"
-    
+
     read -rp "Enable auto-updates? [Y/n]: " input
     [[ ! "${input:-Y}" =~ ^[Nn]$ ]] && ENABLE_UPDATES="true" || ENABLE_UPDATES="false"
-    
+
     read -rp "Install CLI tool (xdc-node)? [Y/n]: " input
     [[ ! "${input:-Y}" =~ ^[Nn]$ ]] && INSTALL_CLI="true" || INSTALL_CLI="false"
-    
+
     log "Monitoring: $ENABLE_MONITORING, SkyNet: $ENABLE_SKYNET, Security: $ENABLE_SECURITY, Notifications: $ENABLE_NOTIFICATIONS, Updates: $ENABLE_UPDATES, CLI: $INSTALL_CLI"
 }
 
@@ -697,7 +697,7 @@ prompt_advanced() {
     echo ""
     echo -e "${CYAN}${BOLD}Advanced Mode${NC} - Configure your XDC node"
     echo ""
-    
+
     prompt_network
     prompt_node_type
     prompt_client
@@ -712,16 +712,16 @@ prompt_advanced() {
 #==============================================================================
 configure_node() {
     log "Configuring XDC node..."
-    
+
     # Create directory structure only for the selected network
     mkdir -p "${PROJECT_ROOT}/${NETWORK}/xdcchain"/{XDC,keystore}
     mkdir -p "${PROJECT_ROOT}/${NETWORK}/.xdc-node/logs"
     mkdir -p "${PROJECT_ROOT}"/{configs,scripts,logs}
-    
+
     # Set permissions
     chmod 750 "$DATA_DIR"
     chmod 700 "$DATA_DIR/keystore" 2>/dev/null || true
-    
+
     # Create environment file
     ensure_file_path "$STATE_DIR/node.env"
     cat > "$STATE_DIR/node.env" << EOF
@@ -743,9 +743,9 @@ ENABLE_SECURITY=$ENABLE_SECURITY
 ENABLE_NOTIFICATIONS=$ENABLE_NOTIFICATIONS
 ENABLE_UPDATES=$ENABLE_UPDATES
 EOF
-    
+
     chmod 600 "$STATE_DIR/node.env"
-    
+
     # Create client.conf for CLI to detect client type
     ensure_file_path "$STATE_DIR/client.conf"
     cat > "$STATE_DIR/client.conf" << EOF
@@ -754,7 +754,7 @@ EOF
 CLIENT=$CLIENT
 EOF
     chmod 600 "$STATE_DIR/client.conf"
-    
+
     log "Node configuration saved (client: $CLIENT)"
 }
 
@@ -763,16 +763,16 @@ EOF
 #==============================================================================
 generate_config_toml() {
     log "Generating config.toml..."
-    
+
     local config_toml="$STATE_DIR/config.toml"
     local template="$CONFIG_DIR/config.toml.template"
-    
+
     # Check if template exists
     if [[ ! -f "$template" ]]; then
         warn "config.toml.template not found, skipping TOML generation"
         return 0
     fi
-    
+
     # Set defaults for TOML generation
     local MAX_PEERS="${MAX_PEERS:-25}"
     local CACHE_SIZE="${CACHE_SIZE:-4096}"
@@ -784,30 +784,30 @@ generate_config_toml() {
     local METRICS_ENABLED="true"
     local METRICS_PORT="${METRICS_PORT:-6060}"
     local VERBOSITY="${VERBOSITY:-3}"
-    
+
     # Archive nodes don't prune
     local NO_PRUNING="false"
     [[ "$NODE_TYPE" == "archive" ]] && NO_PRUNING="true"
-    
+
     # Load bootnodes based on network
     local BOOTNODES=""
     local bootnode_file="$CONFIG_DIR/bootnodes-${NETWORK}.json"
     if [[ -f "$bootnode_file" ]]; then
         BOOTNODES=$(jq -r '.bootnodes[].enode' "$bootnode_file" 2>/dev/null | sed 's/^/  "/' | sed 's/$/"/' | paste -sd, - || echo "")
     fi
-    
+
     # Fallback to hardcoded mainnet bootnodes if empty
     if [[ -z "$BOOTNODES" && "$NETWORK" == "mainnet" ]]; then
         BOOTNODES='  "enode://9a977b1ac4320fa2c862dcaf536aaaea3a8f8f7cd14e3bcde32e5a1c0152bd17bd18bfdc3c2ca8c4a0f3da153c62935fea1dc040cc1e66d2c07d6b4c91e2ed42@bootnode.xinfin.network:30303"'
     fi
-    
+
     # RPC API modules
     local RPC_API='"admin", "eth", "net", "web3", "XDPoS"'
     local WS_API='"admin", "eth", "net", "web3", "XDPoS"'
-    
+
     # Create config.toml from template
     cp "$template" "$config_toml"
-    
+
     # Replace placeholders
     sed_inplace "s|{{DATA_DIR}}|/work/xdcchain|g" "$config_toml"
     sed_inplace "s|{{CHAIN_ID}}|$CHAIN_ID|g" "$config_toml"
@@ -829,7 +829,7 @@ generate_config_toml() {
     sed_inplace "s|{{METRICS_ENABLED}}|$METRICS_ENABLED|g" "$config_toml"
     sed_inplace "s|{{METRICS_PORT}}|$METRICS_PORT|g" "$config_toml"
     sed_inplace "s|{{VERBOSITY}}|$VERBOSITY|g" "$config_toml"
-    
+
     chmod 644 "$config_toml"
     log "config.toml generated at $config_toml"
 }
@@ -839,9 +839,9 @@ generate_config_toml() {
 #==============================================================================
 setup_docker_compose() {
     log "Setting up Docker Compose..."
-    
+
     mkdir -p "$PROJECT_ROOT/docker"
-    
+
     # Determine Docker image based on platform
     local arch
     arch=$(uname -m)
@@ -850,23 +850,23 @@ setup_docker_compose() {
     if [[ "$arch" == "arm64" || "$arch" == "aarch64" ]]; then
         # Check if ARM image exists, otherwise use platform emulation
         platform_flag="platform: linux/amd64"
-        warn "ARM64 detected — using linux/amd64 emulation (may be slower)"
+        warn "ARM64 detected - using linux/amd64 emulation (may be slower)"
         info "Ensure Docker Desktop has 'Use Rosetta for x86_64/amd64 emulation' enabled"
     fi
     local docker_dir="$PROJECT_ROOT/docker"
     local network_dir="$docker_dir/mainnet"
-    
+
     mkdir -p "$network_dir"
-    
+
     # Download official XDC node files from XinFinOrg
     log "Downloading XDC node configuration files..."
     local base_url="https://raw.githubusercontent.com/XinFinOrg/XinFin-Node/master/mainnet"
-    
+
     # Try multiple sources for config files
     local bundled_dir="$SCRIPT_DIR/docker/mainnet"
     local alt_bundled="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/docker/mainnet"
     local alt_url="https://raw.githubusercontent.com/AnilChinchawale/xdc-node-setup/main/docker/mainnet"
-    
+
     for f in genesis.json start-node.sh bootnodes.list; do
         # 1. Try bundled from SCRIPT_DIR
         if [[ -f "$bundled_dir/$f" ]]; then
@@ -936,7 +936,7 @@ BNEOF
         fi
     done
     chmod +x "$network_dir/start-node.sh" 2>/dev/null || true
-    
+
     # Create entrypoint wrapper that ensures XDC binary exists
     cat > "$docker_dir/entrypoint.sh" << 'ENTRYEOF'
 #!/bin/sh
@@ -957,7 +957,7 @@ fi
 exec /work/start.sh "$@"
 ENTRYEOF
     chmod +x "$docker_dir/entrypoint.sh"
-    
+
     # Create .env file
     ensure_file_path "$STATE_DIR/.env"
     cat > "$STATE_DIR/.env" << ENVEOF
@@ -993,7 +993,7 @@ ENVEOF
         chmod 600 "$network_dir/.pwd"
         info "Created empty password file (.pwd)"
     fi
-    
+
     # Use existing docker-compose.yml if present (from repo clone), otherwise generate
     if [[ -f "$docker_dir/docker-compose.yml" ]]; then
         log "Using existing docker-compose.yml (from repository)"
@@ -1166,14 +1166,14 @@ EOF
       timeout: 10s
       retries: 3
 EOF
-    
+
     # Copy skynet agent files
     cp "$SCRIPT_DIR/scripts/skynet-agent.sh" "$PROJECT_ROOT/docker/skynet-agent.sh" 2>/dev/null || \
         curl -sSL "https://raw.githubusercontent.com/XDC-Node-Setup/main/scripts/skynet-agent.sh" -o "$PROJECT_ROOT/docker/skynet-agent.sh"
     chmod +x "$PROJECT_ROOT/docker/skynet-agent.sh"
-    
+
     # Create initial skynet.conf from template (will be updated after registration)
-    # Docker creates a directory if mount source doesn't exist — remove it first
+    # Docker creates a directory if mount source doesn't exist - remove it first
     if [[ -d "$STATE_DIR/skynet.conf" ]]; then
         rm -rf "$STATE_DIR/skynet.conf"
     fi
@@ -1209,11 +1209,11 @@ EOF
 #==============================================================================
 setup_monitoring() {
     [[ "$ENABLE_MONITORING" != "true" ]] && return 0
-    
+
     log "Setting up monitoring stack..."
-    
+
     mkdir -p "$PROJECT_ROOT/docker/grafana/provisioning"/{dashboards,datasources}
-    
+
     # Create Prometheus config
     ensure_file_path "$PROJECT_ROOT/docker/prometheus.yml"
     cat > "$PROJECT_ROOT/docker/prometheus.yml" << EOF
@@ -1274,14 +1274,14 @@ EOF
 #==============================================================================
 setup_security() {
     [[ "$ENABLE_SECURITY" != "true" || "$OS" == "macos" ]] && return 0
-    
+
     log "Applying security hardening..."
-    
-    # UFW Firewall — only add rules that don't already exist
+
+    # UFW Firewall - only add rules that don't already exist
     if command -v ufw &> /dev/null; then
         ufw default deny incoming 2>/dev/null || true
         ufw default allow outgoing 2>/dev/null || true
-        
+
         # Helper: add rule only if not already present
         ufw_allow_if_missing() {
             local rule="$1"
@@ -1297,31 +1297,38 @@ setup_security() {
                 info "Firewall rule already exists: $rule (skipped)"
             fi
         }
-        
+
         ufw_allow_if_missing "22/tcp" "SSH"
-        # RPC intentionally NOT exposed — bound to 127.0.0.1 only (internal monitoring)
+        # RPC intentionally NOT exposed - bound to 127.0.0.1 only (internal monitoring)
         ufw_allow_if_missing "${P2P_PORT}/tcp" "XDC P2P"
         ufw_allow_if_missing "${P2P_PORT}/udp" "XDC P2P UDP"
-        
+
+        # Erigon-specific: allow eth/68 port (30311) if using erigon client
+        if [[ "${CLIENT:-stable}" == "erigon" ]]; then
+            ufw_allow_if_missing "30311/tcp" "Erigon P2P eth/68"
+            ufw_allow_if_missing "30311/udp" "Erigon P2P eth/68"
+            info "Added Erigon-specific firewall rules for port 30311"
+        fi
+
         if [[ "$ENABLE_MONITORING" == "true" ]]; then
             ufw_allow_if_missing "3000/tcp" "Grafana"
             ufw_allow_if_missing "9090/tcp" "Prometheus"
         fi
-        
+
         ufw --force enable 2>/dev/null || true
         log "UFW firewall configured"
     fi
-    
+
     # Fail2ban
     if command -v fail2ban-client &> /dev/null; then
         systemctl enable fail2ban
         systemctl start fail2ban
         log "Fail2ban enabled"
     fi
-    
+
     # Security rotation reminders are now handled by: xdc monitor
     # No cron job needed - users can check with 'xdc monitor' command
-    
+
     log "Security hardening complete"
 }
 
@@ -1330,26 +1337,26 @@ setup_security() {
 #==============================================================================
 setup_log_rotation_cron() {
     log "Setting up log rotation cron job..."
-    
+
     # Ensure log rotation script exists and is executable
     local log_rotate_script="${SCRIPT_DIR}/scripts/log-rotate.sh"
     if [[ ! -f "$log_rotate_script" ]]; then
         warn "Log rotation script not found at $log_rotate_script, skipping cron setup"
         return 0
     fi
-    
+
     chmod +x "$log_rotate_script"
-    
+
     # Create cron job for log rotation (runs daily at 2:00 AM)
     local cron_cmd="0 2 * * * ${log_rotate_script} >> /var/log/xdc-logrotate.log 2>&1"
     local cron_comment="# XDC Node log rotation (daily 2:00 AM)"
-    
+
     # Check if cron job already exists
     if crontab -l 2>/dev/null | grep -qF "$log_rotate_script"; then
         info "Log rotation cron job already exists"
         return 0
     fi
-    
+
     # Add cron job
     (
         crontab -l 2>/dev/null || true
@@ -1357,12 +1364,12 @@ setup_log_rotation_cron() {
         echo "$cron_comment"
         echo "$cron_cmd"
     ) | crontab -
-    
+
     log "Log rotation cron job installed (runs daily at 2:00 AM)"
     info "Log rotation policy: compress daily, keep 90 days, auto-delete old logs"
     info "Manual rotation: xdc logs --rotate"
     info "Clean old logs: xdc logs --clean"
-    
+
     # Ensure log directory exists
     mkdir -p /var/log
     touch /var/log/xdc-logrotate.log
@@ -1374,15 +1381,15 @@ setup_log_rotation_cron() {
 #==============================================================================
 install_cli_tool() {
     [[ "$INSTALL_CLI" != "true" ]] && return 0
-    
+
     log "Installing XDC CLI tool..."
-    
-    # Copy CLI script — prefer cli/xdc (full version) over cli/xdc-node (legacy)
+
+    # Copy CLI script - prefer cli/xdc (full version) over cli/xdc-node (legacy)
     local cli_source="${SCRIPT_DIR}/cli/xdc"
     [[ ! -f "$cli_source" ]] && cli_source="${SCRIPT_DIR}/cli/xdc-node"
-    
+
     mkdir -p "$PROJECT_ROOT/scripts"
-    
+
     if [[ -f "$cli_source" ]]; then
         cp "$cli_source" "$PROJECT_ROOT/scripts/xdc-node"
         chmod +x "$PROJECT_ROOT/scripts/xdc-node"
@@ -1398,17 +1405,17 @@ install_cli_tool() {
         }
         chmod +x "$PROJECT_ROOT/scripts/xdc-node"
     fi
-    
+
     # Create state directories for CLI (legacy location for shared state)
     mkdir -p /var/lib/xdc-node
     chmod 750 /var/lib/xdc-node
-    
+
     # Ensure network-specific directories exist (already created in configure_node)
     mkdir -p "${PROJECT_ROOT}/mainnet/.xdc-node"
     mkdir -p "${PROJECT_ROOT}/testnet/.xdc-node"
     mkdir -p "${PROJECT_ROOT}/devnet/.xdc-node"
-    
-    # Create symlink — try /usr/local/bin first, fall back to ~/.local/bin
+
+    # Create symlink - try /usr/local/bin first, fall back to ~/.local/bin
     if [[ -w /usr/local/bin ]]; then
         ln -sf "$PROJECT_ROOT/scripts/xdc-node" /usr/local/bin/xdc
         log "CLI installed at /usr/local/bin/xdc"
@@ -1426,7 +1433,7 @@ install_cli_tool() {
             warn "Added ~/.local/bin to PATH. Run: source ~/.zshrc (or restart terminal)"
         fi
     fi
-    
+
     log "CLI tool installed. Use: xdc help"
 }
 
@@ -1435,14 +1442,14 @@ install_cli_tool() {
 #==============================================================================
 start_services() {
     log "Starting XDC node services..."
-    
+
     cd "$PROJECT_ROOT/docker"
-    
+
     # Pull images
     info "Pulling Docker images..."
     docker compose pull &
     run_with_spinner "Pulling XDC Docker image..." wait $! || true
-    
+
     # Check for conflicting container names and remove them
     for svc in xdc-node xdc-prometheus xdc-grafana xdc-node-exporter xdc-monitoring; do
         if docker ps -a --format '{{.Names}}' | grep -q "^${svc}$"; then
@@ -1459,7 +1466,7 @@ start_services() {
             fi
         fi
     done
-    
+
     # Verify critical files exist and are actual files (not directories)
     for f in mainnet/start-node.sh mainnet/genesis.json mainnet/.pwd; do
         local fpath="$PROJECT_ROOT/docker/$f"
@@ -1476,24 +1483,66 @@ start_services() {
             [[ "$fname" == ".pwd" ]] && { touch "$fpath"; chmod 600 "$fpath"; }
         fi
     done
-    
+
     # Also remove any Docker-created directories in the data volume
     local container_name="xdc-node"
     if docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
         docker rm -f "$container_name" 2>/dev/null || true
     fi
+
+    # Determine compose command based on client selection
+    local compose_cmd="docker compose"
+    local client_info=""
+    case "${CLIENT:-stable}" in
+        erigon)
+            if [[ -f "docker-compose.erigon.yml" ]]; then
+                compose_cmd="docker compose -f docker-compose.yml -f docker-compose.erigon.yml"
+                client_info="Erigon-XDC (RPC: 8547, P2P: 30304/30311)"
+                log "Using Erigon-XDC client configuration"
+            else
+                warn "Erigon compose file not found, falling back to stable client"
+                client_info="XDC Stable (fallback)"
+            fi
+            ;;
+        geth-pr5)
+            if [[ -f "docker-compose.geth-pr5.yml" ]]; then
+                compose_cmd="docker compose -f docker-compose.yml -f docker-compose.geth-pr5.yml"
+                client_info="XDC Geth PR5"
+                log "Using XDC Geth PR5 client configuration"
+            else
+                warn "Geth PR5 compose file not found, falling back to stable client"
+                client_info="XDC Stable (fallback)"
+            fi
+            ;;
+        stable|*)
+            client_info="XDC Stable (v2.6.8)"
+            log "Using XDC Stable client configuration"
+            ;;
+    esac
+
+    # Export client-specific environment variables
+    export CLIENT="${CLIENT:-stable}"
+    export RPC_PORT="${RPC_PORT:-8545}"
+    export P2P_PORT="${P2P_PORT:-30303}"
     
+    # Erigon uses different default ports
+    if [[ "${CLIENT:-stable}" == "erigon" ]]; then
+        export RPC_PORT="${RPC_PORT:-8547}"
+        export P2P_PORT="${P2P_PORT:-30304}"
+        export P2P_PORT_68="${P2P_PORT_68:-30311}"
+    fi
+
     # Start services (remove orphans from other projects sharing this dir)
-    info "Starting containers..."
-    docker compose up -d --remove-orphans
-    
+    info "Starting containers with ${client_info}..."
+    $compose_cmd up -d --remove-orphans
+
     # Wait for startup
     sleep 5
-    
+
     # Check status
     if docker compose ps | grep -q "Up"; then
         log "Services started successfully"
-        
+
         # Auto-add peers if node has 0 peers after startup
         info "Checking peer connectivity..."
         sleep 10
@@ -1502,7 +1551,7 @@ start_services() {
             -H "Content-Type: application/json" \
             -d '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}' 2>/dev/null | jq -r '.result // "0x0"' 2>/dev/null || echo "0x0")
         peer_count=$((16#${peer_count#0x})) 2>/dev/null || peer_count=0
-        
+
         if [[ "$peer_count" -eq 0 ]]; then
             warn "No peers connected. Adding bootstrap peers..."
             local bootnodes=(
@@ -1546,32 +1595,32 @@ get_node_status() {
     local block_height="N/A"
     local peers="N/A"
     local sync_status="unknown"
-    
+
     if [[ -f "$CONFIG_DIR/node.env" ]]; then
         status="installed"
-        
+
         if docker ps --format '{{.Names}}' | grep -q "xdc"; then
             status="running"
-            
+
             # Try to get block height
             local response
             response=$(curl -s -m 5 -X POST \
                 -H "Content-Type: application/json" \
                 -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
                 http://localhost:${RPC_PORT} 2>/dev/null || echo '{}')
-            
+
             local hex_height
             hex_height=$(echo "$response" | jq -r '.result // "0x0"' 2>/dev/null || echo "0x0")
             if [[ "$hex_height" != "0x0" && "$hex_height" != "null" ]]; then
                 block_height=$((16#${hex_height#0x}))
             fi
-            
+
             # Check sync status
             response=$(curl -s -m 5 -X POST \
                 -H "Content-Type: application/json" \
                 -d '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' \
                 http://localhost:${RPC_PORT} 2>/dev/null || echo '{}')
-            
+
             local syncing
             syncing=$(echo "$response" | jq -r '.result' 2>/dev/null || echo "false")
             if [[ "$syncing" == "false" ]]; then
@@ -1581,25 +1630,25 @@ get_node_status() {
             fi
         fi
     fi
-    
+
     echo "$status|$block_height|$peers|$sync_status"
 }
 
 show_status() {
     init_config
-    
+
     echo -e "${BOLD}XDC Node Status${NC}"
     echo "==============="
     echo ""
-    
+
     local status block_height peers sync_status
     IFS='|' read -r status block_height peers sync_status <<< "$(get_node_status)"
-    
+
     # Load config if exists
     if [[ -f "$CONFIG_DIR/node.env" ]]; then
         source "$CONFIG_DIR/node.env"
     fi
-    
+
     echo -e "  ${BLUE}Status:${NC}      $status"
     echo -e "  ${BLUE}Network:${NC}     ${NETWORK:-unknown} (Chain ID: ${CHAIN_ID:-N/A})"
     echo -e "  ${BLUE}Node Type:${NC}   ${NODE_TYPE:-unknown}"
@@ -1608,7 +1657,7 @@ show_status() {
     echo -e "  ${BLUE}Block Height:${NC} $block_height"
     echo -e "  ${BLUE}Sync Status:${NC} $sync_status"
     echo ""
-    
+
     if [[ "$status" == "running" ]]; then
         echo -e "${GREEN}Node is running!${NC}"
         echo ""
@@ -1631,19 +1680,19 @@ show_status() {
 uninstall_node() {
     warn "This will remove the XDC node and all configuration!"
     read -rp "Are you sure? Type 'yes' to confirm: " confirm
-    
+
     if [[ "$confirm" != "yes" ]]; then
         echo "Uninstall cancelled."
         exit 0
     fi
-    
+
     log "Uninstalling XDC node..."
-    
+
     # Stop and remove containers
     if [[ -f "$PROJECT_ROOT/docker/docker-compose.yml" ]]; then
         (cd "$PROJECT_ROOT/docker" && docker compose down -v 2>/dev/null) || true
     fi
-    
+
     # Remove systemd service
     if [[ "$OS" == "linux" ]]; then
         systemctl stop xdc-node 2>/dev/null || true
@@ -1651,10 +1700,10 @@ uninstall_node() {
         rm -f /etc/systemd/system/xdc-node.service
         systemctl daemon-reload 2>/dev/null || true
     fi
-    
+
     # Remove CLI symlink
     rm -f /usr/local/bin/xdc "$HOME/.local/bin/xdc-node"
-    
+
     # Ask about data
     read -rp "Remove blockchain data? [y/N]: " remove_data
     if [[ "$remove_data" =~ ^[Yy]$ ]]; then
@@ -1665,13 +1714,13 @@ uninstall_node() {
     else
         log "Blockchain data preserved at: $DATA_DIR"
     fi
-    
+
     # Remove installation (configs, scripts, logs, docker)
     rm -rf "$PROJECT_ROOT/configs"
     rm -rf "$PROJECT_ROOT/scripts"
     rm -rf "$PROJECT_ROOT/logs"
     rm -rf "$PROJECT_ROOT/docker"
-    
+
     log "XDC node uninstalled successfully"
     echo ""
     echo -e "${GREEN}Uninstall complete.${NC}"
@@ -1689,9 +1738,9 @@ register_with_skynet() {
     local node_role
     local rpc_port
     local skynet_conf="$PROJECT_ROOT/${NETWORK:-mainnet}/.xdc-node/skynet.conf"
-    
+
     log "Setting up SkyNet registration..."
-    
+
     # Check if already registered
     if [[ -f "$skynet_conf" ]]; then
         # shellcheck source=/dev/null
@@ -1701,7 +1750,7 @@ register_with_skynet() {
             return 0
         fi
     fi
-    
+
     # Mask sensitive input: show first 2 and last 2 chars, rest as *
     mask_value() {
         local val="$1"
@@ -1712,7 +1761,7 @@ register_with_skynet() {
             echo "${val:0:2}$(printf '%*s' $((len - 4)) | tr ' ' '*')${val: -2}"
         fi
     }
-    
+
     # If email/telegram not provided via CLI, prompt interactively
     if [[ -z "$email" || -z "$telegram" ]]; then
         echo ""
@@ -1720,11 +1769,11 @@ register_with_skynet() {
         echo "Register your node for monitoring and alerts on https://net.xdc.network"
         echo ""
     fi
-    
+
     if [[ -z "$email" ]]; then
         read -rp "* Email for alerts (optional, press Enter to skip): " email
         if [[ -n "$email" && ! "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
-            warn "Invalid email format — skipping"
+            warn "Invalid email format - skipping"
             email=""
         elif [[ -n "$email" ]]; then
             info "Email: $(mask_value "$email")"
@@ -1732,20 +1781,20 @@ register_with_skynet() {
     else
         info "Using email from command line: $(mask_value "$email")"
     fi
-    
+
     if [[ -z "$telegram" ]]; then
-        read -rp "* Telegram handle for alerts (optional, e.g. @username — press Enter to skip): " telegram
+        read -rp "* Telegram handle for alerts (optional, e.g. @username - press Enter to skip): " telegram
         if [[ -n "$telegram" ]]; then
             info "Telegram: $(mask_value "$telegram")"
         fi
     else
         info "Using Telegram from command line: $(mask_value "$telegram")"
     fi
-    
+
     # Auto-detect node information
     hostname=$(hostname -s)
     public_ip=$(curl -s -m 5 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
-    
+
     # Determine node role from config
     case "${NODE_TYPE:-full}" in
         archive|archivenode)
@@ -1758,9 +1807,9 @@ register_with_skynet() {
             node_role="fullnode"
             ;;
     esac
-    
+
     rpc_port="${RPC_PORT:-9545}"
-    
+
     # Detect OS type
     local os_short
     case "$(uname -s)" in
@@ -1768,12 +1817,12 @@ register_with_skynet() {
         Darwin*) os_short="macos";;
         *)       os_short="unknown";;
     esac
-    
+
     # Get IP last octets (e.g. 12.32 from 192.168.12.32)
     local ip_suffix
     ip_suffix=$(echo "$public_ip" | awk -F'.' '{print $(NF-1)"."$NF}')
     [[ -z "$ip_suffix" || "$ip_suffix" == "." ]] && ip_suffix=$(echo "$public_ip" | tail -c 8)
-    
+
     # Detect location
     local location_city location_country
     local geo_json
@@ -1782,7 +1831,7 @@ register_with_skynet() {
     location_country=$(echo "$geo_json" | jq -r '.countryCode // "XX"' 2>/dev/null || echo "XX")
     local location_short
     location_short=$(echo "${location_city}" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | cut -c1-10)
-    
+
     # Try to get coinbase (first 6 chars) from running node
     local coinbase_short=""
     local cb
@@ -1792,7 +1841,7 @@ register_with_skynet() {
     if [[ -n "$cb" && "$cb" != "0x0" && "$cb" != "0x0000000000000000000000000000000000000000" && "$cb" != "null" ]]; then
         coinbase_short="${cb:2:6}"
     fi
-    
+
     # Build smart node name: [coinbase]-[os]-[ip_suffix]-[location]
     local node_name
     if [[ -n "$coinbase_short" ]]; then
@@ -1802,7 +1851,7 @@ register_with_skynet() {
     fi
     # Sanitize: only alphanumeric, dash, underscore, dot
     node_name=$(echo "$node_name" | sed 's/[^a-zA-Z0-9._-]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')
-    
+
     info "Auto-detected configuration:"
     echo "  Node Name: $node_name"
     echo "  Hostname: $hostname"
@@ -1813,7 +1862,7 @@ register_with_skynet() {
     echo "  RPC Port: $rpc_port"
     [[ -n "$coinbase_short" ]] && echo "  Coinbase: 0x${coinbase_short}..."
     echo ""
-    
+
     # Prepare registration payload
     local payload
     payload=$(cat <<EOF
@@ -1829,17 +1878,17 @@ register_with_skynet() {
 }
 EOF
 )
-    
+
     info "Registering node with SkyNet dashboard..."
-    
+
     # Call registration API
     local response
     response=$(curl -s -m 15 -X POST "https://net.xdc.network/api/v1/nodes/register" \
         -H "Content-Type: application/json" \
         -d "$payload" 2>/dev/null || echo '{"error":"connection_failed"}')
-    
+
     info "Registration response: $response"
-    
+
     # Check for API key in response (try multiple response shapes, fallback without jq)
     local api_key="" node_id=""
     if command -v jq >/dev/null 2>&1; then
@@ -1850,7 +1899,7 @@ EOF
         api_key=$(echo "$response" | grep -o '"apiKey":"[^"]*"' | head -1 | cut -d'"' -f4)
         node_id=$(echo "$response" | grep -o '"nodeId":"[^"]*"' | head -1 | cut -d'"' -f4)
     fi
-    
+
     # Always write skynet.conf with whatever we have (email, telegram, role at minimum)
     mkdir -p "$(dirname "$skynet_conf")"
     cat > "$skynet_conf" <<EOF
@@ -1866,21 +1915,21 @@ SKYNET_EMAIL=${email:-}
 SKYNET_TELEGRAM=${telegram:-}
 EOF
     chmod 600 "$skynet_conf"
-    
+
     if [[ -n "$api_key" && "$api_key" != "null" ]]; then
         log "✅ Node registered successfully with SkyNet!"
         [[ -n "$node_id" ]] && info "Node ID: $node_id"
-        
+
         # Start xdc-monitoring container for heartbeat reporting
         if [[ -f "$PROJECT_ROOT/docker/skynet-agent.sh" ]]; then
             if grep -q "xdc-monitoring:" "$PROJECT_ROOT/docker/docker-compose.yml" 2>/dev/null; then
                 (cd "$PROJECT_ROOT/docker" && docker compose up -d xdc-monitoring 2>/dev/null) || \
                     warn "Could not start xdc-monitoring container. Start manually with: cd $PROJECT_ROOT/docker && docker compose up -d xdc-monitoring"
             fi
-            
+
             log "SkyNet agent running as Docker container (heartbeat every 60s)"
         fi
-        
+
         echo ""
         echo -e "${GREEN}${BOLD}✅ SkyNet Registration Complete!${NC}"
         echo ""
@@ -1911,7 +1960,7 @@ EOF
 print_summary() {
     local status block_height peers sync_status
     IFS='|' read -r status block_height peers sync_status <<< "$(get_node_status)"
-    
+
     echo ""
     echo -e "${GREEN}${BOLD}✅ XDC Node Setup Complete!${NC}"
     echo ""
@@ -1922,24 +1971,24 @@ print_summary() {
     echo -e "   ${BOLD}P2P:${NC}        $P2P_PORT"
     echo -e "   ${BOLD}Status:${NC}     $(echo "$sync_status" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')..."
     echo ""
-    
+
     if [[ "$ENABLE_MONITORING" == "true" ]]; then
         echo -e "   ${BOLD}Monitoring:${NC} xdc start --monitoring (Prometheus + Grafana)"
     fi
-    
+
     echo -e "   ${BOLD}CLI Commands:${NC}"
-    echo "     xdc status     — Node status, block height, peers, sync %"
-    echo "     xdc sync       — Detailed sync progress with progress bar"
-    echo "     xdc health     — Comprehensive health check (score 0-100)"
-    echo "     xdc security   — Server security audit (score 0-100)"
-    echo "     xdc snapshot   — Restore from snapshot (with resume)"
-    echo "     xdc attach     — Attach to node console"
-    echo "     xdc info       — Node info (network, version, enode)"
-    echo "     xdc peers      — List connected peers"
-    echo "     xdc backup     — Backup keystore and configs"
-    echo "     xdc monitor    — Security rotation reminders"
-    echo "     xdc logs       — View node logs"
-    echo "     xdc help       — Show all commands"
+    echo "     xdc status     - Node status, block height, peers, sync %"
+    echo "     xdc sync       - Detailed sync progress with progress bar"
+    echo "     xdc health     - Comprehensive health check (score 0-100)"
+    echo "     xdc security   - Server security audit (score 0-100)"
+    echo "     xdc snapshot   - Restore from snapshot (with resume)"
+    echo "     xdc attach     - Attach to node console"
+    echo "     xdc info       - Node info (network, version, enode)"
+    echo "     xdc peers      - List connected peers"
+    echo "     xdc backup     - Backup keystore and configs"
+    echo "     xdc monitor    - Security rotation reminders"
+    echo "     xdc logs       - View node logs"
+    echo "     xdc help       - Show all commands"
     echo ""
     echo -e "   ${BOLD}Dashboard:${NC}  http://localhost:${DASHBOARD_PORT:-7070}"
     echo ""
@@ -1971,7 +2020,7 @@ main() {
     SKYNET_TELEGRAM=""
     NODE_CLIENT="xdc"
     NODE_TYPE="full"
-    
+
     while [[ $# -gt 0 ]]; do
         case $1 in
             --advanced)
@@ -2029,7 +2078,7 @@ main() {
                 ;;
         esac
     done
-    
+
     # Map CLI args to config variables (before init_config)
     # --client flag sets NODE_CLIENT; map to CLIENT used by the rest of the script
     case "${NODE_CLIENT:-xdc}" in
@@ -2043,28 +2092,28 @@ main() {
     # Initialize
     init_logging
     show_banner
-    
+
     log "Starting XDC Node Setup v$SCRIPT_VERSION"
     log "Mode: $(echo "$MODE" | tr '[:lower:]' '[:upper:]')"
     log "OS: $OS"
-    
+
     # Checks
     check_root
     check_os_compatibility
     check_hardware
-    
+
     # Initialize configuration
     init_config
-    
+
     # Interactive prompts for advanced mode
     if [[ "$MODE" == "advanced" ]]; then
         prompt_advanced
     fi
-    
+
     # Install dependencies
     install_dependencies
     install_docker
-    
+
     # Configure and setup
     configure_node
     generate_config_toml
@@ -2073,16 +2122,16 @@ main() {
     setup_security || warn "Security setup had issues (non-fatal)"
     setup_log_rotation_cron || warn "Log rotation cron setup had issues (non-fatal)"
     install_cli_tool || warn "CLI tool installation had issues (non-fatal)"
-    
-    # Start services — this is the critical step
+
+    # Start services - this is the critical step
     start_services
-    
+
     # Register with SkyNet (non-fatal if API is unreachable)
-    register_with_skynet || warn "SkyNet registration skipped — you can retry later with: xdc node --register-skynet"
-    
+    register_with_skynet || warn "SkyNet registration skipped - you can retry later with: xdc node --register-skynet"
+
     # Show summary
     print_summary
-    
+
     log "Setup complete!"
 }
 

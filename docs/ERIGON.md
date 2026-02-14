@@ -69,13 +69,13 @@ Erigon uses a **multi-sentry architecture** where P2P networking is separated fr
 │                      Erigon-XDC Node                        │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  ┌──────────────┐           gRPC :9092        ┌──────────┐ │
+│  ┌──────────────┐           gRPC :9091        ┌──────────┐ │
 │  │   Erigon     │◄──────────────────────────►│ Sentry 1 │ │
 │  │   Core       │                             │ eth/63   │ │
 │  │  (Execution) │◄─┐                          │ :30304   │ │
 │  └──────────────┘  │                          └────┬─────┘ │
 │         ▲          │                               │       │
-│         │ RPC      │  gRPC :9092                   │ P2P   │
+│         │ RPC      │  gRPC :9091                   │ P2P   │
 │         │ :8547    │                               ▼       │
 │  ┌──────┴──────┐  └───────────────────────►┌──────────┐   │
 │  │  HTTP RPC   │                            │ Sentry 2 │   │
@@ -101,8 +101,8 @@ Erigon uses a **multi-sentry architecture** where P2P networking is separated fr
 - **Core Engine** — Executes blocks, manages state, stores blockchain data
 - **Sentry 1 (eth/63)** — XDC-compatible P2P networking on port 30304
 - **Sentry 2 (eth/68)** — Standard Ethereum P2P on port 30311 (not XDC-compatible)
-- **gRPC** — Internal communication between core and sentries
-- **HTTP RPC** — JSON-RPC API for external clients
+- **gRPC** — Internal communication between core and sentries on port 9091
+- **HTTP RPC** — JSON-RPC API for external clients on port 8547
 
 ---
 
@@ -404,20 +404,33 @@ curl -s -X POST http://localhost:8547 \
 
 ## Port Reference
 
-| Port | Protocol | Purpose | Firewall |
-|------|----------|---------|----------|
-| 8547 | HTTP | JSON-RPC API | Allow (if public RPC) |
-| 30304 | TCP/UDP | P2P eth/63 (XDC compatible) ✅ | **Required** |
-| 30311 | TCP/UDP | P2P eth/68 (standard Ethereum) | Optional |
-| 9092 | gRPC | Erigon internal API | Block (internal only) |
-| 7070 | HTTP | SkyOne Dashboard | Allow (monitoring) |
+| Port | Protocol | Purpose | XDC Compatible | Firewall |
+|------|----------|---------|----------------|----------|
+| **8547** | HTTP | JSON-RPC API | N/A | Localhost recommended |
+| **8561** | HTTP | Auth RPC | N/A | Internal use |
+| **9091** | gRPC | Erigon private API | N/A | Block (internal only) |
+| **30304** | TCP/UDP | P2P eth/63 | ✅ **YES** | **Required** |
+| **30311** | TCP/UDP | P2P eth/68 | ❌ **NO** | Optional |
+
+**Critical Notes:**
+- **Port 30304 (eth/63)** is the ONLY port compatible with XDC geth nodes
+- **Port 30311 (eth/68)** uses a newer protocol that XDC geth nodes do NOT support
+- When connecting erigon to geth nodes, always use **port 30304** with `admin_addTrustedPeer`
+- RPC port **8547** is different from geth's default **8545**
 
 **Open required ports:**
 
 ```bash
+# Required for XDC peer connections
 sudo ufw allow 30304/tcp
 sudo ufw allow 30304/udp
-sudo ufw allow 7070/tcp  # Dashboard
+
+# Optional - eth/68 (not used for XDC)
+sudo ufw allow 30311/tcp
+sudo ufw allow 30311/udp
+
+# Dashboard
+sudo ufw allow 7070/tcp
 ```
 
 ---

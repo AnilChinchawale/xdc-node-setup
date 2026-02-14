@@ -116,7 +116,7 @@ ARGS=(
     --http.corsdomain="$RPC_CORS_DOMAIN"
     --http.vhosts="$RPC_VHOSTS"
     --port="$P2P_PORT_68"
-    --private.api.addr=0.0.0.0:9092
+    --private.api.addr=127.0.0.1:9091
     --p2p.protocol=63,62
     --discovery.v4
     --discovery.xdc

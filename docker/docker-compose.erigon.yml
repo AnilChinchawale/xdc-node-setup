@@ -12,22 +12,24 @@ services:
     container_name: xdc-node-erigon
     restart: always
     ports:
-      - "${P2P_PORT:-30304}:30304"              # eth/63 (primary peer port)
+      - "${P2P_PORT:-30304}:30304"              # eth/63 (primary peer port - XDC compatible)
       - "${P2P_PORT:-30304}:30304/udp"
-      - "${P2P_PORT_68:-30311}:30311"           # eth/68 (new protocol)
+      - "${P2P_PORT_68:-30311}:30311"           # eth/68 (new protocol - NOT XDC compatible)
       - "${P2P_PORT_68:-30311}:30311/udp"
-      - "127.0.0.1:${RPC_PORT:-8547}:8547"      # HTTP-RPC
+      - "127.0.0.1:${RPC_PORT:-8547}:8547"      # HTTP-RPC (erigon default: 8547)
+      - "127.0.0.1:${AUTHRPC_PORT:-8561}:8561"  # Auth RPC port
     volumes:
       - ../${NETWORK:-mainnet}/xdcchain:/data
       - ./erigon/start-erigon.sh:/start.sh:ro
       - ../${NETWORK:-mainnet}/.xdc-node/config.toml:/etc/xdc-node/config.toml:ro
-      - ./mainnet/genesis.json:/genesis.json:ro
-      - ./mainnet/bootnodes.list:/bootnodes.list:ro
+      - ./${NETWORK:-mainnet}/genesis.json:/genesis.json:ro
+      - ./${NETWORK:-mainnet}/bootnodes.list:/bootnodes.list:ro
       - /etc/localtime:/etc/localtime:ro
     environment:
       - NETWORK=${NETWORK:-mainnet}
       - SYNC_MODE=${SYNC_MODE:-full}
       - RPC_PORT=${RPC_PORT:-8547}
+      - AUTHRPC_PORT=${AUTHRPC_PORT:-8561}
       - INSTANCE_NAME=${INSTANCE_NAME:-Erigon_XDC_Node}
       - P2P_PORT=${P2P_PORT:-30304}
       - P2P_PORT_68=${P2P_PORT_68:-30311}
