@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Fira_Sans, Fira_Code } from "next/font/google";
-import { ThemeProvider } from "next-themes";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 
 const firaSans = Fira_Sans({
