@@ -23,7 +23,13 @@ services:
     image: alpine:3.19
     container_name: skynet-agent
     restart: unless-stopped
-    network_mode: host
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      # Use host.docker.internal to access host services instead of localhost
+      - RPC_URL=${RPC_URL:-http://host.docker.internal:8545}
+    networks:
+      - xdc-network
     volumes:
       - ./skynet-agent.sh:/agent.sh:ro
       - ./skynet.conf:/etc/xdc-node/skynet.conf:ro
@@ -56,3 +62,10 @@ services:
       com.xdc-node-setup.service: "skynet-agent"
       com.xdc-node-setup.version: "1.0.0"
       com.xdc-node-setup.description: "XDC SkyNet fleet monitoring sidecar"
+
+#==============================================================================
+# Networks
+#==============================================================================
+networks:
+  xdc-network:
+    driver: bridge

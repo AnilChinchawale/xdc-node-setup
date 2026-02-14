@@ -4,11 +4,12 @@ services:
     ports:
       - "8888:3000"
     environment:
-      - PROMETHEUS_URL=http://127.0.0.1:19090
-      - RPC_URL=http://127.0.0.1:38545
+      - PROMETHEUS_URL=http://host.docker.internal:19090
+      - RPC_URL=http://host.docker.internal:38545
       - NEXT_PUBLIC_REFRESH_INTERVAL=30
       - GEO_CACHE_TTL=300000
-    network_mode: host
+    networks:
+      - xdc-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
@@ -16,3 +17,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+networks:
+  xdc-network:
+    driver: bridge
