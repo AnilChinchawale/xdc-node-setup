@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XDC Node Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0e1a;
+            color: #fff;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            color: #1e90ff;
+        }
+        .status-card {
+            background: #111827;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .status-card h2 {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: #9ca3af;
+        }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #1f2937;
+        }
+        .metric:last-child { border-bottom: none; }
+        .metric-label { color: #6b7280; }
+        .metric-value { color: #1e90ff; font-weight: 600; }
+        .status-online { color: #10b981; }
+        .status-offline { color: #ef4444; }
+        .footer {
+            margin-top: 2rem;
+            text-align: center;
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+        a { color: #1e90ff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔷 XDC Node Dashboard</h1>
+        
+        <div class="status-card">
+            <h2>Node Status</h2>
+            <div class="metric">
+                <span class="metric-label">Status</span>
+                <span class="metric-value status-online">● Running</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Network</span>
+                <span class="metric-value">Mainnet</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">RPC Endpoint</span>
+                <span class="metric-value">http://localhost:8545</span>
+            </div>
+        </div>
+
+        <div class="status-card">
+            <h2>Quick Links</h2>
+            <div class="metric">
+                <span class="metric-label">SkyNet Dashboard</span>
+                <a href="https://net.xdc.network" target="_blank">net.xdc.network →</a>
+            </div>
+            <div class="metric">
+                <span class="metric-label">XDC Explorer</span>
+                <a href="https://explorer.xinfin.network" target="_blank">explorer.xinfin.network →</a>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>XDC Node Setup | <a href="https://github.com/AnilChinchawale/xdc-node-setup">GitHub</a></p>
+        </div>
+    </div>
+</body>
+</html>
