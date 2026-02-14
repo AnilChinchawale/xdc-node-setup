@@ -1,0 +1,96 @@
+#============================================================================
+# XDC Node Log Rotation Configuration
+# Issue #29: Log rotation - compress and retain 90 days
+#============================================================================
+
+# XDC node application logs
+/var/log/xdc/*.log {
+    daily
+    rotate 90
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 644 root root
+    sharedscripts
+    
+    # Compress rotated logs with gzip
+    compresscmd /bin/gzip
+    compressext .gz
+    
+    # Rotate when size exceeds 100MB
+    size 100M
+    
+    # Remove old logs after 90 days
+    maxage 90
+    
+    postrotate
+        # Reload rsyslog if running
+        if [ -f /var/run/rsyslogd.pid ]; then
+            kill -HUP $(cat /var/run/rsyslogd.pid) > /dev/null 2>&1 || true
+        fi
+        
+        # Send notification if logrotate failed (optional)
+        if [ $1 -ne 0 ]; then
+            logger -t logrotate "XDC node log rotation completed with errors"
+        fi
+    endscript
+}
+
+# Docker container JSON logs
+/var/lib/docker/containers/*/*.log {
+    daily
+    rotate 90
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 644 root root
+    sharedscripts
+    
+    # Compress with gzip
+    compresscmd /bin/gzip
+    compressext .gz
+    
+    # Size limit - rotate if log exceeds 50MB
+    size 50M
+    
+    # Remove old logs after 90 days
+    maxage 90
+    
+    postrotate
+        # Signal Docker to reopen log files
+        if [ -f /var/run/docker.pid ]; then
+            kill -HUP $(cat /var/run/docker.pid) > /dev/null 2>&1 || true
+        fi
+    endscript
+}
+
+# XDC node error logs - keep longer
+/var/log/xdc/*-error.log {
+    daily
+    rotate 90
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 640 root root
+    
+    # Keep error logs for 90 days
+    maxage 90
+    size 50M
+}
+
+# Node-specific logs from data directory
+/var/xdcchain/*.log {
+    daily
+    rotate 90
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 644 root root
+    
+    maxage 90
+    size 100M
+}

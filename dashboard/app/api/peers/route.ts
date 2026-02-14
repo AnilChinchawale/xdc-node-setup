@@ -74,7 +74,61 @@ export async function GET() {
 
     const rpcData = await response.json();
     
+    // Handle case where admin API is not available (Issue #31)
     if (rpcData.error) {
+      // Check if this is an admin API not available error
+      const errorMsg = rpcData.error.message || '';
+      const isAdminNotAvailable = 
+        errorMsg.includes('admin') || 
+        errorMsg.includes('method not found') ||
+        errorMsg.includes('unauthorized') ||
+        errorMsg.includes('not enabled') ||
+        rpcData.error.code === -32601 || // Method not found
+        rpcData.error.code === -32000;   // Generic error
+      
+      if (isAdminNotAvailable) {
+        // Try to get peer count via net_peerCount as fallback
+        try {
+          const peerCountResponse = await fetch(getRpcUrl(), {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              method: 'net_peerCount',
+              params: [],
+              id: 1,
+            }),
+          });
+          
+          const peerCountData = await peerCountResponse.json();
+          let peerCount = 0;
+          
+          if (peerCountData.result) {
+            peerCount = parseInt(peerCountData.result, 16);
+          }
+          
+          return NextResponse.json({
+            peers: [],
+            countries: {},
+            totalPeers: peerCount,
+            adminNotAvailable: true,
+            message: 'Admin API not enabled — enable with --http.api=admin',
+          });
+        } catch {
+          // Fallback to net_peerCount also failed
+          return NextResponse.json({
+            peers: [],
+            countries: {},
+            totalPeers: 0,
+            adminNotAvailable: true,
+            message: 'Admin API not enabled — enable with --http.api=admin',
+          });
+        }
+      }
+      
       console.error('RPC error:', rpcData.error);
       return NextResponse.json(
         { error: rpcData.error.message || 'RPC error', totalPeers: 0, peers: [], countries: {} },
