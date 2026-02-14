@@ -44,12 +44,13 @@ else
   echo "No SkyNet config found at $SKYNET_CONF — heartbeats disabled"
 fi
 
-# Start SkyNet Agent in background (legacy bash agent)
-echo "Starting SkyNet Agent..."
+# Start SkyNet heartbeat in background
+# Polls the local dashboard /api/metrics every 60s which triggers SkyNet bridge
+echo "Starting SkyNet heartbeat loop..."
 (
-  sleep 10  # wait for node to be ready
+  sleep 30  # wait for dashboard + node to be ready
   while true; do
-    /agent.sh 2>/dev/null
+    curl -s -m 10 "http://localhost:${PORT:-3000}/api/metrics" > /dev/null 2>&1
     sleep 60
   done
 ) &
