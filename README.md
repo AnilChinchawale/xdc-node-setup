@@ -2,30 +2,28 @@
 
 <div align="center">
 
+![XDC Node Setup](https://img.shields.io/badge/XDC-Node%20Setup-blue?style=for-the-badge&logo=docker)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
+[![Version](https://img.shields.io/badge/Version-1.0.0-blue?style=for-the-badge)](VERSION)
+[![XDC Network](https://img.shields.io/badge/XDC-Network-brightgreen?style=for-the-badge)](https://xdc.network/)
+
 **Production-ready XDC Network node deployment in minutes**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Docker](https://img.shields.io/badge/Docker-20.10+-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![XDC Network](https://img.shields.io/badge/XDC-Network-brightgreen)](https://xdc.network/)
+[Quick Start](#quick-start) • [CLI Reference](#cli-reference) • [Documentation](#documentation) • [Changelog](CHANGELOG.md)
 
 </div>
 
 ---
 
-## Features
+## 🚀 Quick Start
 
-- 🚀 **One-command deployment** — Get a node running in under 5 minutes
-- 🔒 **Security hardened** — SSH hardening, firewall, fail2ban, audit logging
-- 📊 **Built-in monitoring** — Prometheus + Grafana dashboards on port 8888
-- 🌐 **Multi-network support** — Mainnet, Testnet (Apothem), Devnet
-- 📡 **SkyNet integration** — Auto-registers with XDC SkyNet for fleet monitoring
-- 💾 **Fast sync** — Snapshot download with resume support
-- 🔄 **Version management** — Automatic updates and health checks
-- 🛠️ **Powerful CLI** — Single `xdc` command for all operations
+### One-Liner Install (Recommended)
 
----
+```bash
+curl -fsSL https://raw.githubusercontent.com/AnilChinchawale/XDC-Node-Setup/main/install.sh | sudo bash
+```
 
-## Quick Start
+### Manual Installation
 
 ```bash
 # 1. Clone the repository
@@ -33,122 +31,254 @@ git clone https://github.com/AnilChinchawale/XDC-Node-Setup.git
 cd XDC-Node-Setup
 
 # 2. Run the installer
-sudo ./setup.sh
+sudo ./install.sh
 
 # 3. Check node status
 xdc status
 ```
 
-Your node will be running and syncing. Access the dashboard at `http://localhost:8888`
+Your node will be running and syncing within 5 minutes. Access the SkyOne dashboard at `http://localhost:7070`
 
 ---
 
-## Requirements
+## 📋 Table of Contents
 
-| Component | Requirement |
-|-----------|-------------|
-| **OS** | Linux x86_64 (Ubuntu 20.04+, Debian 11+, RHEL 8+) |
-| **Docker** | 20.10+ with Docker Compose v2+ |
-| **RAM** | 4GB minimum, 16GB+ recommended |
-| **Disk** | 100GB minimum, 500GB+ SSD recommended |
-| **Network** | Stable internet connection, 100 Mbps+ |
+- [Features](#features)
+- [Requirements](#requirements)
+- [Multi-Client Support](#multi-client-support)
+- [CLI Reference](#cli-reference)
+- [SkyOne Dashboard](#skyone-dashboard)
+- [SkyNet Integration](#skynet-integration)
+- [Configuration](#configuration)
+- [Troubleshooting](#troubleshooting)
+- [Architecture](#architecture)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
-## CLI Reference
+## ✨ Features
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| 🚀 **One-Command Deployment** | Get a node running in under 5 minutes | ✅ |
+| 🔒 **Security Hardened** | SSH hardening, firewall, fail2ban, audit logging | ✅ |
+| 📊 **SkyOne Dashboard** | Built-in monitoring dashboard on port 7070 | ✅ |
+| 🔧 **Multi-Client Support** | Geth stable, Geth PR5, Erigon | ✅ |
+| 🌐 **Multi-Network** | Mainnet, Testnet (Apothem), Devnet | ✅ |
+| 📡 **SkyNet Integration** | Auto-registers with XDC SkyNet for fleet monitoring | ✅ |
+| 💾 **Fast Sync** | Snapshot download with resume support | ✅ |
+| 🔄 **Auto-Updates** | Automatic version checks and updates | ✅ |
+| 🛠️ **Powerful CLI** | Single `xdc` command for all operations | ✅ |
+| 📱 **Mobile Ready** | Responsive dashboard for mobile monitoring | ✅ |
+
+---
+
+## 💻 Requirements
+
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| **OS** | Linux x86_64 (Ubuntu 20.04+) | Ubuntu 22.04 LTS |
+| **Docker** | 20.10+ | Latest stable |
+| **RAM** | 4GB | 16GB+ |
+| **Disk** | 100GB HDD | 500GB+ NVMe SSD |
+| **Network** | 10 Mbps | 100 Mbps+ |
+| **CPU** | 2 cores | 4+ cores |
+
+### Supported Platforms
+
+- ✅ Linux x86_64 (primary)
+- ✅ Linux ARM64
+- ✅ macOS (with Rosetta emulation)
+- ⚠️ Windows (via WSL2)
+
+---
+
+## 🔧 Multi-Client Support
+
+XDC Node Setup supports **three different clients** for improved network diversity and resilience:
+
+### Client Comparison
+
+| Feature | XDC Stable | XDC Geth PR5 | Erigon-XDC |
+|---------|------------|--------------|------------|
+| **Version** | v2.6.8 | Latest | Latest |
+| **Type** | Official Docker | Source build | Source build |
+| **Build Time** | Instant | ~10-15 min | ~10-15 min |
+| **RPC Port** | 8545 | 8545 | **8547** |
+| **P2P Port** | 30303 | 30303 | 30304 + 30311 |
+| **Sync Speed** | Standard | Standard | Fast |
+| **Disk Usage** | ~500GB | ~500GB | ~400GB |
+| **Memory** | 4GB+ | 4GB+ | 8GB+ |
+| **Status** | Production | Testing | Experimental |
+
+### Selecting a Client
+
+During setup, choose your preferred client:
+
+```bash
+Client Selection
+=================
+1) XDC Stable (v2.6.8) - Official Docker image (recommended)
+2) XDC Geth PR5 - Latest geth with XDPoS (builds from source)
+3) Erigon-XDC - Multi-client diversity, experimental
+
+Select client [1-3] (default: 1):
+```
+
+### Switching Clients
+
+```bash
+# Start with specific client
+xdc start --client stable
+xdc start --client geth-pr5
+xdc start --client erigon
+
+# Check current client
+xdc client
+```
+
+### Why Multi-Client Matters
+
+- ✅ **Network Resilience**: Prevents single-client bugs from affecting the entire network
+- ✅ **Performance Options**: Choose the best client for your use case
+- ✅ **Future-Proof**: Easy migration as clients evolve
+- ✅ **Diversity**: Contributes to XDC network health
+
+---
+
+## 🖥️ CLI Reference
 
 The `xdc` command provides full control over your node:
 
-| Command | Description |
-|---------|-------------|
-| `xdc status` | Display current node status and sync progress |
-| `xdc start` | Start the XDC node container |
-| `xdc stop` | Stop the XDC node container |
-| `xdc restart` | Restart the node (graceful) |
-| `xdc logs` | View node logs (follow mode) |
-| `xdc attach` | Attach to the XDC console |
-| `xdc peers` | List connected peers |
-| `xdc health` | Run full health check with security score |
-| `xdc info` | Show detailed node and chain info |
-| `xdc sync` | Check sync status and block height |
-| `xdc backup` | Create encrypted backup of node data |
-| `xdc snapshot` | Download and apply chain snapshot for fast sync |
-| `xdc security` | Run security audit and apply hardening |
-| `xdc monitor` | Open monitoring dashboard |
-| `xdc update` | Check for and apply version updates |
-| `xdc help` | Show command help |
+### Core Commands
 
-**Examples:**
+| Command | Description | Example |
+|---------|-------------|---------|
+| `xdc status` | Display node status and sync progress | `xdc status --watch` |
+| `xdc start` | Start the XDC node | `xdc start --client erigon` |
+| `xdc stop` | Stop the XDC node | `xdc stop` |
+| `xdc restart` | Restart the node | `xdc restart` |
+| `xdc logs` | View node logs | `xdc logs --follow` |
+| `xdc info` | Show detailed node info | `xdc info` |
+
+### Monitoring Commands
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `xdc monitor` | Open SkyOne dashboard | `xdc monitor` |
+| `xdc health` | Run health check | `xdc health --full` |
+| `xdc peers` | List connected peers | `xdc peers` |
+| `xdc sync` | Check sync status | `xdc sync` |
+
+### Maintenance Commands
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `xdc backup` | Create encrypted backup | `xdc backup create` |
+| `xdc snapshot` | Download/apply snapshot | `xdc snapshot download` |
+| `xdc update` | Check for updates | `xdc update` |
+| `xdc security` | Run security audit | `xdc security --apply` |
+| `xdc attach` | Attach to XDC console | `xdc attach` |
+
+### Configuration Commands
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `xdc config list` | View all config | `xdc config list` |
+| `xdc config get` | Get config value | `xdc config get rpc_enabled` |
+| `xdc config set` | Set config value | `xdc config set max_peers 100` |
+
+### Help
 
 ```bash
-# Watch status in real-time
-xdc status --watch
-
-# Follow logs
-xdc logs --follow
-
-# Download and apply snapshot for fast sync
-xdc snapshot download --network mainnet
-xdc snapshot apply
-
-# Start with monitoring stack
-xdc start --monitoring
-
-# Run health check with notifications
-xdc health --full --notify
+xdc --help           # Show all commands
+xdc <command> --help # Show command-specific help
 ```
 
 ---
 
-## Dashboard
+## 📊 SkyOne Dashboard
 
-The built-in web dashboard provides real-time monitoring on **port 8888**:
+SkyOne is the built-in single-node monitoring dashboard that comes with every XDC Node Setup installation.
 
-![Dashboard Screenshot](docs/images/dashboard-overview.png)
+### Features
 
-**Features:**
-- Live block height and sync status
-- Peer count and network health
-- CPU, memory, and disk usage
-- Security score with recommendations
-- Alert timeline and notifications
+- **Real-time Metrics**: Block height, sync status, peer count
+- **System Monitoring**: CPU, memory, disk usage
+- **Network Statistics**: Latency, throughput, connection health
+- **Alert Timeline**: Historical alerts and notifications
+- **Security Score**: System hardening recommendations
 
-Access at: `http://localhost:8888` (or `http://<your-server-ip>:8888`)
+### Access
 
----
-
-## Monitoring (Optional)
-
-Enable the full Prometheus + Grafana monitoring stack:
-
-```bash
-xdc start --monitoring
+```
+Local:      http://localhost:7070
+Network:    http://<your-server-ip>:7070
 ```
 
-**Includes:**
-- **Prometheus** — Metrics collection (port 9090)
-- **Grafana** — Visualization dashboards (port 3000)
-- **Node Exporter** — System metrics
-- **cAdvisor** — Container metrics
+### Dashboard Pages
 
-**Grafana Access:**
-- URL: `http://localhost:3000`
-- Default credentials: `admin` / `admin`
-- Pre-configured dashboards for XDC node metrics
+| Page | Description |
+|------|-------------|
+| **Overview** | High-level node health and key metrics |
+| **Peers** | Connected peers with geographic distribution |
+| **Blocks** | Recent blocks and chain statistics |
+| **Alerts** | System alerts and notifications |
+| **Settings** | Dashboard configuration |
 
 ---
 
-## Configuration
+## 📡 SkyNet Integration
+
+XDC Node Setup automatically integrates with **XDC SkyNet** for fleet-wide monitoring.
+
+### What is SkyNet?
+
+SkyNet is the fleet monitoring platform for XDC Network operators. It provides:
+- Centralized dashboard for all your nodes
+- Unified alerting across your fleet
+- Historical metrics and analytics
+- Network-wide statistics
+
+### How It Works
+
+1. During setup, the installer creates a unique node identifier
+2. Node metrics are automatically reported to SkyNet every 15 minutes
+3. Access your fleet at: [https://net.xdc.network](https://net.xdc.network)
+
+### Configuration
+
+```bash
+# View SkyNet config
+xdc config get skynet_enabled
+
+# Disable SkyNet (if needed)
+xdc config set skynet_enabled false
+xdc restart
+```
+
+---
+
+## ⚙️ Configuration
 
 Configuration files are stored in `{network}/.xdc-node/config.toml`
 
-### Location by Network
+### Directory Structure
 
-- **Mainnet:** `mainnet/.xdc-node/config.toml`
-- **Testnet:** `testnet/.xdc-node/config.toml`
-- **Devnet:** `devnet/.xdc-node/config.toml`
+```
+XDC-Node-Setup/
+├── mainnet/
+│   ├── .xdc-node/
+│   │   └── config.toml
+│   └── xdcchain/
+├── testnet/
+│   └── ...
+└── devnet/
+    └── ...
+```
 
-### Key Settings
+### Key Configuration Options
 
 ```toml
 [node]
@@ -157,17 +287,19 @@ DataDir = "/xdcchain"
 HTTPPort = 8545
 WSPort = 8546
 Port = 30303
+MaxPeers = 50
 
 [eth]
 SyncMode = "full"        # full, fast, or archive
 GCMode = "full"
+Cache = 4096            # Memory cache in MB
 
-[networking]
-MaxPeers = 50
-NAT = "any"
+[metrics]
+Enabled = true
+Port = 6060
 ```
 
-**Edit configuration:**
+### Editing Configuration
 
 ```bash
 # View current config
@@ -182,259 +314,63 @@ xdc restart
 
 ---
 
-## Networks
+## 🔍 Troubleshooting
 
-XDC Node Setup supports multiple networks:
-
-| Network | Network ID | Use Case | Snapshot Available |
-|---------|------------|----------|-------------------|
-| **Mainnet** | 50 | Production | ✅ Yes |
-| **Testnet (Apothem)** | 51 | Development & Testing | ✅ Yes |
-| **Devnet** | 551 | Local Development | ❌ No |
-
-**Switch networks:**
+### Node Won't Start
 
 ```bash
-# Configure during setup
-sudo NETWORK=testnet ./setup.sh
+# Check Docker is running
+sudo systemctl status docker
 
-# Or manually switch
-cd testnet
-docker-compose up -d
+# Check port conflicts
+sudo netstat -tlnp | grep -E '8545|30303|7070'
+
+# View detailed logs
+xdc logs --follow
+
+# Check system resources
+xdc info
 ```
 
----
-
-
-## Multi-Client Support
-
-XDC Node Setup supports **three different clients** for improved network diversity and resilience:
-
-### Available Clients
-
-| Client | Version | Type | Recommended For |
-|--------|---------|------|-----------------|
-| **Stable** | v2.6.8 | Official Docker image | Production, Default |
-| **Geth PR5** | Latest | Built from source | Testing latest features |
-| **Erigon-XDC** | Latest | Built from source | Multi-client diversity |
-
-### Client Features
-
-#### 🟢 XDC Stable (v2.6.8) — **Recommended**
-- Official production-ready Docker image
-- Battle-tested on mainnet
-- No build time required
-- RPC on port **8545**
-
-#### 🔵 XDC Geth PR5
-- Latest geth with XDPoS consensus (`feature/xdpos-consensus` branch)
-- Built from source with Go 1.22+
-- Same RPC API as stable
-- RPC on port **8545**
-- **Build time:** ~10-15 minutes
-
-#### 🟣 Erigon-XDC — **Experimental**
-- Multi-client diversity for network resilience
-- Built from source with Go 1.22+
-- **Dual P2P sentries:** eth/63 (port **30304**) + eth/68 (port **30311**)
-- RPC on port **8547**
-- **Build time:** ~10-15 minutes
-
-### Selecting a Client
-
-During setup, you'll be prompted to choose a client:
+### Node Won't Sync
 
 ```bash
-Client Selection
-=================
-1) XDC Stable (v2.6.8) - Official Docker image (recommended)
-2) XDC Geth PR5 - Latest geth with XDPoS (builds from source, ~10-15 min)
-3) Erigon-XDC - Multi-client diversity, experimental (builds from source, ~10-15 min)
-
-Select client [1-3] (default: 1):
-```
-
-### Starting with a Specific Client
-
-You can override the configured client at runtime:
-
-```bash
-# Start with default client (from config)
-xdc start
-
-# Start with specific client
-xdc start --client stable
-xdc start --client geth-pr5
-xdc start --client erigon
-
-# Check current client
-xdc client
-```
-
-### Client Information
-
-```bash
-$ xdc client
-XDC Client Information
-
-Configured Client: stable
-  Config: /opt/xdc-node/mainnet/.xdc-node/client.conf
-
-Running Client:
-  Version: XDPoSChain/v2.6.8-stable
-  Type:    XDC Stable
-
-Available Clients:
-  1. stable    - XDC Stable (v2.6.8) - Official Docker image
-  2. geth-pr5  - XDC Geth PR5 - Latest geth with XDPoS
-  3. erigon    - Erigon-XDC - Multi-client diversity
-
-To switch clients, run: xdc start --client <name>
-```
-
-### Network Diversity Benefits
-
-Running different clients helps:
-- ✅ Prevent single-client bugs from affecting the entire network
-- ✅ Improve network resilience and decentralization
-- ✅ Test new features before mainnet rollout
-- ✅ Catch consensus issues early
-
-### Port Configuration
-
-| Client | HTTP-RPC | P2P (eth/63) | P2P (eth/68) |
-|--------|----------|--------------|--------------|
-| Stable | 8545 | 30303 | — |
-| Geth PR5 | 8545 | 30303 | — |
-| Erigon-XDC | **8547** | **30304** | **30311** |
-
-**Note:** Erigon uses different ports to avoid conflicts with other clients.
-
-### Learn More
-
-For detailed setup instructions, configuration options, and troubleshooting for each client:
-
-- **[Erigon-XDC Client Guide](docs/ERIGON.md)** — Multi-client diversity, dual P2P sentries, peer connection guide
-- **[Geth PR5 Client Guide](docs/GETH-PR5.md)** — Latest go-ethereum with XDPoS, state schemes, comparison table
-- **[Dashboard Setup Guide](docs/DASHBOARD.md)** — SkyOne monitoring dashboard configuration
-
----
-
-## SkyNet Integration
-
-XDC Node Setup automatically registers your node with **XDC SkyNet** for fleet-wide monitoring and analytics.
-
-**Features:**
-- 📊 Centralized dashboard for all your nodes
-- 🔔 Unified alerting across your fleet
-- 📈 Historical metrics and analytics
-- 🌍 Network-wide statistics
-
-**How it works:**
-1. During setup, the installer creates a unique node identifier
-2. Node metrics are automatically reported to SkyNet every 15 minutes
-3. Access your fleet at: [https://skynet.xdc.network](https://skynet.xdc.network)
-
-**Disable SkyNet (optional):**
-
-```bash
-# Edit config
-xdc config set skynet_enabled false
-xdc restart
-```
-
----
-
-## Snapshot Download
-
-Fast-sync your node using official XDC Network snapshots instead of syncing from genesis.
-
-**Download and apply snapshot:**
-
-```bash
-# Download latest mainnet snapshot
-xdc snapshot download --network mainnet
-
-# Apply snapshot (node must be stopped)
-xdc stop
-xdc snapshot apply
-xdc start
-```
-
-**Features:**
-- ⚡ **Fast sync** — Skip weeks of blockchain sync
-- 🔄 **Resume support** — Interrupted downloads can resume
-- ✅ **Verification** — Automatic checksum validation
-- 🗜️ **Compressed** — Reduced download size
-
-**Manual download (if needed):**
-
-```bash
-# Check available snapshots
-xdc snapshot list
-
-# Download specific snapshot
-xdc snapshot download --date 2026-02-10
-
-# Verify snapshot integrity
-xdc snapshot verify snapshot-mainnet-2026-02-10.tar.gz
-```
-
-Snapshots are updated daily and hosted at: `https://download.xdc.network/snapshots/`
-
----
-
-## Troubleshooting
-
-### Node won't sync
-
-```bash
-# Check if node is running
-xdc status
-
 # Check peer count
 xdc peers
+
+# Check sync status
+xdc sync
 
 # If no peers, restart with fresh peer discovery
 xdc stop
 rm -rf mainnet/.xdc-node/geth/nodes
 xdc start
-```
 
-### High CPU/Memory usage
-
-```bash
-# Check resource usage
-xdc info
-
-# Reduce cache if needed (edit config.toml)
-[node]
-Cache = 2048  # Reduce from default 4096
-
-# Restart to apply
-xdc restart
-```
-
-### Disk space running out
-
-```bash
-# Check disk usage
-df -h
-
-# Enable pruning (archive nodes excluded)
-xdc config set prune_mode full
-xdc restart
-
-# Or use a snapshot to start fresh
-xdc backup create  # Backup first!
+# Download snapshot for fast sync
+xdc snapshot download --network mainnet
 xdc snapshot apply
 ```
 
-### Can't access dashboard
+### High Resource Usage
 
 ```bash
-# Check if port 8888 is open
-sudo ufw allow 8888
+# Reduce memory cache
+xdc config set cache 2048
+xdc restart
+
+# Check disk space
+df -h
+
+# Enable pruning
+xdc config set prune_mode full
+xdc restart
+```
+
+### Dashboard Not Accessible
+
+```bash
+# Check if port 7070 is open
+sudo ufw allow 7070
 
 # Check if dashboard is running
 docker ps | grep dashboard
@@ -443,29 +379,81 @@ docker ps | grep dashboard
 xdc monitor restart
 ```
 
-### Connection refused (RPC)
+### RPC Connection Refused
 
 ```bash
 # Check RPC is enabled
-xdc config get rpc_enabled  # Should be true
+xdc config get rpc_enabled
 
 # Check RPC is listening
 netstat -tlnp | grep 8545
 
-# Allow RPC port if needed
+# Allow RPC port (if needed)
 sudo ufw allow 8545
 ```
 
-**More help:**
+### Getting Help
+
 - [Full Troubleshooting Guide](docs/TROUBLESHOOTING.md)
 - [GitHub Issues](https://github.com/AnilChinchawale/XDC-Node-Setup/issues)
+- [XDC Community Discord](https://discord.gg/xdc)
 - [XDC Network Docs](https://docs.xdc.community/)
 
 ---
 
-## Contributing
+## 🏗️ Architecture
 
-Contributions are welcome! Here's how to get started:
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         XDC Node Setup Architecture                      │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌─────────────┐    ┌──────────────┐    ┌─────────────┐                 │
+│  │   CLI Tool  │    │  SkyOne UI   │    │  SkyNet API │                 │
+│  │   (xdc)     │◄──►│  (Port 7070) │◄──►│  (Optional) │                 │
+│  └──────┬──────┘    └──────┬───────┘    └─────────────┘                 │
+│         │                  │                                             │
+│         ▼                  ▼                                             │
+│  ┌──────────────────────────────────────────────────┐                   │
+│  │              Docker Compose Stack                 │                   │
+│  ├──────────────────────────────────────────────────┤                   │
+│  │  ┌───────────┐  ┌───────────┐  ┌──────────────┐  │                   │
+│  │  │ XDC Node  │  │  SkyOne   │  │ Prometheus   │  │                   │
+│  │  │  (Geth/   │  │ Dashboard │  │  (Metrics)   │  │                   │
+│  │  │  Erigon)  │  │           │  │              │  │                   │
+│  │  └─────┬─────┘  └───────────┘  └──────────────┘  │                   │
+│  │        │                                         │                   │
+│  │        ▼                                         │                   │
+│  │  ┌───────────┐  ┌───────────┐                   │                   │
+│  │  │  XDC Chain │  │   Data    │                   │                   │
+│  │  │   Data    │  │  Volume   │                   │                   │
+│  │  └───────────┘  └───────────┘                   │                   │
+│  └──────────────────────────────────────────────────┘                   │
+│                          │                                              │
+│                          ▼                                              │
+│  ┌──────────────────────────────────────────────────┐                   │
+│  │              XDC P2P Network                      │                   │
+│  │         (Mainnet / Testnet / Devnet)              │                   │
+│  └──────────────────────────────────────────────────┘                   │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Component Flow
+
+1. **CLI (`xdc`)**: User interface for node management
+2. **SkyOne Dashboard**: Web UI for monitoring (Next.js + Tailwind)
+3. **XDC Node**: Core blockchain client (Geth/Erigon)
+4. **Prometheus**: Metrics collection and storage
+5. **SkyNet Agent**: Optional fleet monitoring integration
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions from the community!
+
+### Getting Started
 
 1. **Fork** the repository
 2. **Create** a feature branch: `git checkout -b feature/my-feature`
@@ -473,23 +461,38 @@ Contributions are welcome! Here's how to get started:
 4. **Push** to the branch: `git push origin feature/my-feature`
 5. **Submit** a Pull Request
 
-**Development guidelines:**
+### Development Guidelines
+
 - All scripts must pass `shellcheck` linting
 - Include error handling (`set -euo pipefail`)
 - Add tests for new features
 - Update documentation
+- Follow conventional commits
+
+### Code of Conduct
+
+This project adheres to a [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code.
 
 ---
 
-## License
+## 📄 License
 
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
 ---
 
+## 🙏 Acknowledgments
+
+- [XDC Foundation](https://www.xdc.org/) for the XDC Network
+- [Go Ethereum](https://geth.ethereum.org/) for the underlying client
+- [Erigon](https://github.com/ledgerwatch/erigon) for the high-performance client
+- All contributors and community members
+
+---
+
 <div align="center">
 
-**[Documentation](docs/)** • **[Issues](https://github.com/AnilChinchawale/XDC-Node-Setup/issues)** • **[XDC Network](https://xdc.network/)**
+**[Documentation](docs/)** • **[Issues](https://github.com/AnilChinchawale/XDC-Node-Setup/issues)** • **[Discussions](https://github.com/AnilChinchawale/XDC-Node-Setup/discussions)** • **[XDC Network](https://xdc.network/)**
 
 Built with ❤️ for the XDC Network community
 
