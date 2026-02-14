@@ -390,7 +390,7 @@ export async function GET() {
     };
 
     // Push to SkyNet (fire and forget — don't await, don't block response)
-    pushToSkyNet(responseWithIssues).catch(() => {});
+    pushToSkyNet(responseWithIssues, peersList).catch(() => {});
 
     // === LFG (Live Fleet Gateway) Auto-Peer Injection ===
     // Check if peer count is below threshold and fetch healthy peers from SkyNet

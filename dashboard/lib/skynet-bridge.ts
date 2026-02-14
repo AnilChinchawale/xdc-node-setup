@@ -13,19 +13,28 @@ const SKYNET_API_KEY = process.env.SKYNET_API_KEY || '';
  * Push metrics to SkyNet heartbeat endpoint
  * Fires and forgets - doesn't block or throw on failure
  */
-export async function pushToSkyNet(metrics: any): Promise<void> {
+export async function pushToSkyNet(metrics: any, peersList?: any[]): Promise<void> {
   // Skip if not configured
   if (!SKYNET_API_KEY || !SKYNET_NODE_ID) {
     return;
   }
   
   try {
+    // Format peers with enode for SkyNet peer_snapshots
+    const peers = (peersList || []).slice(0, 50).map((p: any) => ({
+      enode: p.enode || '',
+      name: p.name || '',
+      protocols: Object.keys(p.protocols || {}),
+      direction: p.network?.inbound ? 'inbound' : 'outbound',
+    }));
+
     const payload = {
       nodeId: SKYNET_NODE_ID,
       blockHeight: metrics.blockchain?.blockHeight || 0,
       syncing: metrics.blockchain?.isSyncing || false,
       syncProgress: metrics.blockchain?.syncPercent || 0,
       peerCount: metrics.blockchain?.peers || 0,
+      peers,
       system: metrics.server || {},
       timestamp: new Date().toISOString(),
     };
