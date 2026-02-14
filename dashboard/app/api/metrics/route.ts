@@ -67,9 +67,29 @@ function parseClientType(clientName: string): 'geth' | 'erigon' | 'geth-pr5' | '
   return 'unknown';
 }
 
-function getStorageMetrics(): { chainDataSize: number; databaseSize: number } {
+interface StorageMetrics {
+  chainDataSize: number;
+  databaseSize: number;
+  dataDir: string;
+  mountPoint: string;
+  filesystem: string;
+  device: string;
+  mountTotal: number;
+  mountUsed: number;
+  mountAvail: number;
+  mountPercent: number;
+  allMounts: Array<{ device: string; mount: string; total: number; used: number; avail: number; percent: number; filesystem: string }>;
+}
+
+function getStorageMetrics(): StorageMetrics {
   let chainDataSize = 0;
   let databaseSize = 0;
+  let dataDir = '';
+  let mountPoint = '';
+  let filesystem = '';
+  let device = '';
+  let mountTotal = 0, mountUsed = 0, mountAvail = 0, mountPercent = 0;
+  const allMounts: StorageMetrics['allMounts'] = [];
   
   try {
     // Try different paths for chaindata
@@ -80,11 +100,13 @@ function getStorageMetrics(): { chainDataSize: number; databaseSize: number } {
         if (size && parseInt(size) > 0) {
           if (p.includes('chaindata')) {
             chainDataSize = parseInt(size);
+            dataDir = p;
             break;
           }
         }
       } catch {}
     }
+    if (!dataDir) dataDir = '/work/xdcchain';
     
     // Get total DB directory size
     try {
@@ -93,9 +115,51 @@ function getStorageMetrics(): { chainDataSize: number; databaseSize: number } {
         databaseSize = parseInt(dbSizeStr);
       }
     } catch {}
+    
+    // Get mount info for the chaindata directory
+    try {
+      const dfLine = execSync(`df -BG ${dataDir} 2>/dev/null | tail -1`, { timeout: 3000 }).toString().trim();
+      const parts = dfLine.split(/\s+/);
+      if (parts.length >= 6) {
+        device = parts[0];
+        mountTotal = parseFloat(parts[1]) * 1024 * 1024 * 1024; // G to bytes
+        mountUsed = parseFloat(parts[2]) * 1024 * 1024 * 1024;
+        mountAvail = parseFloat(parts[3]) * 1024 * 1024 * 1024;
+        mountPercent = parseInt(parts[4]);
+        mountPoint = parts[5];
+      }
+    } catch {}
+    
+    // Get filesystem type
+    try {
+      if (mountPoint) {
+        const fsType = execSync(`mount | grep "on ${mountPoint} " | head -1`, { timeout: 3000 }).toString().trim();
+        const fsMatch = fsType.match(/type (\S+)/);
+        if (fsMatch) filesystem = fsMatch[1];
+      }
+    } catch {}
+    
+    // Get all mounted storage volumes (skip tmpfs, devtmpfs, proc etc)
+    try {
+      const dfAll = execSync(`df -BG -T 2>/dev/null | grep -v tmpfs | grep -v devtmpfs | grep -v overlay | tail -n +2`, { timeout: 3000 }).toString().trim();
+      for (const line of dfAll.split('\n')) {
+        const p = line.trim().split(/\s+/);
+        if (p.length >= 7 && !p[0].startsWith('none')) {
+          allMounts.push({
+            device: p[0],
+            filesystem: p[1],
+            total: parseFloat(p[2]) * 1024 * 1024 * 1024,
+            used: parseFloat(p[3]) * 1024 * 1024 * 1024,
+            avail: parseFloat(p[4]) * 1024 * 1024 * 1024,
+            percent: parseInt(p[5]),
+            mount: p[6],
+          });
+        }
+      }
+    } catch {}
   } catch {}
   
-  return { chainDataSize, databaseSize };
+  return { chainDataSize, databaseSize, dataDir, mountPoint, filesystem, device, mountTotal, mountUsed, mountAvail, mountPercent, allMounts };
 }
 
 function getServerStats() {
@@ -454,6 +518,15 @@ export async function GET() {
         storageType: server.storageType,
         storageModel: server.storageModel,
         iopsEstimate: server.iopsEstimate,
+        dataDir: storageMetrics.dataDir,
+        mountPoint: storageMetrics.mountPoint,
+        filesystem: storageMetrics.filesystem,
+        device: storageMetrics.device,
+        mountTotal: storageMetrics.mountTotal,
+        mountUsed: storageMetrics.mountUsed,
+        mountAvail: storageMetrics.mountAvail,
+        mountPercent: storageMetrics.mountPercent,
+        allMounts: storageMetrics.allMounts,
         diskReadRate: 0, 
         diskWriteRate: 0, 
         compactTime: 0, 

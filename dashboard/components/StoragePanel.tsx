@@ -151,6 +151,53 @@ export default function StoragePanel({ data }: StoragePanelProps) {
             </div>
           )}
           
+          {/* Mount Point Info */}
+          {(data as any).mountPoint && (
+            <div className="p-3 rounded-xl bg-[rgba(139,92,246,0.03)] border border-[rgba(139,92,246,0.08)]">
+              <div className="section-header mb-2">Data Directory Mount</div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div><span className="text-[#6B7280]">Path:</span> <span className="text-[#F9FAFB] font-mono">{(data as any).dataDir}</span></div>
+                <div><span className="text-[#6B7280]">Mount:</span> <span className="text-[#F9FAFB] font-mono">{(data as any).mountPoint}</span></div>
+                <div><span className="text-[#6B7280]">Device:</span> <span className="text-[#F9FAFB] font-mono">{(data as any).device}</span></div>
+                <div><span className="text-[#6B7280]">FS:</span> <span className="text-[#F9FAFB]">{(data as any).filesystem || '—'}</span></div>
+              </div>
+              {(data as any).mountTotal > 0 && (
+                <div className="mt-2">
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-[#6B7280]">{formatBytes((data as any).mountUsed)} / {formatBytes((data as any).mountTotal)}</span>
+                    <span className={`font-medium ${(data as any).mountPercent > 90 ? 'text-[#EF4444]' : (data as any).mountPercent > 75 ? 'text-[#F59E0B]' : 'text-[#10B981]'}`}>
+                      {(data as any).mountPercent}% used
+                    </span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-[rgba(255,255,255,0.06)]">
+                    <div className={`h-full rounded-full ${(data as any).mountPercent > 90 ? 'bg-[#EF4444]' : (data as any).mountPercent > 75 ? 'bg-[#F59E0B]' : 'bg-[#8B5CF6]'}`}
+                      style={{ width: `${Math.min(100, (data as any).mountPercent)}%` }} />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* All Mounted Volumes */}
+          {(data as any).allMounts?.length > 1 && (
+            <div className="p-3 rounded-xl bg-[rgba(255,255,255,0.02)]">
+              <div className="section-header mb-2">All Storage Volumes</div>
+              <div className="space-y-2">
+                {(data as any).allMounts.map((m: any, i: number) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <span className={`w-2 h-2 rounded-full ${m.mount === (data as any).mountPoint ? 'bg-[#8B5CF6]' : 'bg-[#374151]'}`} />
+                    <span className="text-[#F9FAFB] font-mono flex-1 truncate" title={m.device}>{m.mount}</span>
+                    <span className="text-[#6B7280]">{m.filesystem}</span>
+                    <span className="text-[#F9FAFB] font-mono">{formatBytes(m.used)}/{formatBytes(m.total)}</span>
+                    <span className={`font-medium w-10 text-right ${m.percent > 90 ? 'text-[#EF4444]' : m.percent > 75 ? 'text-[#F59E0B]' : 'text-[#10B981]'}`}>
+                      {m.percent}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
           {/* I/O Stats */}
           <div className="grid grid-cols-2 gap-4">
             <div className="p-3 rounded-xl bg-[rgba(255,255,255,0.02)]">
