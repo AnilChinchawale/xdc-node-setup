@@ -143,6 +143,7 @@ $(c BOLD)XDC-SPECIFIC COMMANDS:$(c NC)
 $(c BOLD)GENERAL COMMANDS:$(c NC)
     $(c GREEN)init$(c NC)          Interactive setup wizard (wraps setup.sh)
     $(c GREEN)status$(c NC)        Quick node status overview
+    $(c GREEN)info$(c NC)          Alias for status (node information)
     $(c GREEN)health$(c NC)        Run health check (wraps node-health-check.sh)
     $(c GREEN)security$(c NC)      Run security audit (wraps security-harden.sh)
     $(c GREEN)update$(c NC)        Check and apply version updates
@@ -2939,6 +2940,7 @@ main() {
         # General commands
         init)       cmd_init "$@" ;;
         status)     cmd_status "$@" ;;
+        info)       cmd_status "$@" ;;  # Alias for status
         health)     cmd_health "$@" ;;
         security)   cmd_security "$@" ;;
         update)     cmd_update "$@" ;;
