@@ -229,7 +229,7 @@ benchmark_cpu_usage() {
 
     for ((i=0; i<sample_count; i++)); do
         local cpu_usage
-        cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1 | cut -d',' -f1)
+        cpu_usage=$(awk '/^cpu /{u=$2+$4; t=$2+$3+$4+$5+$6+$7+$8; printf "%.0f", u/t*100}' /proc/stat 2>/dev/null || echo "0")
         total_cpu=$(echo "$total_cpu + $cpu_usage" | bc)
         sleep $sample_interval
     done

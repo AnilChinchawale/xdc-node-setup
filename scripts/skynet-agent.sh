@@ -493,7 +493,7 @@ collect_metrics() {
     
     # System resources
     local cpu_percent mem_percent disk_percent disk_used disk_total
-    cpu_percent=$(top -bn1 2>/dev/null | grep "Cpu(s)" | awk '{print 100 - $8}' || echo "0")
+    cpu_percent=$(awk '/^cpu /{u=$2+$4; t=$2+$3+$4+$5+$6+$7+$8; printf "%.0f", u/t*100}' /proc/stat 2>/dev/null || echo "0")
     mem_percent=$(free 2>/dev/null | awk '/Mem:/ {printf "%.1f", $3/$2*100}' || echo "0")
     disk_percent=$(df -h / 2>/dev/null | awk 'NR==2 {gsub(/%/,""); print $5}' || echo "0")
     disk_used=$(df -BG / 2>/dev/null | awk 'NR==2 {gsub(/G/,""); print $3}' || echo "0")

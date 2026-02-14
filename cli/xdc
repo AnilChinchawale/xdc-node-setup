@@ -691,7 +691,7 @@ EOF
         
         # Get system stats
         local cpu_usage
-        cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print int($2 + $4)}' 2>/dev/null || echo "0")
+        cpu_usage=$(awk '/^cpu /{u=$2+$4; t=$2+$3+$4+$5+$6+$7+$8; printf "%.0f", u/t*100}' /proc/stat 2>/dev/null || echo "0")
         local ram_usage
         ram_usage=$(awk '/MemTotal/{t=$2} /MemAvailable/{a=$2} END{printf "%.0f", (t-a)/t*100}' /proc/meminfo 2>/dev/null || echo "0")
         local disk_usage

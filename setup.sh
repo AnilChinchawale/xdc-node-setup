@@ -647,14 +647,10 @@ prompt_advanced() {
 configure_node() {
     log "Configuring XDC node..."
     
-    # Create network-based directory structure at project root level
-    mkdir -p "${PROJECT_ROOT}/mainnet/xdcchain"/{XDC,keystore}
-    mkdir -p "${PROJECT_ROOT}/mainnet/.xdc-node"
-    mkdir -p "${PROJECT_ROOT}/testnet/xdcchain"/{XDC,keystore}
-    mkdir -p "${PROJECT_ROOT}/testnet/.xdc-node"
-    mkdir -p "${PROJECT_ROOT}/devnet/xdcchain"/{XDC,keystore}
-    mkdir -p "${PROJECT_ROOT}/devnet/.xdc-node"
-    mkdir -p "${PROJECT_ROOT}"/{configs,scripts,logs,docker}
+    # Create directory structure only for the selected network
+    mkdir -p "${PROJECT_ROOT}/${NETWORK}/xdcchain"/{XDC,keystore}
+    mkdir -p "${PROJECT_ROOT}/${NETWORK}/.xdc-node"
+    mkdir -p "${PROJECT_ROOT}"/{configs,scripts,logs}
     
     # Set permissions
     chmod 750 "$DATA_DIR"
@@ -729,8 +725,8 @@ generate_config_toml() {
     fi
     
     # RPC API modules
-    local RPC_API='"eth", "net", "web3", "XDPoS"'
-    local WS_API='"eth", "net", "web3", "XDPoS"'
+    local RPC_API='"admin", "eth", "net", "web3", "XDPoS"'
+    local WS_API='"admin", "eth", "net", "web3", "XDPoS"'
     
     # Create config.toml from template
     cp "$template" "$config_toml"
@@ -919,7 +915,13 @@ ENVEOF
         info "Created empty password file (.pwd)"
     fi
     
-    # Create docker-compose.yml
+    # Use existing docker-compose.yml if present (from repo clone), otherwise generate
+    if [[ -f "$docker_dir/docker-compose.yml" ]]; then
+        log "Using existing docker-compose.yml (from repository)"
+        return 0
+    fi
+
+    # Generate docker-compose.yml (only when installing from scratch / curl pipe)
     cat > "$docker_dir/docker-compose.yml" << EOF
 services:
   xdc-node:
@@ -1039,9 +1041,51 @@ EOF
           sleep 60
         done
     depends_on:
-      - xdc-node
+      xdc-node:
+        condition: service_healthy
     profiles:
       - skynet
+
+  dashboard:
+    image: nginx:alpine
+    container_name: xdc-dashboard
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:3001:3000"
+    volumes:
+      - ../dashboard/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../dashboard/html:/usr/share/nginx/html:ro
+      - ./skynet-agent.sh:/agent.sh:ro
+      - ../${NETWORK}/.xdc-node/skynet.conf:/etc/xdc-node/skynet.conf:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/ssh/sshd_config:/host/sshd_config:ro
+      - /proc:/host/proc:ro
+    environment:
+      - SKYNET_CONF=/etc/xdc-node/skynet.conf
+      - RPC_URL=http://xdc-node:8545
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        apk add --no-cache curl jq bash bc procps >/dev/null 2>&1
+        echo "Starting SkyNet Agent in background..."
+        (
+          while true; do
+            /agent.sh 2>/dev/null
+            sleep 60
+          done
+        ) &
+        echo "Starting nginx..."
+        exec nginx -g 'daemon off;'
+    networks:
+      - xdc-network
+    depends_on:
+      xdc-node:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 EOF
     
     # Copy skynet agent files

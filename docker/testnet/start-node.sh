@@ -97,7 +97,7 @@ LOG_LEVEL="${LEVEL:-${LOG_LEVEL:-2}}"    # 0=silent, 1=error, 2=warn, 3=info, 4=
 ENABLE_RPC="${ENABLED:-${ENABLE_RPC:-true}}"
 RPC_ADDR="${ADDR:-${RPC_ADDR:-0.0.0.0}}"
 RPC_PORT="${PORT:-${RPC_PORT:-8545}}"
-RPC_API="${API:-${RPC_API:-eth,net,web3,XDPoS}}"
+RPC_API="${API:-${RPC_API:-admin,eth,net,web3,XDPoS}}"
 RPC_CORS_DOMAIN="${CORS_DOMAIN:-${RPC_CORS_DOMAIN:-*}}"
 RPC_VHOSTS="${VHOSTS:-${RPC_VHOSTS:-*}}"
 
