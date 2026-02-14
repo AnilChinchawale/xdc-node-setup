@@ -133,7 +133,7 @@ get_penalties() {
     # For now, return empty or simulated penalties
     
     # Check if we have stored penalties
-    local penalty_file="/var/lib/xdc-node/penalties.json"
+    mkdir -p "${XDC_STATE_DIR:-${XDC_DATA:-/root/xdcchain}/.state}" 2>&1; local penalty_file="${XDC_STATE_DIR:-${XDC_DATA:-/root/xdcchain}/.state}/penalties.json"
     if [[ -f "$penalty_file" ]]; then
         cat "$penalty_file"
     else
@@ -168,7 +168,7 @@ record_penalty() {
     local reason="$2"
     local description="${3:-}"
     
-    local penalty_file="/var/lib/xdc-node/penalties.json"
+    mkdir -p "${XDC_STATE_DIR:-${XDC_DATA:-/root/xdcchain}/.state}" 2>&1; local penalty_file="${XDC_STATE_DIR:-${XDC_DATA:-/root/xdcchain}/.state}/penalties.json"
     mkdir -p "$(dirname "$penalty_file")"
     
     local penalty_entry
@@ -203,7 +203,7 @@ get_proposals() {
     # In production, this would query the governance contract
     # For now, return simulated proposals
     
-    local proposals_file="/var/lib/xdc-node/proposals.json"
+    mkdir -p "${XDC_STATE_DIR:-${XDC_DATA:-/root/xdcchain}/.state}" 2>&1; local proposals_file="${XDC_STATE_DIR:-${XDC_DATA:-/root/xdcchain}/.state}/proposals.json"
     if [[ -f "$proposals_file" ]]; then
         cat "$proposals_file"
     else
@@ -227,7 +227,7 @@ record_proposal() {
     local description="${3:-}"
     local proposal_type="${4:-standard}"
     
-    local proposals_file="/var/lib/xdc-node/proposals.json"
+    mkdir -p "${XDC_STATE_DIR:-${XDC_DATA:-/root/xdcchain}/.state}" 2>&1; local proposals_file="${XDC_STATE_DIR:-${XDC_DATA:-/root/xdcchain}/.state}/proposals.json"
     mkdir -p "$(dirname "$proposals_file")"
     
     local proposal_entry

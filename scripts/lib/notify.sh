@@ -16,7 +16,8 @@ set -euo pipefail
 #==============================================================================
 readonly NOTIFY_CONFIG_DIR="/etc/xdc-node"
 readonly NOTIFY_CONFIG_FILE="${NOTIFY_CONFIG_DIR}/notify.conf"
-readonly NOTIFY_STATE_DIR="/var/lib/xdc-node"
+readonly XDC_STATE_DIR="${XDC_STATE_DIR:-${XDC_DATA:-/root/xdcchain}/.state}"
+readonly NOTIFY_STATE_DIR="${NOTIFY_STATE_DIR:-${XDC_STATE_DIR}}"
 readonly NOTIFY_STATE_FILE="${NOTIFY_STATE_DIR}/alert-state.json"
 readonly NOTIFY_LOG_DIR="/var/log/xdc-node"
 readonly NOTIFY_LOG_FILE="${NOTIFY_LOG_DIR}/notifications.log"

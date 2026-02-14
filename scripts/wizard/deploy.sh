@@ -98,7 +98,7 @@ deploy_local() {
     
     progress "Setting up directories..."
     mkdir -p /opt/xdc-node/{configs,scripts,monitoring}
-    mkdir -p /var/lib/xdc-node/xdcchain
+    mkdir -p /root/xdcchain
     mkdir -p /var/lib/node_exporter/textfile_collector
     
     sleep 1
@@ -537,7 +537,7 @@ Requirements:
 
 Configuration files are in:
 - /opt/xdc-node/
-- /var/lib/xdc-node/
+- /root/xdcchain/ (blockchain data)
 EOF
     
     progress_done

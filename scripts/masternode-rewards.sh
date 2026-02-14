@@ -18,7 +18,8 @@ BOLD='\033[1m'
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="${SCRIPT_DIR}/lib"
-REWARD_DB="/var/lib/xdc-node/rewards.db"
+XDC_STATE_DIR="${XDC_STATE_DIR:-${XDC_DATA:-/root/xdcchain}/.state}"
+REWARD_DB="${XDC_STATE_DIR}/rewards.db"
 LOG_DIR="/var/log/xdc-node"
 REWARD_LOG="${LOG_DIR}/rewards.log"
 
@@ -38,8 +39,8 @@ ensure_directories() {
     if [[ ! -d "$LOG_DIR" ]]; then
         sudo mkdir -p "$LOG_DIR"
     fi
-    if [[ ! -d "/var/lib/xdc-node" ]]; then
-        sudo mkdir -p /var/lib/xdc-node
+    if [[ ! -d "$XDC_STATE_DIR" ]]; then
+        sudo mkdir -p "$XDC_STATE_DIR" 2>/dev/null || mkdir -p "$XDC_STATE_DIR"
     fi
 }
 

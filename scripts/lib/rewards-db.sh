@@ -6,7 +6,7 @@
 set -euo pipefail
 
 # Database configuration
-REWARD_DB="${REWARD_DB:-/var/lib/xdc-node/rewards.db}"
+REWARD_DB="${REWARD_DB:-${XDC_STATE_DIR:-${XDC_DATA:-/root/xdcchain}/.state}/rewards.db}"
 DB_DIR="$(dirname "$REWARD_DB")"
 
 # Initialize database schema

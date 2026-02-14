@@ -22,7 +22,8 @@ NC='\033[0m'
 # Configuration
 readonly XDC_RPC_URL="${XDC_RPC_URL:-http://localhost:8545}"
 readonly XDC_DATADIR="${XDC_DATADIR:-/root/xdcchain}"
-readonly HISTORY_FILE="/var/lib/xdc-node/sync-history.json"
+readonly XDC_STATE_DIR="${XDC_STATE_DIR:-${XDC_DATA:-/root/xdcchain}/.state}"
+readonly HISTORY_FILE="${XDC_STATE_DIR}/sync-history.json"
 
 #==============================================================================
 # Utility Functions

@@ -33,9 +33,10 @@ NC='\033[0m'
 # Configuration
 readonly XDC_RPC_URL="${XDC_RPC_URL:-http://localhost:8545}"
 readonly GOVERNANCE_CONTRACT="${XDC_GOVERNANCE_CONTRACT:-0x0000000000000000000000000000000000000088}"
+readonly XDC_STATE_DIR="${XDC_STATE_DIR:-${XDC_DATA:-/root/xdcchain}/.state}"
 
 # State files
-readonly VOTE_HISTORY="/var/lib/xdc-node/governance-votes.json"
+readonly VOTE_HISTORY="${XDC_STATE_DIR}/governance-votes.json"
 
 #==============================================================================
 # Utility Functions

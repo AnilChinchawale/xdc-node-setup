@@ -42,7 +42,8 @@ declare -a PUBLIC_RPCS=(
 # State tracking
 CONTINUOUS_MODE=false
 CHECK_INTERVAL=60  # seconds between checks in continuous mode
-REPORT_FILE="/var/lib/xdc-node/monitor-report.json"
+XDC_STATE_DIR="${XDC_STATE_DIR:-${XDC_DATA:-/root/xdcchain}/.state}"
+REPORT_FILE="${XDC_STATE_DIR}/monitor-report.json"
 HISTORY_FILE="/var/lib/xdc-node/monitor-history.json"
 
 #==============================================================================
@@ -601,7 +602,7 @@ cmd_consensus() {
         track_epoch
         
         # Check for epoch change alert
-        local state_file="/var/lib/xdc-node/consensus-state.json"
+        mkdir -p "${XDC_STATE_DIR}" 2>&1 && local state_file="${XDC_STATE_DIR}/consensus-state.json"
         if [[ -f "$state_file" ]]; then
             local prev_epoch
             prev_epoch=$(jq -r '.epoch // 0' "$state_file" 2>/dev/null || echo "0")
@@ -640,7 +641,7 @@ cmd_governance() {
     fi
     
     # Check for new proposals
-    local proposals_file="/var/lib/xdc-node/proposals.json"
+    mkdir -p "${XDC_STATE_DIR}" 2>&1 && local proposals_file="${XDC_STATE_DIR}/proposals.json"
     if [[ -f "$proposals_file" ]]; then
         local proposal_count
         proposal_count=$(jq 'length' "$proposals_file" 2>/dev/null || echo "0")
@@ -649,7 +650,7 @@ cmd_governance() {
             info "Found $proposal_count active proposal(s)"
             
             # Alert on new proposals
-            local state_file="/var/lib/xdc-node/governance-state.json"
+            mkdir -p "${XDC_STATE_DIR}" 2>&1 && local state_file="${XDC_STATE_DIR}/governance-state.json"
             if [[ -f "$state_file" ]]; then
                 local prev_count
                 prev_count=$(jq -r '.count // 0' "$state_file" 2>/dev/null || echo "0")

@@ -23,7 +23,8 @@ CLUSTER_CONFIG="${CONFIG_DIR}/cluster.conf"
 LOG_DIR="/var/log/xdc-node"
 CLUSTER_LOG="${LOG_DIR}/cluster.log"
 KEY_DIR="${CONFIG_DIR}/cluster-keys"
-STATE_DIR="/var/lib/xdc-node/cluster"
+XDC_STATE_DIR="${XDC_STATE_DIR:-${XDC_DATA:-/root/xdcchain}/.state}"
+STATE_DIR="${XDC_STATE_DIR}/cluster"
 
 # Source libraries
 source "${LIB_DIR}/notify.sh" 2>/dev/null || true
@@ -169,7 +170,8 @@ create_health_check_script() {
 set -euo pipefail
 
 LOG_FILE="/var/log/xdc-node/cluster-health.log"
-STATE_DIR="/var/lib/xdc-node/cluster"
+XDC_STATE_DIR="${XDC_STATE_DIR:-${XDC_DATA:-/root/xdcchain}/.state}"
+STATE_DIR="${XDC_STATE_DIR}/cluster"
 
 log() {
     echo "[$(date -Iseconds)] $1" | tee -a "$LOG_FILE"

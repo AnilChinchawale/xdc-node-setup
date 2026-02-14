@@ -9,7 +9,7 @@
 #   ./skynet-agent.sh --install          # Install as systemd service + cron
 #
 # Config: /etc/xdc-node/skynet.conf
-# State:  /var/lib/xdc-node/skynet.json
+# State:  ${XDC_STATE_DIR}/skynet.json (default: /root/xdcchain/.state/skynet.json)
 #==============================================================================
 set -euo pipefail
 
@@ -19,7 +19,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Configuration
 #==============================================================================
 CONF_FILE="${SKYNET_CONF:-/etc/xdc-node/skynet.conf}"
-STATE_FILE="${SKYNET_STATE:-/var/lib/xdc-node/skynet.json}"
+XDC_STATE_DIR="${XDC_STATE_DIR:-${XDC_DATA:-/root/xdcchain}/.state}"
+STATE_FILE="${SKYNET_STATE:-${XDC_STATE_DIR}/skynet.json}"
 RPC_URL="${XDC_RPC_URL:-http://127.0.0.1:8545}"
 SKYNET_API="${SKYNET_API_URL:-https://net.xdc.network/api/v1}"
 SKYNET_API_KEY="${SKYNET_API_KEY:-}"
@@ -600,6 +601,10 @@ execute_commands() {
                     "${SCRIPT_DIR}/version-check.sh" --auto-update &
                 fi
                 ;;
+        esac
+    done <<< "$commands"
+}
+
 #==============================================================================
 # Peer Injection
 #==============================================================================
@@ -692,8 +697,8 @@ run_daemon() {
 install_service() {
     log "📦 Installing XDC SkyNet agent..."
     
-    # Create config directory
-    mkdir -p /etc/xdc-node /var/lib/xdc-node
+    # Create config and state directories
+    mkdir -p /etc/xdc-node "${XDC_STATE_DIR}"
     
     # Create config if not exists
     if [[ ! -f "$CONF_FILE" ]]; then

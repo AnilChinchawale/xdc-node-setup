@@ -328,6 +328,29 @@ get_config() {
     echo "$default"
 }
 
+# Run a script from the scripts directory
+run_script() {
+    local script="$1"
+    shift
+    local script_path="${SCRIPTS_DIR}/${script}"
+    
+    if [[ ! -f "$script_path" ]]; then
+        # Try to find script in project dir
+        script_path="${PROJECT_DIR}/scripts/${script}"
+    fi
+    
+    if [[ ! -f "$script_path" ]]; then
+        error "Script not found: $script"
+        return 1
+    fi
+    
+    if [[ ! -x "$script_path" ]]; then
+        chmod +x "$script_path" 2>/dev/null || true
+    fi
+    
+    bash "$script_path" "$@"
+}
+
 # Detect node service name
 detect_service() {
     for service in xdc-node xdcchain xdc geth erigon; do
@@ -648,10 +671,12 @@ EOF
         
         # Get system stats
         local cpu_usage
-        cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print int($2 + $4)}')
+        cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print int($2 + $4)}' 2>/dev/null || echo "0")
         local ram_usage
-        ram_usage=$(free | awk '/^Mem:/{printf "%.0f", $3/$2 * 100}')
+        ram_usage=$(awk '/MemTotal/{t=$2} /MemAvailable/{a=$2} END{printf "%.0f", (t-a)/t*100}' /proc/meminfo 2>/dev/null || echo "0")
         local disk_usage
+        # Ensure data directory exists before checking disk usage
+        mkdir -p "${XDC_DATA}" 2>/dev/null || true
         disk_usage=$(df -h "${XDC_DATA}" 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}' || echo "0")
         
         # Determine status

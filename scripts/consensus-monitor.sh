@@ -124,7 +124,7 @@ track_epoch() {
     printf " %d%%\n" "$epoch_progress"
     
     # Store for alerts
-    local state_file="/var/lib/xdc-node/consensus-state.json"
+    mkdir -p "${XDC_STATE_DIR}" 2>&1 && local state_file="${XDC_STATE_DIR}/consensus-state.json"
     mkdir -p "$(dirname "$state_file")"
     
     if [[ -f "$state_file" ]]; then
@@ -426,7 +426,7 @@ check_penalties() {
     done
     
     # Alert on new penalties
-    local state_file="/var/lib/xdc-node/penalty-state.json"
+    mkdir -p "${XDC_STATE_DIR}" 2>&1 && local state_file="${XDC_STATE_DIR}/penalty-state.json"
     if [[ -f "$state_file" ]]; then
         local prev_count
         prev_count=$(jq -r '.count // 0' "$state_file" 2>/dev/null || echo "0")

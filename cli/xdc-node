@@ -26,8 +26,9 @@ else
 fi
 readonly XDC_HOME="${XDC_HOME:-/opt/xdc}"
 readonly XDC_DATA="${XDC_DATA:-/root/xdcchain}"
-readonly SECURITY_STATE_FILE="/var/lib/xdc/security-state.json"
-readonly SNAPSHOT_STATE_FILE="/var/lib/xdc/snapshot-state.json"
+readonly XDC_STATE_DIR="${XDC_STATE_DIR:-${XDC_DATA}/.state}"
+readonly SECURITY_STATE_FILE="${XDC_STATE_DIR}/security-state.json"
+readonly SNAPSHOT_STATE_FILE="${XDC_STATE_DIR}/snapshot-state.json"
 
 # Default RPC settings
 readonly XDC_RPC_PORT="${XDC_RPC_PORT:-9545}"
