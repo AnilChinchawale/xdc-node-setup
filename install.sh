@@ -376,30 +376,12 @@ print_post_install() {
     echo -e "${GREEN}=====================================${NC}"
     echo ""
     
-    case "$OS" in
-        linux|wsl2)
-            echo "Your XDC node is running in Docker."
-            echo ""
-            echo "Useful commands:"
-            echo "  docker ps              - Check node status"
-            echo "  docker logs -f xdc-node - View logs"
-            echo "  docker stop xdc-node   - Stop node"
-            echo "  docker start xdc-node  - Start node"
-            ;;
-        macos)
-            echo "Your XDC node is running in Docker Desktop."
-            echo ""
-            echo "Useful commands:"
-            echo "  docker ps              - Check node status"
-            echo "  docker logs -f xdc-node - View logs"
-            echo "  open http://localhost:3000 - Open Grafana"
-            ;;
-    esac
-    
-    echo ""
-    echo "RPC Endpoints:"
-    echo "  HTTP:   http://localhost:8545"
-    echo "  WebSocket: http://localhost:8546"
+    echo "Useful commands:"
+    echo "  xdc status       — Node status + sync progress"
+    echo "  xdc health       — Health check (score 0-100)"
+    echo "  xdc logs         — View node logs"
+    echo "  xdc attach       — Attach to node console"
+    echo "  xdc help         — Show all commands"
     echo ""
     echo "Documentation: $REPO_URL"
     echo ""

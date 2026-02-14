@@ -1364,7 +1364,7 @@ install_cli_tool() {
         fi
     fi
     
-    log "CLI tool installed. Use: xdc-node help"
+    log "CLI tool installed. Use: xdc help"
 }
 
 #==============================================================================
@@ -1550,7 +1550,7 @@ show_status() {
         echo -e "${GREEN}Node is running!${NC}"
         echo ""
         echo "Useful commands:"
-        echo "  xdc-node logs    - View logs"
+        echo "  xdc logs    - View logs"
         echo "  xdc sync    - Check sync status"
         echo "  xdc health  - Health check"
     elif [[ "$status" == "installed" ]]; then
@@ -1849,30 +1849,30 @@ print_summary() {
     echo ""
     
     if [[ "$ENABLE_MONITORING" == "true" ]]; then
-        echo -e "   ${BOLD}Dashboards:${NC}"
-        echo -e "     Grafana:   http://localhost:3000 (admin/admin)"
-        echo -e "     Dashboard: http://localhost:3001 (run: cd dashboard && npm run dev)"
+        echo -e "   ${BOLD}Monitoring:${NC} xdc start --monitoring (Prometheus + Grafana)"
     fi
     
     echo -e "   ${BOLD}CLI Commands:${NC}"
     echo "     xdc status     — Node status, block height, peers, sync %"
     echo "     xdc sync       — Detailed sync progress with progress bar"
     echo "     xdc health     — Comprehensive health check (score 0-100)"
-    echo "     xdc-node security   — Server security audit (score 0-100)"
+    echo "     xdc security   — Server security audit (score 0-100)"
     echo "     xdc snapshot   — Restore from snapshot (with resume)"
     echo "     xdc attach     — Attach to node console"
-    echo "     xdc-node info       — Node info (network, version, enode)"
-    echo "     xdc-node peers      — List connected peers"
-    echo "     xdc-node backup     — Backup keystore and configs"
+    echo "     xdc info       — Node info (network, version, enode)"
+    echo "     xdc peers      — List connected peers"
+    echo "     xdc backup     — Backup keystore and configs"
     echo "     xdc monitor    — Security rotation reminders"
-    echo "     xdc-node logs       — View node logs"
-    echo "     xdc-node help       — Show all commands"
+    echo "     xdc logs       — View node logs"
+    echo "     xdc help       — Show all commands"
+    echo ""
+    echo -e "   ${BOLD}Dashboard:${NC}  http://localhost:${DASHBOARD_PORT:-7070}"
     echo ""
     echo -e "   ${BOLD}Next Steps:${NC}"
     echo "   1. Wait for sync to complete (~2-3 days for full node)"
     echo "   2. Check sync status: xdc sync"
     echo "   3. Monitor health: xdc health"
-    echo "   4. Check security: xdc-node security"
+    echo "   4. Check security: xdc security"
     echo ""
     echo -e "   ${YELLOW}${BOLD}🔒 Security Recommendations:${NC}"
     echo "   • RPC is bound to 127.0.0.1 only (not exposed externally)"
