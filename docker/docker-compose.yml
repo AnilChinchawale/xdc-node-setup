@@ -14,8 +14,8 @@ services:
     container_name: xdc-node
     restart: always
     ports:
-      - "30303:30303"
-      - "30303:30303/udp"
+      - "${PORT:-30303}:30303"
+      - "${PORT:-30303}:30303/udp"
       - "8545:8545"
       - "8546:8546"
     volumes:
@@ -284,6 +284,8 @@ services:
       - API_KEY=${DASHBOARD_API_KEY:-}
       - REPORTS_DIR=/app/reports
       - CONFIGS_DIR=/app/configs
+      - RPC_URL=http://xdc-node:8545
+      - PROMETHEUS_URL=http://prometheus:9090
     networks:
       - xdc-monitoring
     depends_on:

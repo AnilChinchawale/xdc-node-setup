@@ -12,10 +12,10 @@ export const dynamic = 'force-dynamic';
  * Used by Kubernetes readiness probes
  */
 export async function GET() {
-  const checks = {
-    database: 'ok' as const,
-    rpc: 'ok' as const,
-    prometheus: 'ok' as const,
+  const checks: { database: 'ok' | 'error'; rpc: 'ok' | 'error'; prometheus: 'ok' | 'error' } = {
+    database: 'ok',
+    rpc: 'ok',
+    prometheus: 'ok',
   };
   let ready = true;
 
