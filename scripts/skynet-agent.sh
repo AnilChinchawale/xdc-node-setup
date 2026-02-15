@@ -1,15 +1,24 @@
 #!/usr/bin/env bash
 #==============================================================================
-# XDC SkyNet Agent — Auto-register + push heartbeats to XDC SkyNet Platform
+# XDC SkyNet Agent — Monitor + auto-restart XDC nodes
 # 
+# Features:
+#   • Auto-register nodes with XDC SkyNet platform
+#   • Push heartbeats with full metrics (block height, peers, system resources)
+#   • Built-in watchdog: auto-restart unhealthy nodes
+#   • Max 3 restarts/hour with 5-minute cooldown
+#   • Auto-inject peers when peer count drops to zero
+#
 # Usage:
-#   ./skynet-agent.sh                    # Run once (heartbeat)
+#   ./skynet-agent.sh                    # Heartbeat + watchdog check
 #   ./skynet-agent.sh --register         # Force re-registration
 #   ./skynet-agent.sh --daemon           # Run as daemon (every 30s)
-#   ./skynet-agent.sh --install          # Install as systemd service + cron
+#   ./skynet-agent.sh --install          # Install as systemd service
+#   ./skynet-agent.sh --watchdog         # Run watchdog check only
 #
 # Config: /etc/xdc-node/skynet.conf
 # State:  ${XDC_STATE_DIR}/skynet.json (default: /root/xdcchain/.state/skynet.json)
+# Logs:   /var/log/xdc-watchdog.log
 #==============================================================================
 set -euo pipefail
 
@@ -569,11 +578,199 @@ EOF
 }
 
 #==============================================================================
+# Watchdog — Auto-restart unhealthy nodes
+#==============================================================================
+WATCHDOG_STATE_FILE="/tmp/xdc-watchdog-state.json"
+WATCHDOG_LOG="/var/log/xdc-watchdog.log"
+MAX_RESTARTS_PER_HOUR=3
+RESTART_COOLDOWN=300  # 5 minutes between restarts
+
+load_watchdog_state() {
+    if [[ -f "$WATCHDOG_STATE_FILE" ]]; then
+        WD_LAST_BLOCK=$(jq -r '.lastBlock // 0' "$WATCHDOG_STATE_FILE" 2>/dev/null || echo "0")
+        WD_LAST_CHECK=$(jq -r '.lastCheckTime // 0' "$WATCHDOG_STATE_FILE" 2>/dev/null || echo "0")
+        WD_RESTART_COUNT=$(jq -r '.restartCount // 0' "$WATCHDOG_STATE_FILE" 2>/dev/null || echo "0")
+        WD_LAST_RESTART=$(jq -r '.lastRestartTime // 0' "$WATCHDOG_STATE_FILE" 2>/dev/null || echo "0")
+        WD_FIRST_RESTART=$(jq -r '.firstRestartTime // 0' "$WATCHDOG_STATE_FILE" 2>/dev/null || echo "0")
+    else
+        WD_LAST_BLOCK=0
+        WD_LAST_CHECK=0
+        WD_RESTART_COUNT=0
+        WD_LAST_RESTART=0
+        WD_FIRST_RESTART=0
+    fi
+}
+
+save_watchdog_state() {
+    local block=$1
+    local now=$(date +%s)
+    
+    cat > "$WATCHDOG_STATE_FILE" <<EOF
+{
+    "lastBlock": $block,
+    "lastCheckTime": $now,
+    "restartCount": $WD_RESTART_COUNT,
+    "lastRestartTime": $WD_LAST_RESTART,
+    "firstRestartTime": $WD_FIRST_RESTART
+}
+EOF
+}
+
+watchdog_log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$WATCHDOG_LOG"
+}
+
+detect_container_name() {
+    # Try common XDC container names
+    for name in xdc-node xdc-node-erigon xdc-node-geth XDC xdc erigon-xdc; do
+        if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^${name}$"; then
+            echo "$name"
+            return 0
+        fi
+    done
+    
+    # Try to find any container with 'xdc' in name
+    docker ps -a --format '{{.Names}}' 2>/dev/null | grep -i xdc | head -1 || echo ""
+}
+
+check_node_health() {
+    local block_height=$1
+    local peer_count=$2
+    local is_syncing=$3
+    
+    load_watchdog_state
+    
+    local now=$(date +%s)
+    local issues=()
+    local should_restart=false
+    
+    # Check 1: Is container running?
+    local container_name
+    container_name=$(detect_container_name)
+    if [[ -n "$container_name" ]]; then
+        local container_status
+        container_status=$(docker inspect -f '{{.State.Status}}' "$container_name" 2>/dev/null || echo "unknown")
+        if [[ "$container_status" != "running" ]]; then
+            issues+=("Container $container_name is $container_status")
+            should_restart=true
+        fi
+    fi
+    
+    # Check 2: Is RPC responding?
+    local rpc_test
+    rpc_test=$(rpc_call "eth_blockNumber" | jq -r '.result // "error"')
+    if [[ "$rpc_test" == "error" || -z "$rpc_test" ]]; then
+        issues+=("RPC not responding")
+        should_restart=true
+    fi
+    
+    # Check 3: Is sync progressing? (only if not in fast sync mode)
+    if [[ "$WD_LAST_BLOCK" -gt 0 && "$block_height" -gt 0 ]]; then
+        local block_diff=$((block_height - WD_LAST_BLOCK))
+        local time_diff=$((now - WD_LAST_CHECK))
+        
+        # If no block progress in 10+ minutes and not syncing, that's bad
+        if [[ "$block_diff" -eq 0 && "$time_diff" -gt 600 && "$is_syncing" == "false" ]]; then
+            issues+=("No block progress in $((time_diff / 60)) minutes")
+            should_restart=true
+        fi
+    fi
+    
+    # Check 4: Do we have peers?
+    if [[ "$peer_count" -eq 0 ]]; then
+        issues+=("Zero peers connected")
+        # Don't restart immediately on peer loss, just log it
+        watchdog_log "⚠️ Warning: No peers connected"
+    fi
+    
+    # Reset restart counter if it's been >1 hour since first restart
+    if [[ "$WD_FIRST_RESTART" -gt 0 && $((now - WD_FIRST_RESTART)) -gt 3600 ]]; then
+        WD_RESTART_COUNT=0
+        WD_FIRST_RESTART=0
+        watchdog_log "✅ Reset restart counter (1 hour passed)"
+    fi
+    
+    # Decide if we should restart
+    if [[ "$should_restart" == "true" ]]; then
+        # Check cooldown
+        if [[ "$WD_LAST_RESTART" -gt 0 && $((now - WD_LAST_RESTART)) -lt "$RESTART_COOLDOWN" ]]; then
+            local cooldown_left=$((RESTART_COOLDOWN - (now - WD_LAST_RESTART)))
+            watchdog_log "⏳ Issues detected but in cooldown (${cooldown_left}s left)"
+            save_watchdog_state "$block_height"
+            return 0
+        fi
+        
+        # Check restart limit
+        if [[ "$WD_RESTART_COUNT" -ge "$MAX_RESTARTS_PER_HOUR" ]]; then
+            watchdog_log "🚨 ALERT: Max restarts ($MAX_RESTARTS_PER_HOUR) reached in 1 hour"
+            watchdog_log "Issues: ${issues[*]}"
+            # TODO: Send alert notification via SkyNet API
+            save_watchdog_state "$block_height"
+            return 1
+        fi
+        
+        # Perform restart
+        watchdog_log "🔄 AUTO-RESTART triggered: ${issues[*]}"
+        
+        if [[ -n "$container_name" ]]; then
+            watchdog_log "Restarting Docker container: $container_name"
+            if docker restart "$container_name" &>/dev/null; then
+                watchdog_log "✅ Container restarted successfully"
+            else
+                watchdog_log "❌ Container restart failed"
+                save_watchdog_state "$block_height"
+                return 1
+            fi
+        else
+            # Try systemd
+            watchdog_log "No Docker container found, trying systemd..."
+            if systemctl restart xdc-node 2>/dev/null; then
+                watchdog_log "✅ Service restarted successfully"
+            else
+                watchdog_log "❌ Service restart failed"
+                save_watchdog_state "$block_height"
+                return 1
+            fi
+        fi
+        
+        # Update restart tracking
+        WD_RESTART_COUNT=$((WD_RESTART_COUNT + 1))
+        WD_LAST_RESTART=$now
+        [[ "$WD_FIRST_RESTART" -eq 0 ]] && WD_FIRST_RESTART=$now
+        
+        watchdog_log "Restart count: $WD_RESTART_COUNT/$MAX_RESTARTS_PER_HOUR in current window"
+    else
+        # Node is healthy
+        if [[ ${#issues[@]} -eq 0 ]]; then
+            watchdog_log "✅ Node healthy (block: $block_height, peers: $peer_count)"
+        else
+            watchdog_log "⚠️ Minor issues (not restarting): ${issues[*]}"
+        fi
+    fi
+    
+    save_watchdog_state "$block_height"
+    return 0
+}
+
+#==============================================================================
 # Push Heartbeat
 #==============================================================================
 push_heartbeat() {
     local payload
     payload=$(collect_metrics)
+    
+    # Extract metrics for watchdog check
+    local block_height peer_count is_syncing
+    block_height=$(echo "$payload" | jq -r '.blockHeight // 0')
+    peer_count=$(echo "$payload" | jq -r '.peerCount // 0')
+    is_syncing=$(echo "$payload" | jq -r '.syncing // false')
+    
+    # Run watchdog health check (may auto-restart node)
+    if ! check_node_health "$block_height" "$peer_count" "$is_syncing"; then
+        warn "Watchdog detected critical issues and reached restart limit"
+        write_heartbeat_status "watchdog_limit_reached" "Max restarts exceeded"
+        return 1
+    fi
     
     local response
     response=$(api_call POST "/nodes/heartbeat" "$payload")
@@ -802,6 +999,15 @@ main() {
             log "🔗 Adding peers from SkyNet API..."
             inject_peers "$RPC_URL" || { err "Failed to add peers"; exit 1; }
             ;;
+        --watchdog|-w)
+            log "🐕 Running watchdog health check..."
+            payload=$(collect_metrics)
+            block_height=$(echo "$payload" | jq -r '.blockHeight // 0')
+            peer_count=$(echo "$payload" | jq -r '.peerCount // 0')
+            is_syncing=$(echo "$payload" | jq -r '.syncing // false')
+            check_node_health "$block_height" "$peer_count" "$is_syncing"
+            echo "Check watchdog log: tail -f $WATCHDOG_LOG"
+            ;;
         --heartbeat|heartbeat|"")
             load_state
             if [[ -z "$NODE_ID" ]]; then
@@ -819,18 +1025,24 @@ main() {
             fi
             ;;
         --help|-h)
-            echo "XDC SkyNet Agent — Monitor your XDC node"
+            echo "XDC SkyNet Agent — Monitor your XDC node with auto-restart"
             echo ""
             echo "Usage: $0 [option]"
             echo ""
             echo "Options:"
-            echo "  (none)       Send a heartbeat (auto-registers if needed)"
+            echo "  (none)       Send heartbeat + run watchdog (auto-registers if needed)"
             echo "  --register   Force re-registration with XDC SkyNet"
-            echo "  --daemon     Run as daemon (heartbeat every ${HEARTBEAT_INTERVAL}s)"
+            echo "  --daemon     Run as daemon (heartbeat + watchdog every ${HEARTBEAT_INTERVAL}s)"
             echo "  --install    Install as systemd service"
             echo "  --status     Show registration status"
             echo "  --add-peers  Fetch and add peers from SkyNet API"
+            echo "  --watchdog   Run watchdog health check only (no heartbeat)"
             echo "  --help       Show this help"
+            echo ""
+            echo "Watchdog Features:"
+            echo "  • Auto-restarts unhealthy nodes (container stopped, RPC down, sync stalled)"
+            echo "  • Max 3 restarts per hour with 5-minute cooldown between attempts"
+            echo "  • Logs all actions to $WATCHDOG_LOG"
             echo ""
             echo "Config: $CONF_FILE"
             echo "API:    $SKYNET_API"
