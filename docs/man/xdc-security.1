@@ -1,0 +1,82 @@
+.TH XDC-SECURITY 1 "February 2026" "XDC CLI 1.0.0" "User Commands"
+.SH NAME
+xdc-security \- XDC Node Security Audit
+.SH SYNOPSIS
+.B xdc security
+.RI [ options ]
+.SH DESCRIPTION
+The security command performs a comprehensive audit of the XDC node security
+configuration. By default, it operates in read-only mode and provides
+recommendations without making any changes.
+.SH SECURITY CHECKS
+.SS SSH Configuration
+.TP
+.B Key-Only Authentication
+Verifies PasswordAuthentication is disabled.
+.TP
+.B Non-Standard Port
+Checks if SSH is running on a port other than 22.
+.TP
+.B Root Login Restricted
+Verifies PermitRootLogin is set to 'no'.
+.SS Network Security
+.TP
+.B Firewall Enabled
+Checks if UFW firewall is active.
+.TP
+.B RPC Not Exposed
+Verifies RPC endpoint is not exposed to 0.0.0.0.
+.TP
+.B WebSocket Not Exposed
+Verifies WebSocket endpoint is not exposed externally.
+.SS System Security
+.TP
+.B Fail2ban Active
+Checks if fail2ban intrusion prevention is running.
+.TP
+.B Automatic Updates
+Verifies unattended-upgrades is configured.
+.SH OPTIONS
+.TP
+.B \-\-audit\-only
+Check only, don't apply changes (default behavior).
+.TP
+.B \-\-fix
+Apply recommended security fixes with confirmation.
+.TP
+.B \-\-json
+Output audit results in JSON format.
+.TP
+.B \-\-help, \-h
+Show help message and exit.
+.SH SECURITY SCORE
+The audit provides a score from 0-100:
+.TP
+.B 80-100 (Green)
+Good security posture.
+.TP
+.B 60-79 (Yellow)
+Moderate security. Several recommendations should be addressed.
+.TP
+.B 0-59 (Red)
+Poor security. Immediate attention required.
+.SH EXAMPLES
+.TP
+.B xdc security
+Run security audit in read-only mode.
+.TP
+.B xdc security \-\-fix
+Run audit and apply recommended fixes interactively.
+.TP
+.B xdc security \-\-json
+Output audit results as JSON.
+.SH SEE ALSO
+.BR xdc (1),
+.BR sshd_config (5),
+.BR ufw (8),
+.BR fail2ban (1)
+.SH AUTHOR
+Anil Chinchawale <anil24593@gmail.com>
+.SH SECURITY CONSIDERATIONS
+The \-\-fix option makes system changes. Always have a backup available
+and test SSH access in a new session before closing current session.

@@ -1387,24 +1387,49 @@ EOF
 # Command: update
 #==============================================================================
 cmd_update() {
+    local check_only=false
+    local auto_enable=false
+    local auto_disable=false
+    local force=false
+    local target_version=""
+    
     while [[ $# -gt 0 ]]; do
         case "$1" in
+            --check) check_only=true; shift ;;
+            --auto) auto_enable=true; shift ;;
+            --no-auto) auto_disable=true; shift ;;
+            --force) force=true; shift ;;
+            --version) target_version="$2"; shift 2 ;;
             --help|-h)
                 cat << EOF
-$(c BOLD)xdc update$(c NC) — Update node Docker image and restart
+$(c BOLD)xdc update$(c NC) — Update xdc-node-setup and node components
 
 $(c BOLD)USAGE:$(c NC)
-    xdc update
+    xdc update [options]
 
 $(c BOLD)DESCRIPTION:$(c NC)
-    Updates the XDC node Docker image to the latest version:
-    - Backs up current configuration
-    - Pulls the latest Docker image
-    - Restarts the node with the new image
-    - Verifies the node is running and syncing
+    Checks for and applies updates to xdc-node-setup from GitHub releases.
+    Can update the CLI scripts, Docker images, and node configuration.
 
-$(c BOLD)EXAMPLE:$(c NC)
-    xdc update
+$(c BOLD)OPTIONS:$(c NC)
+    --check          Check for available updates without applying
+    --auto           Enable automatic updates via cron
+    --no-auto        Disable automatic updates
+    --force          Apply update without confirmation
+    --version V      Update to specific version (default: latest)
+    --help           Show this help
+
+$(c BOLD)AUTO-UPDATE:$(c NC)
+    When enabled, automatic updates run daily at 3:00 AM.
+    Logs are saved to /var/log/xdc-auto-update.log
+    Backups are created before each update.
+
+$(c BOLD)EXAMPLES:$(c NC)
+    xdc update                    # Check and apply available updates
+    xdc update --check            # Only check for updates
+    xdc update --auto             # Enable auto-updates
+    xdc update --force            # Force update without prompt
+    xdc update --version v1.1.0   # Update to specific version
 
 EOF
                 return 0
@@ -1413,6 +1438,42 @@ EOF
         esac
     done
 
+    # Handle auto-update enable/disable
+    if [[ "$auto_enable" == true ]]; then
+        local auto_update_script="${SCRIPTS_DIR}/auto-update.sh"
+        if [[ -f "$auto_update_script" ]]; then
+            bash "$auto_update_script" setup-cron
+        else
+            error "Auto-update script not found at $auto_update_script"
+            return 1
+        fi
+        return 0
+    fi
+    
+    if [[ "$auto_disable" == true ]]; then
+        local auto_update_script="${SCRIPTS_DIR}/auto-update.sh"
+        if [[ -f "$auto_update_script" ]]; then
+            bash "$auto_update_script" remove-cron
+        else
+            error "Auto-update script not found at $auto_update_script"
+            return 1
+        fi
+        return 0
+    fi
+
+    # Run auto-update check/apply
+    local auto_update_script="${SCRIPTS_DIR}/auto-update.sh"
+    if [[ -f "$auto_update_script" ]]; then
+        local args=()
+        [[ "$check_only" == true ]] && args+=("--check")
+        [[ "$force" == true ]] && args+=("--force")
+        [[ -n "$target_version" ]] && args+=("--version" "$target_version")
+        
+        bash "$auto_update_script" update "${args[@]}"
+        return $?
+    fi
+
+    # Fallback to legacy Docker-based update
     # Determine directories and compose file
     local STATE_DIR="${XDC_STATE_DIR:-${PROJECT_DIR}/${XDC_NETWORK}/.xdc-node}"
     local COMPOSE_FILE="${INSTALL_DIR}/docker/docker-compose.yml"
@@ -3963,7 +4024,41 @@ main() {
         version)    cmd_version "$@" ;;
         client)     cmd_client "$@" ;;
         help|--help|-h)
-            print_help
+            if [[ $# -gt 0 ]]; then
+                # Show help for specific command: xdc help <command>
+                case "$1" in
+                    init)       cmd_init --help ;;
+                    status|info) cmd_status --help ;;
+                    health)     cmd_health --help ;;
+                    security)   cmd_security --help ;;
+                    update)     cmd_update --help ;;
+                    backup)     cmd_backup --help ;;
+                    restore)    cmd_restore --help ;;
+                    logs)       cmd_logs --help ;;
+                    restart)    cmd_restart --help ;;
+                    stop)       cmd_stop --help ;;
+                    start)      cmd_start --help ;;
+                    config)     cmd_config --help ;;
+                    notify)     cmd_notify --help ;;
+                    dashboard)  cmd_dashboard --help ;;
+                    version)    cmd_version --help ;;
+                    client)     cmd_client --help ;;
+                    attach)     cmd_attach --help ;;
+                    masternode) cmd_masternode --help ;;
+                    peers)      cmd_peers --help ;;
+                    snapshot)   cmd_snapshot --help ;;
+                    monitor)    cmd_monitor --help ;;
+                    sync)       cmd_sync --help ;;
+                    consensus)  cmd_consensus --help ;;
+                    governance) cmd_governance --help ;;
+                    rewards)    cmd_rewards --help ;;
+                    cluster)    cmd_cluster --help ;;
+                    stake)      cmd_stake --help ;;
+                    *)          echo "No detailed help for: $1"; echo "Run 'xdc help' for all commands." ;;
+                esac
+            else
+                print_help
+            fi
             ;;
         *)
             error "Unknown command: $command"

@@ -1,0 +1,57 @@
+.TH XDC-SETUP 1 "February 2026" "XDC CLI 1.0.0" "User Commands"
+.SH NAME
+xdc-setup \- XDC Node Setup and Initialization
+.SH SYNOPSIS
+.B xdc init
+.RI [ options ]
+.SH DESCRIPTION
+The setup command provides an interactive wizard for configuring and deploying
+an XDC Network node. It handles system requirement checks, dependency
+installation, network configuration, and initial node setup.
+.SH OPTIONS
+.TP
+.B \-\-quick
+Run minimal setup with default settings.
+.TP
+.B \-\-help, \-h
+Show help message and exit.
+.SH SETUP PROCESS
+.SS 1. System Requirements Check
+.IP \(bu 4
+Minimum 4 CPU cores (8+ recommended)
+.IP \(bu 4
+Minimum 16GB RAM (32GB+ recommended)
+.IP \(bu 4
+Minimum 500GB free disk space (SSD recommended)
+.SS 2. Client Selection
+.IP \(bu 4
+.B stable
+- XDC Stable - Official Docker image
+.IP \(bu 4
+.B geth-pr5
+- XDC Geth PR5 - Latest with XDPoS v2
+.IP \(bu 4
+.B erigon
+- Erigon-XDC - High-performance implementation
+.SS 3. Network Selection
+.IP \(bu 4
+.B mainnet
+- XDC Main Network (production)
+.IP \(bu 4
+.B testnet
+- XDC Test Network
+.SH EXAMPLES
+.B xdc init
+.RS
+Run full interactive setup wizard.
+.RE
+.PP
+.B xdc init \-\-quick
+.RS
+Run quick setup with defaults.
+.RE
+.SH SEE ALSO
+.BR xdc (1),
+.BR xdc-status (1)
+.SH AUTHOR
+Anil Chinchawale <anil24593@gmail.com>

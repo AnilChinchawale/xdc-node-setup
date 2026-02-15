@@ -1,0 +1,64 @@
+.TH XDC-STATUS 1 "February 2026" "XDC CLI 1.0.0" "User Commands"
+.SH NAME
+xdc-status \- XDC Node Status Overview
+.SH SYNOPSIS
+.B xdc status
+.RI [ options ]
+.SH DESCRIPTION
+The status command provides a comprehensive overview of the XDC node state,
+including synchronization progress, peer connections, and system resources.
+.SH OPTIONS
+.TP
+.B \-\-watch, \-w
+Auto-refresh status display every 5 seconds.
+.TP
+.B \-\-interval\ N
+Set custom refresh interval in seconds (default: 5).
+.TP
+.B \-\-json
+Output status in JSON format.
+.TP
+.B \-\-help, \-h
+Show help message and exit.
+.SH OUTPUT COLUMNS
+.TP
+.B Client
+The XDC client type.
+.TP
+.B Block
+Current block height synced.
+.TP
+.B Peers
+Number of connected P2P peers.
+.TP
+.B Sync%
+Synchronization percentage.
+.TP
+.B CPU
+Current CPU usage percentage.
+.TP
+.B RAM
+Current memory usage percentage.
+.TP
+.B Status
+Node status (Online, Syncing, or Offline).
+.SH EXAMPLES
+.B xdc status
+.RS
+Display current node status once.
+.RE
+.PP
+.B xdc status \-\-watch
+.RS
+Continuously monitor status.
+.RE
+.PP
+.B xdc status \-\-json
+.RS
+Output status as JSON.
+.RE
+.SH SEE ALSO
+.BR xdc (1),
+.BR xdc-health (1)
+.SH AUTHOR
+Anil Chinchawale <anil24593@gmail.com>
