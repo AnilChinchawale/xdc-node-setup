@@ -136,6 +136,12 @@ detect_node_info() {
     DETECT_IPV4=$(curl -s -4 --max-time 2 https://ifconfig.me 2>/dev/null || curl -s -4 --max-time 2 https://api.ipify.org 2>/dev/null || echo "")
     DETECT_IPV6=$(curl -s -6 --max-time 2 https://ifconfig6.me 2>/dev/null || curl -s -6 --max-time 2 https://api6.ipify.org 2>/dev/null || echo "")
     
+    # Replace internal/container IPs in enode with public IP for peer discovery
+    if [[ -n "$DETECT_ENODE" && -n "$DETECT_IPV4" ]]; then
+        DETECT_ENODE=$(echo "$DETECT_ENODE" | sed "s/@[^:]*:/@${DETECT_IPV4}:/")
+        log "📡 Public enode: ${DETECT_ENODE:0:80}..."
+    fi
+    
     # Detect if masternode with detailed node type
     local coinbase
     coinbase=$(rpc_call "eth_coinbase" | jq -r '.result // "0x0"')
@@ -543,6 +549,7 @@ collect_metrics() {
     },
     "security": $security_json,
     "rpcLatencyMs": $rpc_latency,
+    "enode": "$DETECT_ENODE",
     "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
 EOF
