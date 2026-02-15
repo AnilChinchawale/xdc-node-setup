@@ -80,23 +80,28 @@ load_config() {
     echo "Loaded config from $config_file"
 }
 
+# Save Docker env vars BEFORE config.toml can overwrite them
+_DOCKER_RPC_PORT="${RPC_PORT:-}"
+_DOCKER_P2P_PORT="${P2P_PORT:-}"
+_DOCKER_P2P_PORT_68="${P2P_PORT_68:-}"
+
 if [[ -f "$CONFIG_FILE" ]]; then
     load_config "$CONFIG_FILE"
 fi
 
 # ============================================================
-# Defaults
+# Defaults — Docker env takes priority over config.toml
 # ============================================================
 SYNC_MODE="${SYNC_MODE:-full}"
 LOG_LEVEL="${LEVEL:-3}"
 INSTANCE_NAME="${INSTANCE_NAME:-Erigon_XDC_Node}"
 RPC_ADDR="${HTTP_ADDR:-${ADDR:-0.0.0.0}}"
-RPC_PORT="${HTTP_PORT:-${PORT:-8547}}"
+RPC_PORT="${_DOCKER_RPC_PORT:-${HTTP_PORT:-${PORT:-8547}}}"
 RPC_API="${HTTP_API:-${API:-eth,net,web3,admin,XDPoS}}"
 RPC_CORS_DOMAIN="${HTTP_CORS_DOMAIN:-${CORS_DOMAIN:-*}}"
 RPC_VHOSTS="${HTTP_VHOSTS:-${VHOSTS:-*}}"
-P2P_PORT_63="${P2P_PORT:-30304}"
-P2P_PORT_68="${P2P_PORT_68:-30311}"
+P2P_PORT_63="${_DOCKER_P2P_PORT:-${P2P_PORT:-30304}}"
+P2P_PORT_68="${_DOCKER_P2P_PORT_68:-${P2P_PORT_68:-30311}}"
 
 echo "Config: sync=$SYNC_MODE log=$LOG_LEVEL rpc=$RPC_ADDR:$RPC_PORT"
 
