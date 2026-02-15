@@ -24,6 +24,30 @@ function getRpcUrl() { return process.env.RPC_URL || 'http://xdc-node:8545'; }
 function getMainnetRpc() { return process.env.MAINNET_RPC || 'https://erpc.xinfin.network'; }
 
 /**
+ * Read watchdog state for stall tracking
+ */
+async function getWatchdogState(): Promise<{ stallHours: number; stalledAtBlock: number }> {
+  try {
+    const fs = await import('fs');
+    const stateFile = '/tmp/xdc-watchdog-state.json';
+    if (fs.existsSync(stateFile)) {
+      const content = fs.readFileSync(stateFile, 'utf-8');
+      const state = JSON.parse(content);
+      const now = Math.floor(Date.now() / 1000);
+      const stallStart = state.stallStartTime || 0;
+      const stalledAtBlock = state.stalledAtBlock || 0;
+      
+      if (stallStart > 0 && stalledAtBlock > 0) {
+        const stallDuration = now - stallStart;
+        const stallHours = stallDuration / 3600;
+        return { stallHours, stalledAtBlock };
+      }
+    }
+  } catch {}
+  return { stallHours: 0, stalledAtBlock: 0 };
+}
+
+/**
  * Get the public IPv4 address of the server
  * Prefers non-internal IPv4 addresses from network interfaces
  */
@@ -464,6 +488,9 @@ export async function GET() {
     // Get storage metrics - now async
     const storageMetrics = await getStorageMetrics();
     
+    // Get watchdog stall state
+    const watchdogState = await getWatchdogState();
+    
     // Node config from environment
     const nodeConfig = {
       clientType,
@@ -505,6 +532,8 @@ export async function GET() {
         ethstatsName: process.env.NODE_NAME || '',
         clientVersion: (nodeInfo.name as string) || '',
         clientType,
+        stallHours: watchdogState.stallHours,
+        stalledAtBlock: watchdogState.stalledAtBlock,
       },
       consensus: {
         epoch,

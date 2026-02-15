@@ -16,6 +16,7 @@ import SkyNetStatus from '@/components/SkyNetStatus';
 import { LFGBadge } from '@/components/LFGBadge';
 import TroubleshootPanel from '@/components/TroubleshootPanel';
 import MetricsHistoryPanel from '@/components/MetricsHistoryPanel';
+import StallWarning from '@/components/StallWarning';
 import type { MetricsData, PeersData } from '@/lib/types';
 
 interface MetricsHistory {
@@ -373,6 +374,15 @@ export default function Home() {
             </div>
           </div>
         )}
+        
+        {/* Stall Warning - Shows when node is stuck on same block */}
+        {metrics.blockchain.stallHours && metrics.blockchain.stallHours > 0 && (
+          <StallWarning 
+            stallHours={metrics.blockchain.stallHours} 
+            stalledAtBlock={metrics.blockchain.stalledAtBlock || 0}
+          />
+        )}
+        
         {/* Hero - Blockchain Status */}
         <HeroSection 
           data={metrics.blockchain}

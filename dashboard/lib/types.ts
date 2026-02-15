@@ -19,6 +19,8 @@ export interface BlockchainData {
   ethstatsName: string;
   clientVersion: string;
   clientType?: 'geth' | 'erigon' | 'geth-pr5' | 'unknown';
+  stallHours?: number;
+  stalledAtBlock?: number;
 }
 
 export interface ConsensusData {
