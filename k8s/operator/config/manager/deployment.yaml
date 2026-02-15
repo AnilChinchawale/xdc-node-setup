@@ -1,0 +1,145 @@
+---
+# XDC Node Operator Deployment
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: xdc-operator-system
+  labels:
+    app.kubernetes.io/name: xdc-operator
+    app.kubernetes.io/component: manager
+    control-plane: controller-manager
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: xdc-operator-controller-manager
+  namespace: xdc-operator-system
+  labels:
+    app.kubernetes.io/name: xdc-operator
+    app.kubernetes.io/component: manager
+    control-plane: controller-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+      app.kubernetes.io/name: xdc-operator
+  template:
+    metadata:
+      labels:
+        control-plane: controller-manager
+        app.kubernetes.io/name: xdc-operator
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+    spec:
+      serviceAccountName: xdc-operator-controller-manager
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: manager
+          image: xinfin/xdc-operator:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /manager
+          args:
+            - --leader-elect
+            - --health-probe-bind-address=:8081
+            - --metrics-bind-address=:8080
+            - --zap-log-level=info
+          ports:
+            - name: metrics
+              containerPort: 8080
+              protocol: TCP
+            - name: health
+              containerPort: 8081
+              protocol: TCP
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OPERATOR_NAME
+              value: "xdc-operator"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            limits:
+              cpu: 500m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+      terminationGracePeriodSeconds: 10
+      nodeSelector:
+        kubernetes.io/os: linux
+
+---
+# Metrics Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: xdc-operator-controller-manager-metrics
+  namespace: xdc-operator-system
+  labels:
+    app.kubernetes.io/name: xdc-operator
+    app.kubernetes.io/component: manager
+    control-plane: controller-manager
+spec:
+  ports:
+    - name: metrics
+      port: 8080
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    control-plane: controller-manager
+    app.kubernetes.io/name: xdc-operator
+
+---
+# ServiceMonitor for Prometheus (optional)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: xdc-operator-controller-manager
+  namespace: xdc-operator-system
+  labels:
+    app.kubernetes.io/name: xdc-operator
+    app.kubernetes.io/component: manager
+spec:
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+      app.kubernetes.io/name: xdc-operator
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics

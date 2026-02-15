@@ -1,0 +1,6 @@
+# Custom React hooks
+# Examples:
+# - useNode.ts - Node data fetching hook
+# - useAlerts.ts - Alert management hook
+# - useBiometric.ts - Biometric auth hook
+# - useNotifications.ts - Push notification hook

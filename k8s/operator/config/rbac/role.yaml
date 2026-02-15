@@ -1,0 +1,228 @@
+---
+# RBAC Role for XDC Node Operator
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: xdc-operator-manager-role
+  labels:
+    app.kubernetes.io/name: xdc-operator
+rules:
+  # XDCNode resources
+  - apiGroups:
+      - xdc.network
+    resources:
+      - xdcnodes
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - xdc.network
+    resources:
+      - xdcnodes/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - xdc.network
+    resources:
+      - xdcnodes/finalizers
+    verbs:
+      - update
+
+  # Core resources
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumeclaims
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+
+  # Apps resources
+  - apiGroups:
+      - apps
+    resources:
+      - statefulsets
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+
+  # Networking resources
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+
+  # Monitoring resources (optional)
+  - apiGroups:
+      - monitoring.coreos.com
+    resources:
+      - servicemonitors
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: xdc-operator-manager-rolebinding
+  labels:
+    app.kubernetes.io/name: xdc-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: xdc-operator-manager-role
+subjects:
+  - kind: ServiceAccount
+    name: xdc-operator-controller-manager
+    namespace: xdc-operator-system
+
+---
+# Service Account for the operator
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: xdc-operator-controller-manager
+  namespace: xdc-operator-system
+  labels:
+    app.kubernetes.io/name: xdc-operator
+
+---
+# Leader election role (for HA)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: xdc-operator-leader-election-role
+  namespace: xdc-operator-system
+  labels:
+    app.kubernetes.io/name: xdc-operator
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: xdc-operator-leader-election-rolebinding
+  namespace: xdc-operator-system
+  labels:
+    app.kubernetes.io/name: xdc-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: xdc-operator-leader-election-role
+subjects:
+  - kind: ServiceAccount
+    name: xdc-operator-controller-manager
+    namespace: xdc-operator-system
