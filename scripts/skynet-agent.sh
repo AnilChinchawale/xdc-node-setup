@@ -534,13 +534,13 @@ collect_metrics() {
     cat <<EOF
 {
     "nodeId": "$NODE_ID",
-    "blockHeight": $block_height,
+    "blockHeight": ${block_height:-0},
     "syncing": $is_syncing,
     $( [[ -n "$sync_progress" ]] && echo "\"syncProgress\": $sync_progress," || true )
-    "peerCount": $peer_count,
+    "peerCount": ${peer_count:-0},
     "peers": $peers_json,
-    "stallHours": $stall_hours,
-    "stalledAtBlock": $stalled_at_block,
+    "stallHours": ${stall_hours:-0},
+    "stalledAtBlock": ${stalled_at_block:-0},
     "txPool": {"pending": $tx_pending, "queued": $tx_queued},
     "gasPrice": "$gas_price",
     "coinbase": "$coinbase",
