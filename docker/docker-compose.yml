@@ -71,7 +71,7 @@ services:
     # Read-only root filesystem with tmpfs for writable directories
     read_only: true
     tmpfs:
-      - /tmp:noexec,nosuid,size=100m
+      - /tmp:nosuid,size=100m
 
   #--------------------------------------------------------------------------
   # XDC Agent - Next.js Dashboard + SkyNet Monitoring (unified container)
