@@ -31,7 +31,7 @@ services:
       - INSTANCE_NAME=${INSTANCE_NAME:-Erigon_XDC_Node}
       - P2P_PORT=${P2P_PORT:-30304}
       - P2P_PORT_68=${P2P_PORT_68:-30311}
-    entrypoint: ["/bin/sh", "/start.sh"]
+    entrypoint: ["/bin/bash", "/start.sh"]
     networks:
       - xdc-network
     healthcheck:
