@@ -145,3 +145,7 @@ inventory/staging
 *.local
 *.local.*
 docker-compose.override.yml
+
+# User-specific SkyNet configs (contain node IDs, API keys, emails, etc.)
+**/skynet.conf
+**/skynet-erigon.conf
