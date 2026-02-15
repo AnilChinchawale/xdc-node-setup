@@ -1195,7 +1195,7 @@ EOF
     start_spinner "Running health checks"
     
     local output
-    if output=$(bash "$script" "${args[@]}" 2>&1); then
+    if output=$(bash "$script" ${args[@]+"${args[@]}"} 2>&1); then
         stop_spinner true "Health check completed"
     else
         stop_spinner false "Health check completed with issues"
@@ -1495,7 +1495,7 @@ EOF
     [[ "$force" == true ]] && args+=("--force")
     [[ -n "$target_version" ]] && args+=("--version" "$target_version")
     
-    bash "$auto_update_script" update "${args[@]}"
+    bash "$auto_update_script" update ${args[@]+"${args[@]}"}
 }
 
 # Legacy Docker-based update (fallback)
@@ -2413,11 +2413,13 @@ $(c BOLD)OPTIONS:$(c NC)
     --client CLIENT      Client: stable, geth-pr5, erigon (default: auto-detect from config)
     --multi-client, --all Start both geth AND erigon clients simultaneously
     --monitoring         Start with full monitoring stack (Prometheus, Grafana, etc.)
+    --logging            Start with log aggregation stack (Loki, Promtail, Grafana)
     --help               Show this help
 
 $(c BOLD)EXAMPLES:$(c NC)
     xdc-node start                           # Start mainnet with configured client (geth)
     xdc-node start --monitoring              # Start with monitoring stack
+    xdc-node start --logging                 # Start with log aggregation (Loki)
     xdc-node start --network testnet         # Start testnet
     xdc-node start --client erigon           # Start erigon (standalone if geth running)
     xdc-node start --multi-client            # Start both geth AND erigon
@@ -2441,6 +2443,10 @@ EOF
                 ;;
             --monitoring)
                 local monitoring=true
+                shift
+                ;;
+            --logging)
+                local logging=true
                 shift
                 ;;
             *) shift ;;
@@ -4572,9 +4578,9 @@ EOF
     [[ "$revoke" == "true" ]] && args+=("--revoke")
     
     if [[ $EUID -ne 0 ]]; then
-        sudo bash "$ssl_script" "${args[@]}"
+        sudo bash "$ssl_script" ${args[@]+"${args[@]}"}
     else
-        bash "$ssl_script" "${args[@]}"
+        bash "$ssl_script" ${args[@]+"${args[@]}"}
     fi
 }
 
@@ -4597,7 +4603,7 @@ main() {
             *) args+=("$1"); shift ;;
         esac
     done
-    set -- "${args[@]}"
+    set -- ${args[@]+"${args[@]}"}
     
     setup_colors
     
