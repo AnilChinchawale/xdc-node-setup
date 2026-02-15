@@ -4,7 +4,7 @@ RUN apk add --no-cache make gcc musl-dev linux-headers git bash
 
 WORKDIR /build
 
-RUN git clone https://github.com/AnilChinchawale/erigon-xdc.git . \
+RUN git clone --branch feature/xdc-network https://github.com/AnilChinchawale/erigon-xdc.git . \
     && sed -i 's/set -eu/set -e/' node/silkworm/silkworm_compat_check.sh 2>/dev/null || true \
     && make erigon
 
