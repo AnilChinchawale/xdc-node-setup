@@ -67,11 +67,15 @@ services:
       - /tmp:noexec,nosuid,size=200m
       - /data/temp:noexec,nosuid,size=500m
 
-  # Update agent to use erigon's RPC port
+  # Update agent to use erigon's RPC port and dashboard port
   xdc-agent:
+    container_name: xdc-agent-erigon
+    ports:
+      - "0.0.0.0:${ERIGON_DASHBOARD_PORT:-7071}:3000"
     environment:
       - RPC_URL=${RPC_URL:-http://xdc-node:8547}
       - NODE_RPC_PORT=${RPC_PORT:-8547}
+      - DASHBOARD_AUTH_ENABLED=false
 
 networks:
   xdc-network:

@@ -93,6 +93,7 @@ services:
       - SKYNET_CONF=/etc/xdc-node/skynet.conf
       - NEXT_PUBLIC_REFRESH_INTERVAL=10
       - INSTANCE_NAME=${INSTANCE_NAME:-Erigon_XDC_Node}
+      - DASHBOARD_AUTH_ENABLED=false
     networks:
       - xdc-network
     depends_on:
