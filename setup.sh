@@ -492,7 +492,7 @@ init_config() {
     RPC_PORT="${RPC_PORT:-9545}"
     P2P_PORT="${P2P_PORT:-30303}"
     WS_PORT="${WS_PORT:-8546}"
-    DASHBOARD_PORT="${DASHBOARD_PORT:-8888}"
+    DASHBOARD_PORT="${DASHBOARD_PORT:-7070}"
 
     # ERIGON-specific ports (for multi-client mode)
     ERIGON_RPC_PORT="${ERIGON_RPC_PORT:-8547}"
@@ -987,7 +987,7 @@ WS_PORT=8546
 WS_API=admin,eth,net,web3,XDPoS
 WS_ORIGINS=*
 P2P_PORT=${P2P_PORT:-30303}
-DASHBOARD_PORT=${DASHBOARD_PORT:-8888}
+DASHBOARD_PORT=${DASHBOARD_PORT:-7070}
 
 # ERIGON-specific ports (for multi-client mode)
 # These ports are used when running erigon alongside geth
