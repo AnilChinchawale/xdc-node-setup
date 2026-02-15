@@ -8,7 +8,7 @@ chaindata/
 lightchaindata/
 nodes/
 geth/
-erigon/
+/erigon/
 
 # Node data directories
 /data/

@@ -1008,7 +1008,7 @@ EOF
         echo -e "  HTTP:      $(c CYAN)${rpc_url}$(c NC)"
         echo -e "  WS:        $(c CYAN)ws://127.0.0.1:${WS_PORT:-8546}$(c NC)"
         echo -e "  IPC:       $(c CYAN)${XDC_DATA}/XDC.ipc$(c NC)"
-        echo -e "  Dashboard: $(c CYAN)http://localhost:${DASHBOARD_PORT:-8888}$(c NC)"
+        echo -e "  Dashboard: $(c CYAN)http://localhost:${DASHBOARD_PORT:-7070}$(c NC)"
         echo ""
         
         # Setup Completion Progress
@@ -2643,20 +2643,20 @@ EOF
         done
         
         # Read current ports from env or defaults
-        local rpc_port=8545 ws_port=8546 p2p_port=30303 dash_port=8888
+        local rpc_port=8545 ws_port=8546 p2p_port=30303 dash_port=7070
         local erigon_rpc_port=8547 erigon_p2p_port=30304 erigon_p2p_68=30311 erigon_dash_port=7071
         if [[ -n "$env_file" ]]; then
             rpc_port=$(grep -E '^RPC_PORT=' "$env_file" 2>/dev/null | cut -d= -f2 || echo 8545)
             ws_port=$(grep -E '^WS_PORT=' "$env_file" 2>/dev/null | cut -d= -f2 || echo 8546)
             p2p_port=$(grep -E '^P2P_PORT=' "$env_file" 2>/dev/null | cut -d= -f2 || echo 30303)
-            dash_port=$(grep -E '^DASHBOARD_PORT=' "$env_file" 2>/dev/null | cut -d= -f2 || echo 8888)
+            dash_port=$(grep -E '^DASHBOARD_PORT=' "$env_file" 2>/dev/null | cut -d= -f2 || echo 7070)
             # Erigon ports
             erigon_rpc_port=$(grep -E '^ERIGON_RPC_PORT=' "$env_file" 2>/dev/null | cut -d= -f2 || echo 8547)
             erigon_p2p_port=$(grep -E '^ERIGON_P2P_PORT=' "$env_file" 2>/dev/null | cut -d= -f2 || echo 30304)
             erigon_p2p_68=$(grep -E '^ERIGON_P2P_PORT_68=' "$env_file" 2>/dev/null | cut -d= -f2 || echo 30311)
             erigon_dash_port=$(grep -E '^ERIGON_DASHBOARD_PORT=' "$env_file" 2>/dev/null | cut -d= -f2 || echo 7071)
         fi
-        : "${rpc_port:=8545}" "${ws_port:=8546}" "${p2p_port:=30303}" "${dash_port:=8888}"
+        : "${rpc_port:=8545}" "${ws_port:=8546}" "${p2p_port:=30303}" "${dash_port:=7070}"
         : "${erigon_rpc_port:=8547}" "${erigon_p2p_port:=30304}" "${erigon_p2p_68:=30311}" "${erigon_dash_port:=7071}"
         
         # Check if geth (xdc-node) is already running
