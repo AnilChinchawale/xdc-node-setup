@@ -50,7 +50,7 @@ API_KEY=""
 #==============================================================================
 # Helpers
 #==============================================================================
-log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"; }
+log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >&2; }
 warn() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARN: $1" >&2; }
 err()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $1" >&2; }
 
@@ -126,7 +126,7 @@ detect_node_info() {
     DETECT_ENODE=$(echo "$node_info" | jq -r '.result.enode // ""')
     
     # Detect client type from version string
-    DETECT_CLIENT_TYPE="Unknown"
+    DETECT_CLIENT_TYPE="unknown"
     if echo "$DETECT_VERSION" | grep -qi "XDC\|XDPoS"; then
         DETECT_CLIENT_TYPE="XDC"
     elif echo "$DETECT_VERSION" | grep -qi "erigon"; then
@@ -435,7 +435,7 @@ collect_metrics() {
     client_version=$(echo "$node_info" | jq -r '.result.name // "Unknown"')
     
     # Detect client type from version string
-    local client_type="Unknown"
+    local client_type="unknown"
     if echo "$client_version" | grep -qi "XDC\|XDPoS"; then
         client_type="XDC"
     elif echo "$client_version" | grep -qi "erigon"; then
@@ -624,13 +624,13 @@ save_watchdog_state() {
     
     cat > "$WATCHDOG_STATE_FILE" <<EOF
 {
-    "lastBlock": $block,
+    "lastBlock": ${block:-0},
     "lastCheckTime": $now,
-    "restartCount": $WD_RESTART_COUNT,
-    "lastRestartTime": $WD_LAST_RESTART,
-    "firstRestartTime": $WD_FIRST_RESTART,
-    "stallStartTime": $WD_STALL_START,
-    "stalledAtBlock": $WD_STALLED_AT_BLOCK
+    "restartCount": ${WD_RESTART_COUNT:-0},
+    "lastRestartTime": ${WD_LAST_RESTART:-0},
+    "firstRestartTime": ${WD_FIRST_RESTART:-0},
+    "stallStartTime": ${WD_STALL_START:-0},
+    "stalledAtBlock": ${WD_STALLED_AT_BLOCK:-0}
 }
 EOF
 }
@@ -821,7 +821,7 @@ push_heartbeat() {
     local response
     response=$(api_call POST "/nodes/heartbeat" "$payload")
     
-    if echo "$response" | jq -e '.ok' >/dev/null 2>&1; then
+    if echo "$response" | jq -e '.data.ok // .ok // .success' >/dev/null 2>&1; then
         write_heartbeat_status "success" ""
         local commands
         commands=$(echo "$response" | jq -r '.commands[]?' 2>/dev/null)
