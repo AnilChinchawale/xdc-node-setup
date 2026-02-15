@@ -463,7 +463,7 @@ EOF
     fi
     
     # Handle dry-run mode
-    if [[ "$DRY_RUN" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
         print_dry_run_summary
         exit 0
     fi
