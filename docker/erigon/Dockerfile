@@ -26,6 +26,9 @@ ARG BUILD_SILKWORM
 
 SHELL ["/bin/bash", "-c"]
 
+## Force Go 1.22 toolchain (prevent auto-upgrade to 1.24+)
+ENV GOTOOLCHAIN=local
+
 WORKDIR /erigon
 
 ## Copy cross-compilation helpers
