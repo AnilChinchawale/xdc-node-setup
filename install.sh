@@ -498,7 +498,8 @@ EOF
     
     # Print security warning (unless --yes was used)
     if [[ "${SKIP_CONFIRMATION:-false}" != "true" ]]; then
-        print_security_warning
+        warn "This script will install Docker (if needed), download XDC node software, and configure your system."
+        warn "Review the source at: https://github.com/AnilChinchawale/xdc-node-setup"
         echo ""
         read -rp "Do you want to continue? [y/N]: " confirm
         if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
