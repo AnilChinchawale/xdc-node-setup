@@ -1,0 +1,468 @@
+---
+# XDCNode Custom Resource Definition
+# Defines the schema for XDCNode resources in Kubernetes
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: xdcnodes.xdc.network
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.14.0
+  labels:
+    app.kubernetes.io/name: xdc-operator
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  group: xdc.network
+  names:
+    kind: XDCNode
+    listKind: XDCNodeList
+    plural: xdcnodes
+    singular: xdcnode
+    shortNames:
+      - xdc
+      - xdcn
+    categories:
+      - blockchain
+      - xdc
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          description: XDCNode is the Schema for the xdcnodes API
+          properties:
+            apiVersion:
+              type: string
+              description: 'APIVersion defines the versioned schema'
+            kind:
+              type: string
+              description: 'Kind is a string value representing the resource type'
+            metadata:
+              type: object
+            spec:
+              type: object
+              description: XDCNodeSpec defines the desired state of XDCNode
+              required:
+                - network
+              properties:
+                # Network Configuration
+                network:
+                  type: string
+                  description: XDC network to connect to
+                  enum:
+                    - mainnet
+                    - testnet
+                    - devnet
+                  default: mainnet
+
+                client:
+                  type: string
+                  description: XDC client implementation
+                  enum:
+                    - XDPoSChain
+                    - erigon-xdc
+                  default: XDPoSChain
+
+                nodeType:
+                  type: string
+                  description: Type of node to run
+                  enum:
+                    - full
+                    - archive
+                    - validator
+                    - rpc
+                  default: full
+
+                # Image Configuration
+                image:
+                  type: object
+                  description: Container image configuration
+                  properties:
+                    repository:
+                      type: string
+                      description: Image repository
+                      default: xinfin/xdc-node
+                    tag:
+                      type: string
+                      description: Image tag
+                      default: latest
+                    pullPolicy:
+                      type: string
+                      description: Image pull policy
+                      enum:
+                        - Always
+                        - IfNotPresent
+                        - Never
+                      default: IfNotPresent
+
+                # Replicas (for RPC nodes)
+                replicas:
+                  type: integer
+                  description: Number of replicas (only for RPC nodes)
+                  minimum: 1
+                  maximum: 10
+                  default: 1
+
+                # RPC Configuration
+                rpc:
+                  type: object
+                  description: RPC endpoint configuration
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: true
+                    port:
+                      type: integer
+                      minimum: 1
+                      maximum: 65535
+                      default: 8545
+                    api:
+                      type: array
+                      items:
+                        type: string
+                      default:
+                        - eth
+                        - net
+                        - web3
+                        - txpool
+                    corsDomain:
+                      type: string
+                      default: "*"
+                    vhosts:
+                      type: string
+                      default: "*"
+
+                # WebSocket Configuration
+                websocket:
+                  type: object
+                  description: WebSocket endpoint configuration
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: false
+                    port:
+                      type: integer
+                      minimum: 1
+                      maximum: 65535
+                      default: 8546
+                    api:
+                      type: array
+                      items:
+                        type: string
+                      default:
+                        - eth
+                        - net
+                        - web3
+
+                # P2P Configuration
+                p2p:
+                  type: object
+                  description: P2P networking configuration
+                  properties:
+                    port:
+                      type: integer
+                      minimum: 1
+                      maximum: 65535
+                      default: 30303
+                    maxPeers:
+                      type: integer
+                      minimum: 1
+                      maximum: 200
+                      default: 50
+                    bootnodes:
+                      type: array
+                      description: Custom bootnode URLs
+                      items:
+                        type: string
+
+                # Metrics Configuration
+                metrics:
+                  type: object
+                  description: Prometheus metrics configuration
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: true
+                    port:
+                      type: integer
+                      minimum: 1
+                      maximum: 65535
+                      default: 6060
+
+                # Storage Configuration
+                storage:
+                  type: object
+                  description: Persistent storage configuration
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: true
+                    size:
+                      type: string
+                      description: Volume size (e.g., 500Gi)
+                      default: "500Gi"
+                      pattern: "^[0-9]+(Gi|Ti|Mi)$"
+                    storageClass:
+                      type: string
+                      description: Storage class name
+                      default: ""
+                    accessMode:
+                      type: string
+                      enum:
+                        - ReadWriteOnce
+                        - ReadWriteMany
+                      default: ReadWriteOnce
+
+                # Resources
+                resources:
+                  type: object
+                  description: Resource requirements
+                  properties:
+                    limits:
+                      type: object
+                      properties:
+                        cpu:
+                          type: string
+                          default: "4"
+                        memory:
+                          type: string
+                          default: "16Gi"
+                    requests:
+                      type: object
+                      properties:
+                        cpu:
+                          type: string
+                          default: "2"
+                        memory:
+                          type: string
+                          default: "8Gi"
+
+                # Validator Configuration
+                validator:
+                  type: object
+                  description: Validator-specific configuration
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: false
+                    address:
+                      type: string
+                      description: Validator wallet address
+                    keystoreSecret:
+                      type: string
+                      description: Name of secret containing keystore
+                    passwordSecret:
+                      type: string
+                      description: Name of secret containing password
+
+                # Sync Configuration
+                sync:
+                  type: object
+                  description: Sync configuration
+                  properties:
+                    mode:
+                      type: string
+                      description: Sync mode
+                      enum:
+                        - snap
+                        - full
+                        - archive
+                      default: snap
+                    gcMode:
+                      type: string
+                      description: Garbage collection mode
+                      enum:
+                        - full
+                        - archive
+                      default: full
+                    cacheSize:
+                      type: integer
+                      description: Cache size in MB
+                      minimum: 256
+                      maximum: 65536
+                      default: 4096
+
+                # Extra flags
+                extraFlags:
+                  type: array
+                  description: Additional command line flags
+                  items:
+                    type: string
+
+                # Service configuration
+                service:
+                  type: object
+                  description: Service configuration
+                  properties:
+                    type:
+                      type: string
+                      enum:
+                        - ClusterIP
+                        - NodePort
+                        - LoadBalancer
+                      default: ClusterIP
+                    annotations:
+                      type: object
+                      additionalProperties:
+                        type: string
+
+                # Ingress configuration
+                ingress:
+                  type: object
+                  description: Ingress configuration for RPC endpoint
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: false
+                    className:
+                      type: string
+                      default: nginx
+                    host:
+                      type: string
+                    annotations:
+                      type: object
+                      additionalProperties:
+                        type: string
+                    tls:
+                      type: boolean
+                      default: true
+                    tlsSecretName:
+                      type: string
+
+                # Node selector
+                nodeSelector:
+                  type: object
+                  additionalProperties:
+                    type: string
+
+                # Tolerations
+                tolerations:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      key:
+                        type: string
+                      operator:
+                        type: string
+                      value:
+                        type: string
+                      effect:
+                        type: string
+
+                # Affinity
+                affinity:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+
+            status:
+              type: object
+              description: XDCNodeStatus defines the observed state of XDCNode
+              properties:
+                phase:
+                  type: string
+                  description: Current phase of the node
+                  enum:
+                    - Pending
+                    - Creating
+                    - Syncing
+                    - Ready
+                    - Error
+                    - Terminating
+                conditions:
+                  type: array
+                  description: Conditions for the XDCNode
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                        enum:
+                          - "True"
+                          - "False"
+                          - Unknown
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      reason:
+                        type: string
+                      message:
+                        type: string
+                syncStatus:
+                  type: object
+                  description: Blockchain sync status
+                  properties:
+                    syncing:
+                      type: boolean
+                    currentBlock:
+                      type: integer
+                      format: int64
+                    highestBlock:
+                      type: integer
+                      format: int64
+                    startingBlock:
+                      type: integer
+                      format: int64
+                    syncProgress:
+                      type: string
+                      description: Sync progress percentage
+                networkInfo:
+                  type: object
+                  description: Network information
+                  properties:
+                    chainId:
+                      type: integer
+                    networkId:
+                      type: integer
+                    peerCount:
+                      type: integer
+                    enode:
+                      type: string
+                endpoints:
+                  type: object
+                  description: Available endpoints
+                  properties:
+                    rpc:
+                      type: string
+                    websocket:
+                      type: string
+                    p2p:
+                      type: string
+                    metrics:
+                      type: string
+                observedGeneration:
+                  type: integer
+                  format: int64
+                lastUpdated:
+                  type: string
+                  format: date-time
+
+      subresources:
+        status: {}
+
+      additionalPrinterColumns:
+        - name: Network
+          type: string
+          jsonPath: .spec.network
+        - name: Client
+          type: string
+          jsonPath: .spec.client
+        - name: Type
+          type: string
+          jsonPath: .spec.nodeType
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Block
+          type: integer
+          jsonPath: .status.syncStatus.currentBlock
+        - name: Peers
+          type: integer
+          jsonPath: .status.networkInfo.peerCount
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp

@@ -463,7 +463,7 @@ EOF
     fi
     
     # Handle dry-run mode
-    if [[ "$DRY_RUN" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
         print_dry_run_summary
         exit 0
     fi
@@ -497,8 +497,9 @@ EOF
     show_banner
     
     # Print security warning (unless --yes was used)
-    if [[ "$SKIP_CONFIRMATION" != "true" ]]; then
-        print_security_warning
+    if [[ "${SKIP_CONFIRMATION:-false}" != "true" ]]; then
+        warn "This script will install Docker (if needed), download XDC node software, and configure your system."
+        warn "Review the source at: https://github.com/AnilChinchawale/xdc-node-setup"
         echo ""
         read -rp "Do you want to continue? [y/N]: " confirm
         if [[ ! "$confirm" =~ ^[Yy]$ ]]; then

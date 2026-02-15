@@ -1,0 +1,246 @@
+---
+# Example: XDC Mainnet Full Node
+apiVersion: xdc.network/v1alpha1
+kind: XDCNode
+metadata:
+  name: xdc-mainnet-full
+  namespace: xdc-nodes
+  labels:
+    app.kubernetes.io/name: xdc-node
+    environment: production
+spec:
+  # Network Configuration
+  network: mainnet
+  client: XDPoSChain
+  nodeType: full
+
+  # Image Configuration
+  image:
+    repository: xinfin/xdc-node
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  # Replicas (1 for blockchain nodes)
+  replicas: 1
+
+  # RPC Configuration
+  rpc:
+    enabled: true
+    port: 8545
+    api:
+      - eth
+      - net
+      - web3
+      - txpool
+    corsDomain: "*"
+    vhosts: "*"
+
+  # WebSocket Configuration
+  websocket:
+    enabled: false
+    port: 8546
+    api:
+      - eth
+      - net
+      - web3
+
+  # P2P Configuration
+  p2p:
+    port: 30303
+    maxPeers: 50
+
+  # Metrics Configuration
+  metrics:
+    enabled: true
+    port: 6060
+
+  # Storage Configuration
+  storage:
+    enabled: true
+    size: "500Gi"
+    storageClass: ""  # Use default storage class
+    accessMode: ReadWriteOnce
+
+  # Resource Requirements
+  resources:
+    limits:
+      cpu: "4"
+      memory: "16Gi"
+    requests:
+      cpu: "2"
+      memory: "8Gi"
+
+  # Sync Configuration
+  sync:
+    mode: snap
+    gcMode: full
+    cacheSize: 4096
+
+  # Service Configuration
+  service:
+    type: ClusterIP
+    annotations: {}
+
+  # Ingress Configuration (disabled by default)
+  ingress:
+    enabled: false
+    className: nginx
+    host: ""
+    tls: true
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+
+  # Pod Scheduling
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+---
+# Example: XDC Mainnet RPC Node (High Availability)
+apiVersion: xdc.network/v1alpha1
+kind: XDCNode
+metadata:
+  name: xdc-mainnet-rpc
+  namespace: xdc-nodes
+  labels:
+    app.kubernetes.io/name: xdc-node
+    environment: production
+spec:
+  network: mainnet
+  client: XDPoSChain
+  nodeType: rpc
+
+  image:
+    repository: xinfin/xdc-node
+    tag: latest
+
+  # Multiple replicas for RPC load balancing
+  replicas: 3
+
+  rpc:
+    enabled: true
+    port: 8545
+    api:
+      - eth
+      - net
+      - web3
+      - txpool
+      - debug
+
+  websocket:
+    enabled: true
+    port: 8546
+
+  p2p:
+    port: 30303
+    maxPeers: 100
+
+  metrics:
+    enabled: true
+    port: 6060
+
+  storage:
+    enabled: true
+    size: "1000Gi"
+    storageClass: fast-ssd
+
+  resources:
+    limits:
+      cpu: "8"
+      memory: "32Gi"
+    requests:
+      cpu: "4"
+      memory: "16Gi"
+
+  sync:
+    mode: snap
+    gcMode: full
+    cacheSize: 8192
+
+  service:
+    type: LoadBalancer
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-type: nlb
+
+  ingress:
+    enabled: true
+    className: nginx
+    host: rpc.xdc.example.com
+    tls: true
+    tlsSecretName: xdc-rpc-tls
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+
+---
+# Example: XDC Mainnet Archive Node
+apiVersion: xdc.network/v1alpha1
+kind: XDCNode
+metadata:
+  name: xdc-mainnet-archive
+  namespace: xdc-nodes
+  labels:
+    app.kubernetes.io/name: xdc-node
+    environment: production
+spec:
+  network: mainnet
+  client: erigon-xdc  # Erigon for better archive performance
+  nodeType: archive
+
+  image:
+    repository: xinfinorg/erigon-xdc
+    tag: latest
+
+  replicas: 1
+
+  rpc:
+    enabled: true
+    port: 8545
+    api:
+      - eth
+      - net
+      - web3
+      - txpool
+      - trace
+      - debug
+
+  websocket:
+    enabled: true
+    port: 8546
+
+  p2p:
+    port: 30303
+    maxPeers: 50
+
+  metrics:
+    enabled: true
+    port: 6060
+
+  storage:
+    enabled: true
+    size: "3000Gi"  # Archive nodes need more storage
+    storageClass: fast-nvme
+
+  resources:
+    limits:
+      cpu: "16"
+      memory: "64Gi"
+    requests:
+      cpu: "8"
+      memory: "32Gi"
+
+  sync:
+    mode: archive
+    gcMode: archive
+    cacheSize: 16384
+
+  service:
+    type: ClusterIP
+
+  # Schedule on dedicated archive nodes
+  nodeSelector:
+    node-type: archive
+  tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "archive"
+      effect: "NoSchedule"

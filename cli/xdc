@@ -1195,7 +1195,7 @@ EOF
     start_spinner "Running health checks"
     
     local output
-    if output=$(bash "$script" "${args[@]}" 2>&1); then
+    if output=$(bash "$script" ${args[@]+"${args[@]}"} 2>&1); then
         stop_spinner true "Health check completed"
     else
         stop_spinner false "Health check completed with issues"
@@ -1495,7 +1495,7 @@ EOF
     [[ "$force" == true ]] && args+=("--force")
     [[ -n "$target_version" ]] && args+=("--version" "$target_version")
     
-    bash "$auto_update_script" update "${args[@]}"
+    bash "$auto_update_script" update ${args[@]+"${args[@]}"}
 }
 
 # Legacy Docker-based update (fallback)
@@ -1950,6 +1950,9 @@ cmd_logs() {
     local clean=false
     local component=""
     local since=""
+    local search=""
+    local format="text"
+    local level=""
     
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -1960,6 +1963,9 @@ cmd_logs() {
             --clean) clean=true; shift ;;
             --component) component="$2"; shift 2 ;;
             --since) since="$2"; shift 2 ;;
+            --search|-s) search="$2"; shift 2 ;;
+            --format) format="$2"; shift 2 ;;
+            --level) level="$2"; shift 2 ;;
             --help|-h)
                 cat << EOF
 $(c BOLD)xdc logs$(c NC) — Tail node logs
@@ -1974,9 +1980,18 @@ $(c BOLD)OPTIONS:$(c NC)
     --component NAME    Show logs for specific component:
                         heartbeat|lfg|dashboard|node
     --since TIME        Show logs since time (e.g., '1h', '30m', '2024-01-01')
+    --search, -s QUERY  Search logs via Loki (LogQL query)
+    --level LEVEL       Filter by log level (ERROR, WARN, INFO, DEBUG)
+    --format FORMAT     Output format: text (default), json
     --rotate            Manually trigger log rotation (move, compress, cleanup)
     --clean             Remove all old logs from oldlogs/ directory
     --help              Show this help
+
+$(c BOLD)LOKI SEARCH EXAMPLES:$(c NC)
+    xdc logs --search "error"           # Search for 'error' in all logs
+    xdc logs --search "sync" --since 1h # Search 'sync' in last hour
+    xdc logs --level ERROR              # Show only errors
+    xdc logs --search "block" --format json  # Output as JSON
 
 $(c BOLD)EXAMPLES:$(c NC)
     xdc logs -f -n 100              # Follow node logs with 100 lines
@@ -2063,6 +2078,98 @@ EOF
         return 0
     fi
     
+    # Handle Loki search (--search option)
+    if [[ -n "$search" ]] || [[ -n "$level" ]]; then
+        local loki_url="${LOKI_URL:-http://localhost:3100}"
+        
+        # Check if Loki is running
+        if ! curl -s "${loki_url}/ready" >/dev/null 2>&1; then
+            warn "Loki is not running at $loki_url"
+            info "Start the logging stack with: xdc start --logging"
+            info "Or falling back to grep search..."
+            
+            # Fallback to grep search on local logs
+            local log_file="${PROJECT_DIR}/${XDC_NETWORK}/xdcchain/XDC.log"
+            if [[ -f "$log_file" ]]; then
+                if [[ -n "$level" ]]; then
+                    grep -i "\[$level\]" "$log_file" | tail -n "$lines"
+                elif [[ -n "$search" ]]; then
+                    grep -i "$search" "$log_file" | tail -n "$lines"
+                fi
+            else
+                die "No log file found and Loki not available"
+            fi
+            return 0
+        fi
+        
+        info "Searching logs via Loki..."
+        
+        # Build LogQL query
+        local query='{job="xdc-node"}'
+        if [[ -n "$level" ]]; then
+            query="{job=\"xdc-node\", level=\"$level\"}"
+        fi
+        if [[ -n "$search" ]]; then
+            query="${query} |= \"$search\""
+        fi
+        
+        # Calculate time range
+        local end_time=$(date +%s)000000000
+        local start_time=""
+        if [[ -n "$since" ]]; then
+            if [[ "$since" =~ ^([0-9]+)([hmd])$ ]]; then
+                local amount="${BASH_REMATCH[1]}"
+                local unit="${BASH_REMATCH[2]}"
+                case "$unit" in
+                    h) start_time=$(( ($(date +%s) - amount * 3600) ))000000000 ;;
+                    m) start_time=$(( ($(date +%s) - amount * 60) ))000000000 ;;
+                    d) start_time=$(( ($(date +%s) - amount * 86400) ))000000000 ;;
+                esac
+            else
+                # Default to last hour
+                start_time=$(( ($(date +%s) - 3600) ))000000000
+            fi
+        else
+            # Default to last hour
+            start_time=$(( ($(date +%s) - 3600) ))000000000
+        fi
+        
+        # Query Loki
+        local response
+        response=$(curl -s -G "${loki_url}/loki/api/v1/query_range" \
+            --data-urlencode "query=${query}" \
+            --data-urlencode "start=${start_time}" \
+            --data-urlencode "end=${end_time}" \
+            --data-urlencode "limit=${lines}" \
+            --data-urlencode "direction=backward" 2>/dev/null)
+        
+        if [[ -z "$response" ]]; then
+            die "Failed to query Loki"
+        fi
+        
+        # Output results
+        if [[ "$format" == "json" ]]; then
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+        else
+            # Parse and display log lines
+            echo "$response" | jq -r '.data.result[].values[][1]' 2>/dev/null | \
+                while read -r line; do
+                    # Color-code by level
+                    if [[ "$line" =~ \[ERROR\] ]] || [[ "$line" =~ \"level\":\"error\" ]]; then
+                        echo -e "$(c RED)${line}$(c NC)"
+                    elif [[ "$line" =~ \[WARN\] ]] || [[ "$line" =~ \"level\":\"warn\" ]]; then
+                        echo -e "$(c YELLOW)${line}$(c NC)"
+                    elif [[ "$line" =~ \[INFO\] ]] || [[ "$line" =~ \"level\":\"info\" ]]; then
+                        echo -e "$(c GREEN)${line}$(c NC)"
+                    else
+                        echo "$line"
+                    fi
+                done
+        fi
+        
+        return 0
+    fi
+    
     # Handle component logs
     if [[ -n "$component" ]]; then
         local component_log="${PROJECT_DIR}/${XDC_NETWORK}/.xdc-node/logs/${component}.log"
@@ -2108,13 +2215,13 @@ EOF
                     # Filter by date (assuming ISO format timestamps in logs)
                     if [[ "$follow" == "true" ]]; then
                         tail -n "$lines" -f "$component_log" | while read line; do
-                            if [[ "$line" \> "$since_date" ]] || [[ "$line" =~ ^\[?$since_date ]]; then
+                            if [[ "$line" > "$since_date" ]] || [[ "$line" =~ ^\[?$since_date ]]; then
                                 echo "$line"
                             fi
                         done
                     else
                         cat "$component_log" | while read line; do
-                            if [[ "$line" \> "$since_date" ]] || [[ "$line" =~ ^\[?$since_date ]]; then
+                            if [[ "$line" > "$since_date" ]] || [[ "$line" =~ ^\[?$since_date ]]; then
                                 echo "$line"
                             fi
                         done | tail -n "$lines"
@@ -2413,11 +2520,13 @@ $(c BOLD)OPTIONS:$(c NC)
     --client CLIENT      Client: stable, geth-pr5, erigon (default: auto-detect from config)
     --multi-client, --all Start both geth AND erigon clients simultaneously
     --monitoring         Start with full monitoring stack (Prometheus, Grafana, etc.)
+    --logging            Start with log aggregation stack (Loki, Promtail, Grafana)
     --help               Show this help
 
 $(c BOLD)EXAMPLES:$(c NC)
     xdc-node start                           # Start mainnet with configured client (geth)
     xdc-node start --monitoring              # Start with monitoring stack
+    xdc-node start --logging                 # Start with log aggregation (Loki)
     xdc-node start --network testnet         # Start testnet
     xdc-node start --client erigon           # Start erigon (standalone if geth running)
     xdc-node start --multi-client            # Start both geth AND erigon
@@ -2441,6 +2550,10 @@ EOF
                 ;;
             --monitoring)
                 local monitoring=true
+                shift
+                ;;
+            --logging)
+                local logging=true
                 shift
                 ;;
             *) shift ;;
@@ -2745,6 +2858,13 @@ EOF
         if [[ "${monitoring:-false}" == "true" ]] && [[ -f "docker-compose.monitoring.yml" ]]; then
             compose_cmd="$compose_cmd -f docker-compose.monitoring.yml"
             info "Including monitoring stack (Prometheus, Grafana, etc.)"
+        fi
+        
+        # Add logging stack if requested
+        if [[ "${logging:-false}" == "true" ]] && [[ -f "docker-compose.logging.yml" ]]; then
+            compose_cmd="$compose_cmd -f docker-compose.logging.yml"
+            info "Including logging stack (Loki, Promtail, Grafana)"
+            info "Log dashboard will be available at http://localhost:3200"
         fi
         
         # Export resolved ports and start
@@ -4572,9 +4692,9 @@ EOF
     [[ "$revoke" == "true" ]] && args+=("--revoke")
     
     if [[ $EUID -ne 0 ]]; then
-        sudo bash "$ssl_script" "${args[@]}"
+        sudo bash "$ssl_script" ${args[@]+"${args[@]}"}
     else
-        bash "$ssl_script" "${args[@]}"
+        bash "$ssl_script" ${args[@]+"${args[@]}"}
     fi
 }
 
@@ -4597,7 +4717,7 @@ main() {
             *) args+=("$1"); shift ;;
         esac
     done
-    set -- "${args[@]}"
+    set -- ${args[@]+"${args[@]}"}
     
     setup_colors
     
