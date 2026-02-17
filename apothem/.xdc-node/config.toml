@@ -1,0 +1,91 @@
+# XDC Node Configuration (TOML format)
+# Generated during setup - edit and restart node to apply changes
+
+[Node]
+DataDir = "/work/xdcchain"
+NetworkId = 51
+SyncMode = "full"
+GCMode = "full"
+
+[Node.P2P]
+ListenAddr = ":30303"
+MaxPeers = 25
+NoDiscovery = false
+BootstrapNodes = [
+
+]
+
+[Node.HTTP]
+Enabled = true
+Host = "0.0.0.0"
+Port = 8545
+CORSDomains = ["*"]
+VirtualHosts = ["*"]
+Modules = ["admin", "eth", "net", "web3", "XDPoS"]
+
+[Node.WS]
+Enabled = true
+Host = "0.0.0.0"
+Port = 8546
+Origins = ["*"]
+Modules = ["admin", "eth", "net", "web3", "XDPoS"]
+
+[Node.GraphQL]
+Enabled = false
+
+[Eth]
+NetworkId = 51
+NoPruning = false
+NoPrefetch = false
+LightPeers = 100
+UltraLightFraction = 75
+DatabaseCache = 4096
+DatabaseFreezer = ""
+TrieCleanCache = 1024
+TrieCleanCacheJournal = "triecache"
+TrieCleanCacheRejournal = 3600000000000
+TrieDirtyCache = 1024
+TrieTimeout = 600000000000
+SnapshotCache = 1024
+Preimages = false
+FilterLogCacheSize = 32
+
+[Eth.Miner]
+GasFloor = 8000000
+GasCeil = 420000000
+GasPrice = 1
+Recommit = 3000000000
+Noverify = false
+
+[Eth.TxPool]
+Locals = []
+NoLocals = false
+Journal = "transactions.rlp"
+Rejournal = 3600000000000
+PriceLimit = 1
+PriceBump = 10
+AccountSlots = 16
+GlobalSlots = 5120
+AccountQueue = 64
+GlobalQueue = 1024
+Lifetime = 10800000000000
+
+[Metrics]
+Enabled = true
+HTTP = "0.0.0.0"
+Port = 6060
+InfluxDBEnabled = false
+InfluxDBEndpoint = "http://localhost:8086"
+InfluxDBDatabase = "xdc"
+InfluxDBUsername = "xdc"
+InfluxDBPassword = "xdc"
+InfluxDBTags = "host=localhost"
+
+[Logging]
+Verbosity = 3
+VModule = ""
+BacktraceAt = ""
+Debug = false
+CPUProfile = ""
+MemProfile = ""
+Trace = ""

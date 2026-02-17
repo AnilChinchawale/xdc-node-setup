@@ -46,8 +46,14 @@ load_config() {
                     value="${value%\"}"
                     value="${value#\"}"
                     # Remove trailing comments
+                    # Remove trailing comments
                     value="${value%%#*}"
-                    value="${value% }"
+                    # Remove quotes if present
+                    value="${value%\"}"
+                    value="${value#\"}"
+                    # Remove ALL trailing whitespace
+                    value="${value%% }"
+                    while [[ "$value" =~ [[:space:]]$ ]]; do value="${value%?}"; done
                     # Export both section-prefixed and plain key
                     local ukey="${key^^}"
                     local usection="${section^^}"

@@ -1,4 +1,5 @@
 'use client';
+import { getNetworkName } from '@/lib/network';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -43,7 +44,7 @@ const defaultMetrics: MetricsData = {
     peersInbound: 0,
     peersOutbound: 0,
     uptime: 0,
-    chainId: '50',
+    chainId: 'unknown',
     coinbase: '',
     ethstatsName: '',
     clientVersion: '',

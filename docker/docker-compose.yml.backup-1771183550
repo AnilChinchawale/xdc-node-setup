@@ -73,7 +73,6 @@ services:
     # read_only: true
     tmpfs:
       - /tmp:nosuid,size=100m
-      - /root/.npm:nosuid,size=500m
 
   #--------------------------------------------------------------------------
   # XDC Agent - Next.js Dashboard + SkyNet Monitoring (unified container)
@@ -85,7 +84,7 @@ services:
     container_name: xdc-agent
     restart: unless-stopped
     ports:
-      - "0.0.0.0:${DASHBOARD_PORT:-7070}:3000"
+      - "127.0.0.1:${DASHBOARD_PORT:-7070}:3000"
     volumes:
       - ./skynet-agent.sh:/agent.sh:ro
       - ../${NETWORK:-mainnet}/.xdc-node/skynet.conf:/etc/xdc-node/skynet.conf
@@ -138,8 +137,8 @@ services:
     read_only: true
     tmpfs:
       - /tmp:nosuid,size=100m
-      - /root/.npm:nosuid,size=500m
       - /var/cache:nosuid,size=50m
+      - /app/.next:nosuid,size=200m
 
 #==============================================================================
 # Networks

@@ -409,7 +409,9 @@ export async function GET() {
       rpcCall(getRpcUrl(), 'admin_nodeInfo'),
       rpcCall(getRpcUrl(), 'eth_coinbase'),
       rpcCall(getRpcUrl(), 'txpool_status'),
+      chainIdRes,
       rpcCall(getRpcUrl(), 'admin_peers'),
+      rpcCall(getRpcUrl(), 'net_version'),
       rpcCall(getRpcUrl(), 'net_version'),
       rpcCall(getMainnetRpc(), 'eth_blockNumber'),
     ]);
@@ -664,7 +666,7 @@ export async function GET() {
         errors: diagnostics.errors,
         lastKnownBlock: diagnostics.lastBlock || '0',
       },
-      blockchain: { blockHeight: 0, highestBlock: 0, networkHeight: 0, syncPercent: 0, isSyncing: false, peers: 0, peersInbound: 0, peersOutbound: 0, uptime: 0, chainId: 'unknown', coinbase: '', ethstatsName: '', clientVersion: '', clientType: 'unknown' },
+      blockchain: { blockHeight: 0, highestBlock: 0, networkHeight: 0, syncPercent: 0, isSyncing: false, peers: 0, peersInbound: 0, peersOutbound: 0, uptime: 0, chainId: String(chainIdRes.result || '50'), coinbase: '', ethstatsName: '', clientVersion: '', clientType: 'unknown' },
       consensus: { epoch: 0, epochProgress: 0, masternodeStatus: 'Not Configured', coinbase: '', blockTime: 0, signingRate: 0, stakeAmount: 0, walletBalance: 0, totalRewards: 0, penalties: 0 },
       sync: { syncRate: 0, reorgsAdd: 0, reorgsDrop: 0 },
       txpool: { pending: 0, queued: 0, isSyncing: false, available: false, slots: 0, valid: 0, invalid: 0, underpriced: 0 },

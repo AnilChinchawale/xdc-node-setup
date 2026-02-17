@@ -1,4 +1,5 @@
 'use client';
+import { getNetworkName, getNetworkInfo } from '@/lib/network';
 
 import { useEffect, useState, useCallback } from 'react';
 import { 
