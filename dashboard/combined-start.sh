@@ -7,16 +7,21 @@ if [ -f "$SKYNET_CONF" ]; then
   set -a
   source "$SKYNET_CONF"
   set +a
+  echo "[SkyNet] Loaded config from $SKYNET_CONF"
+  echo "[SkyNet] Node ID: ${SKYNET_NODE_ID:-not set}"
+  echo "[SkyNet] API URL: ${SKYNET_API_URL:-not set}"
 fi
 
 # Load persisted node ID
 if [ -z "$SKYNET_NODE_ID" ] && [ -f /tmp/skynet-node-id ]; then
   source /tmp/skynet-node-id
+  echo "[SkyNet] Loaded node ID from /tmp/skynet-node-id"
 fi
 
 # Start SkyNet heartbeat in background
 (
   sleep 10
+  echo "[SkyNet] Starting heartbeat loop..."
   while true; do
     RPC_URL="${RPC_URL:-http://xdc-node:8545}"
     
@@ -48,10 +53,21 @@ fi
     [ "$SYNC_JSON" != "false" ] && [ "$SYNC_JSON" != "null" ] && IS_SYNCING=true
     
     if [ -n "$SKYNET_API_URL" ] && [ -n "$SKYNET_NODE_ID" ] && [ -n "$SKYNET_API_KEY" ]; then
-      curl -s -m 15 -X POST "${SKYNET_API_URL}/nodes/${SKYNET_NODE_ID}/heartbeat" \
+      echo "[SkyNet] Sending heartbeat: block=$BLOCK_NUM peers=$PEER_COUNT network=$NETWORK_NAME chainId=$CHAIN_ID syncing=$IS_SYNCING"
+      RESPONSE=$(curl -s -m 15 -X POST "${SKYNET_API_URL}/nodes/${SKYNET_NODE_ID}/heartbeat" \
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer ${SKYNET_API_KEY}" \
-        -d "{\"blockHeight\":$BLOCK_NUM,\"peerCount\":$PEER_COUNT,\"isSyncing\":$IS_SYNCING,\"clientType\":\"geth\",\"version\":\"v2.6.8\",\"network\":\"$NETWORK_NAME\",\"chainId\":$CHAIN_ID}" >/dev/null 2>&1
+        -d "{\"blockHeight\":$BLOCK_NUM,\"peerCount\":$PEER_COUNT,\"isSyncing\":$IS_SYNCING,\"clientType\":\"geth\",\"version\":\"v2.6.8\",\"network\":\"$NETWORK_NAME\",\"chainId\":$CHAIN_ID}" 2>&1)
+      
+      if echo "$RESPONSE" | jq -e .error >/dev/null 2>&1; then
+        echo "[SkyNet] ❌ Heartbeat failed: $(echo "$RESPONSE" | jq -r .error)"
+      elif echo "$RESPONSE" | jq -e .success >/dev/null 2>&1; then
+        echo "[SkyNet] ✅ Heartbeat OK"
+      else
+        echo "[SkyNet] ⚠️  Unexpected response: $RESPONSE"
+      fi
+    else
+      echo "[SkyNet] ⚠️  Skipping heartbeat (missing credentials)"
     fi
     
     sleep 60
