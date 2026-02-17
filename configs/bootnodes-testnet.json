@@ -1,39 +1,32 @@
 {
   "network": "testnet",
   "chainId": 51,
-  "description": "XDC Apothem Testnet official bootnodes",
+  "description": "XDC Apothem Testnet official bootnodes (from XDPoSChain source)",
   "bootnodes": [
     {
-      "enode": "enode://8f8a8b8c8d8e8f8a8b8c8d8e8f8a8b8c8d8e8f8a8b8c8d8e8f8a8b8c8d8e8f8a8b8c8d8e8f8a8b8c8d8@54.254.220.233:30303",
-      "ip": "54.254.220.233",
-      "port": 30303,
-      "location": "Singapore",
-      "provider": "AWS",
-      "status": "active"
+      "enode": "enode://7524db6718828c2c7663e6585a5b1e066457b8b0235034b69358b36e584fea776666d36ed4fc43d0f8bf2a5c3b2a960b5600689b6c8f0c207e5a76f8b0ca432d@157.173.120.219:30304",
+      "ip": "157.173.120.219",
+      "port": 30304
     },
     {
-      "enode": "enode://9a8b8c8d8e8f8a8b8c8d8e8f8a8b8c8d8e8f8a8b8c8d8e8f8a8b8c8d8e8f8a8b8c8d8e8f8a8b8c8d8@18.136.101.40:30303",
-      "ip": "18.136.101.40",
-      "port": 30303,
-      "location": "Singapore",
-      "provider": "AWS",
-      "status": "active"
+      "enode": "enode://729d763db071595bacbbf33037a8e7639d8e9a97bfcfcda3afe963435d919cb95634f27375f0aadf6494dad47e506c888bf15cb5633d5f81dbb793b05b27e676@207.90.192.100:30304",
+      "ip": "207.90.192.100",
+      "port": 30304
     },
     {
-      "enode": "enode://aa8b8c8d8e8f8a8b8c8d8e8f8a8b8c8d8e8f8a8b8c8d8e8f8a8b8c8d8e8f8a8b8c8d8e8f8a8b8c8d8@13.229.233.150:30303",
-      "ip": "13.229.233.150",
-      "port": 30303,
-      "location": "Singapore",
-      "provider": "AWS",
-      "status": "active"
+      "enode": "enode://1e205ffbd5e8f68df1b7d4f704c96b5e64118f8bb7b07a1207ee78b3b38ec25db0a0b1de940f81d138a3b51a880dadfab86eb4aed9b85c12230677428f2d8f32@80.243.180.123:30304",
+      "ip": "80.243.180.123",
+      "port": 30304
     },
     {
-      "enode": "enode://bb8b8c8d8e8f8a8b8c8d8e8f8a8b8c8d8e8f8a8b8c8d8e8f8a8b8c8d8e8f8a8b8c8d8e8f8a8b8c8d8@52.77.249.130:30303",
-      "ip": "52.77.249.130",
-      "port": 30303,
-      "location": "Singapore",
-      "provider": "AWS",
-      "status": "active"
+      "enode": "enode://49c7586c221250cac7070df41c1b6c77180c5d9051e20d1d2b77dfa0dc80b8dc48a8e3c7ca068ac757429223530d6445a06a32ab4af20819cfaa1d47282a0401@80.243.180.121:30304",
+      "ip": "80.243.180.121",
+      "port": 30304
+    },
+    {
+      "enode": "enode://729d763db071595bacbbf33037a8e7639d8e9a97bfcfcda3afe963435d919cb95634f27375f0aadf6494dad47e506c888bf15cb5633d5f81dbb793b05b27e676@209.209.10.19:30304",
+      "ip": "209.209.10.19",
+      "port": 30304
     }
   ],
   "faucet": "https://faucet.apothem.network",
@@ -42,7 +35,5 @@
     "https://erpc.apothem.network",
     "https://rpc.apothem.network"
   ],
-  "recommended_peer_count": 10,
-  "min_peer_count": 3,
-  "last_updated": "2026-02-11"
+  "last_updated": "2026-02-17"
 }

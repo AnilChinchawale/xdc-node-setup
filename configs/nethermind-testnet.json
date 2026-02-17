@@ -1,60 +1,38 @@
 {
   "Init": {
-    "ChainSpecPath": "/nethermind/chainspec/xdc.json",
-    "GenesisHash": "0x769c51f43c7f8170b76687a0085b7a5b10c1ade0041b383a52ab910f50505060",
-    "BaseDbPath": "/nethermind/data",
-    "LogFileName": "nethermind.log",
-    "LogLevel": "INFO"
-  },
-  "Network": {
-    "DiscoveryPort": 30303,
-    "P2PPort": 30303,
-    "MaxActivePeers": 50,
-    "ProcessingThreadCount": 4
-  },
-  "JsonRpc": {
-    "Enabled": true,
-    "Host": "0.0.0.0",
-    "Port": 8545,
-    "EnabledModules": ["eth", "net", "web3", "admin", "debug", "trace", "txpool"],
-    "AdditionalRpcUrls": [],
-    "JwtSecretFile": null,
-    "UnsecureDevNoRpcAuthentication": true
+    "ChainSpecPath": "chainspec/xdc-testnet.json",
+    "GenesisHash": "0xbdea512b4f12ff1135ec92c00dc047ffb93890c2ea1aa0eefe9b013d80640075",
+    "BaseDbPath": "xdc-testnet",
+    "LogFileName": "xdc-testnet.log",
+    "MemoryHint": 2048000000
   },
   "Sync": {
     "FastSync": false,
     "SnapSync": false,
-    "FastBlocks": false,
-    "UseGethLimitsInFastBlocks": false,
-    "FastSyncCatchUpHeightDelta": 10000000000
-  },
-  "EthStats": {
-    "Enabled": true,
-    "Server": "wss://stats.apothem.network/api",
-    "Name": "XDC-Apothem-Nethermind-Node",
-    "Secret": "xdc-apothem-nethermind-stats",
-    "Contact": "admin@localhost"
+    "DownloadReceiptsInFastSync": false,
+    "DownloadBodiesInFastSync": false,
+    "NonValidatorNode": true
   },
   "Metrics": {
+    "NodeName": "XDC-Nethermind-Testnet"
+  },
+  "JsonRpc": {
     "Enabled": true,
-    "ExposePort": 6060,
-    "IntervalSeconds": 10
+    "Timeout": 20000,
+    "Host": "0.0.0.0",
+    "Port": 8545,
+    "EnabledModules": ["Eth", "Net", "Web3", "Admin"]
   },
-  "Mining": {
-    "Enabled": false,
-    "MinGasPrice": 1,
-    "TargetBlockGasLimit": 420000000
+  "Merge": {
+    "Enabled": false
   },
-  "TxPool": {
-    "Size": 2048,
-    "GasLimit": 420000000
+  "Pruning": {
+    "Mode": "None"
   },
-  "Blocks": {
-    "SecondsPerSlot": 2,
-    "TargetBlockGasLimit": 420000000
-  },
-  "Aura": {
-    "ForceSealing": false,
-    "AllowAuRaPrivateChains": true
+  "Network": {
+    "P2PPort": 30303,
+    "DiscoveryPort": 30303,
+    "StaticPeers": "enode://7524db6718828c2c7663e6585a5b1e066457b8b0235034b69358b36e584fea776666d36ed4fc43d0f8bf2a5c3b2a960b5600689b6c8f0c207e5a76f8b0ca432d@157.173.120.219:30304,enode://729d763db071595bacbbf33037a8e7639d8e9a97bfcfcda3afe963435d919cb95634f27375f0aadf6494dad47e506c888bf15cb5633d5f81dbb793b05b27e676@207.90.192.100:30304,enode://1e205ffbd5e8f68df1b7d4f704c96b5e64118f8bb7b07a1207ee78b3b38ec25db0a0b1de940f81d138a3b51a880dadfab86eb4aed9b85c12230677428f2d8f32@80.243.180.123:30304,enode://49c7586c221250cac7070df41c1b6c77180c5d9051e20d1d2b77dfa0dc80b8dc48a8e3c7ca068ac757429223530d6445a06a32ab4af20819cfaa1d47282a0401@80.243.180.121:30304",
+    "MaxActivePeers": 50
   }
 }
