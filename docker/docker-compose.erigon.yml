@@ -1,4 +1,3 @@
-# XDC Erigon Multi-Client Setup
 services:
   xdc-erigon:
     image: docker-xdc-erigon:latest
@@ -12,6 +11,7 @@ services:
       - "127.0.0.1:6060:6060"
     volumes:
       - ../${NETWORK:-mainnet}/erigon:/home/erigon/.local/share/erigon
+      - ../${NETWORK:-mainnet}/erigon/static-nodes.json:/home/erigon/.local/share/erigon/static-nodes.json:ro
       - /etc/localtime:/etc/localtime:ro
     environment:
       - NETWORK=${NETWORK:-mainnet}
@@ -30,6 +30,7 @@ services:
       - --metrics
       - --metrics.addr=0.0.0.0
       - --metrics.port=6060
+      - --staticpeers=/home/erigon/.local/share/erigon/static-nodes.json
     networks:
       - xdc-network
     healthcheck:

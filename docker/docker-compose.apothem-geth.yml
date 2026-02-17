@@ -1,0 +1,41 @@
+version: '3.8'
+
+# Apothem Testnet - Geth Node Only (Start This First!)
+# ChainId: 51
+
+services:
+  xdc-node-apothem:
+    image: xinfinorg/xdposchain:v2.6.8
+    container_name: xdc-node-apothem
+    restart: unless-stopped
+    ports:
+      - "8545:8545"      # HTTP RPC
+      - "8546:8546"      # WebSocket  
+      - "30303:30303"    # P2P TCP
+      - "30303:30303/udp"  # P2P UDP
+    volumes:
+      - xdc-apothem-data:/work/xdcchain
+      - ./apothem/genesis.json:/work/genesis.json:ro
+      - ./apothem/bootnodes.list:/work/bootnodes.list:ro
+      - ./entrypoint.sh:/work/entrypoint.sh:ro
+      - ./apothem/start-node.sh:/work/start.sh:ro
+    environment:
+      - NETWORK=apothem
+    entrypoint: ["/bin/bash", "/work/entrypoint.sh"]
+    networks:
+      - xdc-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf -X POST http://localhost:8545 -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' | grep -q result || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+volumes:
+  xdc-apothem-data:
+    driver: local
+
+networks:
+  xdc-network:
+    external: true
+    name: docker_xdc-network

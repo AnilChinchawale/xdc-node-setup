@@ -1,0 +1,52 @@
+version: '3.8'
+
+# Apothem Testnet - Nethermind Node
+# ChainId: 51
+
+services:
+  xdc-node-nethermind-apothem:
+    build:
+      context: https://github.com/AnilChinchawale/nethermind.git#build/xdc-net9-stable
+      dockerfile: Dockerfile
+    container_name: xdc-node-nethermind-apothem
+    restart: unless-stopped
+    ports:
+      - "8558:8558"      # HTTP RPC
+      - "30308:30308"    # P2P TCP
+      - "30308:30308/udp"  # P2P UDP
+    volumes:
+      - xdc-nethermind-apothem-data:/nethermind/data
+      - ./nethermind/xdc-apothem-chainspec.json:/nethermind/chainspec/xdc-apothem.json:ro
+      - ./nethermind/xdc-apothem.cfg:/nethermind/configs/xdc-apothem.cfg:ro
+    environment:
+      - NETHERMIND_CONFIG=xdc-apothem
+    command: >
+      --datadir=/nethermind/data
+      --config=xdc-apothem
+      --Init.ChainSpecPath=/nethermind/chainspec/xdc-apothem.json
+      --Init.GenesisHash=0xbdea512b4f12ff1135ec92c00dc047ffb93890c2ea1aa0eefe9b013d80640075
+      --Network.DiscoveryPort=30308
+      --Network.P2PPort=30308
+      --Network.Bootnodes=enode://9e923be1b3f2bfc4531695a62d9a80ce4c03b8121d8da8e67d23a1ee1198a3e43610d416a1dc06fd2fa45a7b1768f571e7d8fa09ebdfa647ff4c94cabb37050a@xdc-node-apothem:30303
+      --JsonRpc.Enabled=true
+      --JsonRpc.Host=0.0.0.0
+      --JsonRpc.Port=8558
+      --Sync.FastSync=false
+      --Sync.SnapSync=false
+    networks:
+      - xdc-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf -X POST http://localhost:8558 -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' | grep -q result || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 600s
+
+volumes:
+  xdc-nethermind-apothem-data:
+    driver: local
+
+networks:
+  xdc-network:
+    external: true
+    name: docker_xdc-network

@@ -1,0 +1,76 @@
+version: '3.8'
+
+# Apothem Testnet - SkyNet Monitoring Agents
+# Simplified version with inline script
+
+services:
+  skynet-agent-geth:
+    image: alpine/curl:latest
+    container_name: skynet-agent-geth-apothem
+    restart: unless-stopped
+    environment:
+      - RPC_URL=http://xdc-node-apothem:8545
+      - SKYNET_NODE_NAME=gcx-apothem-geth
+      - SKYNET_API_URL=https://net.xdc.network/api/v1
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        apk add --no-cache jq >/dev/null 2>&1
+        while true; do
+          BLOCK=$$(curl -sf -m 10 $$RPC_URL -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' | jq -r ".result" 2>/dev/null | xargs printf "%d" 2>/dev/null || echo "0")
+          PEERS=$$(curl -sf -m 10 $$RPC_URL -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}' | jq -r ".result" 2>/dev/null | xargs printf "%d" 2>/dev/null || echo "0")
+          echo "[geth-apothem] Block: $$BLOCK, Peers: $$PEERS"
+          curl -sf -m 10 "$$SKYNET_API_URL/node/heartbeat?name=$$SKYNET_NODE_NAME&block=$$BLOCK&peers=$$PEERS" >/dev/null 2>&1 || true
+          sleep 30
+        done
+    networks:
+      - xdc-network
+
+  skynet-agent-nethermind:
+    image: alpine/curl:latest
+    container_name: skynet-agent-nethermind-apothem
+    restart: unless-stopped
+    environment:
+      - RPC_URL=http://xdc-node-nethermind-apothem:8558
+      - SKYNET_NODE_NAME=gcx-apothem-nethermind
+      - SKYNET_API_URL=https://net.xdc.network/api/v1
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        apk add --no-cache jq >/dev/null 2>&1
+        while true; do
+          BLOCK=$$(curl -sf -m 10 $$RPC_URL -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' | jq -r ".result" 2>/dev/null | xargs printf "%d" 2>/dev/null || echo "0")
+          PEERS=$$(curl -sf -m 10 $$RPC_URL -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}' | jq -r ".result" 2>/dev/null | xargs printf "%d" 2>/dev/null || echo "0")
+          echo "[nethermind-apothem] Block: $$BLOCK, Peers: $$PEERS"
+          curl -sf -m 10 "$$SKYNET_API_URL/node/heartbeat?name=$$SKYNET_NODE_NAME&block=$$BLOCK&peers=$$PEERS" >/dev/null 2>&1 || true
+          sleep 30
+        done
+    networks:
+      - xdc-network
+
+  skynet-agent-erigon:
+    image: alpine/curl:latest
+    container_name: skynet-agent-erigon-apothem
+    restart: unless-stopped
+    environment:
+      - RPC_URL=http://xdc-node-erigon-apothem:8556
+      - SKYNET_NODE_NAME=gcx-apothem-erigon
+      - SKYNET_API_URL=https://net.xdc.network/api/v1
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        apk add --no-cache jq >/dev/null 2>&1
+        while true; do
+          BLOCK=$$(curl -sf -m 10 $$RPC_URL -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' | jq -r ".result" 2>/dev/null | xargs printf "%d" 2>/dev/null || echo "0")
+          PEERS=$$(curl -sf -m 10 $$RPC_URL -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}' | jq -r ".result" 2>/dev/null | xargs printf "%d" 2>/dev/null || echo "0")
+          echo "[erigon-apothem] Block: $$BLOCK, Peers: $$PEERS"
+          curl -sf -m 10 "$$SKYNET_API_URL/node/heartbeat?name=$$SKYNET_NODE_NAME&block=$$BLOCK&peers=$$PEERS" >/dev/null 2>&1 || true
+          sleep 30
+        done
+    networks:
+      - xdc-network
+
+networks:
+  xdc-network:
+    external: true
+    name: docker_xdc-network

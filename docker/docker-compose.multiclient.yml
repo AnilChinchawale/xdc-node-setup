@@ -1,0 +1,60 @@
+services:
+  xdc-erigon:
+    image: docker-xdc-erigon:latest
+    container_name: xdc-erigon
+    restart: always
+    ports:
+      - "30304:30304"
+      - "30304:30304/udp"
+      - "127.0.0.1:8555:8555"
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ../${NETWORK:-mainnet}/erigon:/home/erigon/.local/share/erigon
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - NETWORK=${NETWORK:-mainnet}
+    command: >
+      /usr/local/bin/erigon
+      --datadir=/home/erigon/.local/share/erigon
+      --chain=xdc-apothem
+      --networkid=51
+      --port=30304
+      --http --http.addr=0.0.0.0 --http.port=8555
+      --http.vhosts=* --http.corsdomain=*
+      --http.api=eth,net,web3,txpool,debug,erigon
+      --metrics --metrics.addr=0.0.0.0 --metrics.port=6060
+    networks:
+      - xdc-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8555 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  xdc-nethermind:
+    image: nethermind/nethermind:latest
+    container_name: xdc-nethermind
+    restart: always
+    ports:
+      - "30305:30305"
+      - "30305:30305/udp"
+      - "127.0.0.1:8557:8557"
+      - "127.0.0.1:8558:8558"
+    volumes:
+      - ../${NETWORK:-mainnet}/nethermind:/data/nethermind
+      - ../${NETWORK:-mainnet}/.xdc-node/nethermind.json:/config/nethermind.json:ro
+      - ./nethermind/xdc-chainspec.json:/config/xdc-chainspec.json:ro
+      - /etc/localtime:/etc/localtime:ro
+    command: >
+      --config=/config/nethermind.json
+    networks:
+      - xdc-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8557 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+  xdc-network:
+    # external: true

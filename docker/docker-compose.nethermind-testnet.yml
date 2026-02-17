@@ -1,0 +1,33 @@
+services:
+  xdc-node-nethermind-testnet:
+    build:
+      context: ./nethermind
+      dockerfile: Dockerfile
+    container_name: xdc-node-nethermind-testnet
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8558:8545"
+      - "30308:30303"
+      - "30308:30303/udp"
+    volumes:
+      - nethermind-testnet-data:/nethermind/data
+      - ../testnet/.xdc-node/nethermind.json:/nethermind/configs/xdc.json:ro
+      - ./nethermind/start-nethermind.sh:/start.sh:ro
+    environment:
+      - NETHERMIND_CONFIG=xdc
+    networks:
+      - xdc-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8545 -X POST -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' | grep -q result || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+
+volumes:
+  nethermind-testnet-data:
+
+networks:
+  xdc-network:
+    external: true
+    name: docker_xdc-network

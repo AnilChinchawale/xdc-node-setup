@@ -1,0 +1,47 @@
+# Apothem Testnet - Erigon Node
+# ChainId: 51 - Connects to local Geth as trusted peer
+
+services:
+  xdc-node-erigon-apothem:
+    build:
+      context: https://github.com/AnilChinchawale/erigon-xdc.git#devel
+      dockerfile: Dockerfile
+    container_name: xdc-node-erigon-apothem
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8556:8545"
+      - "30306:30306"
+      - "30306:30306/udp"
+    volumes:
+      - xdc-erigon-apothem-data:/data/erigon
+    command: >
+      --datadir=/data/erigon
+      --chain=apothem
+      --networkid=51
+      --port=30306
+      --http
+      --http.addr=0.0.0.0
+      --http.port=8545
+      --http.vhosts=*
+      --http.corsdomain=*
+      --http.api=eth,net,web3,txpool,debug,erigon
+      --ws
+      --staticpeers=enode://9e923be1b3f2bfc4531695a62d9a80ce4c03b8121d8da8e67d23a1ee1198a3e43610d416a1dc06fd2fa45a7b1768f571e7d8fa09ebdfa647ff4c94cabb37050a@xdc-node-apothem:30303
+      --trustedpeers=enode://9e923be1b3f2bfc4531695a62d9a80ce4c03b8121d8da8e67d23a1ee1198a3e43610d416a1dc06fd2fa45a7b1768f571e7d8fa09ebdfa647ff4c94cabb37050a@xdc-node-apothem:30303
+    networks:
+      - xdc-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8545 -X POST -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' | grep -q result || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 600s
+
+volumes:
+  xdc-erigon-apothem-data:
+    driver: local
+
+networks:
+  xdc-network:
+    external: true
+    name: docker_xdc-network
