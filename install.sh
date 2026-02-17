@@ -427,6 +427,10 @@ main() {
                 SETUP_ARGS+=("--client" "stable")
                 shift
                 ;;
+            --nethermind)
+                SETUP_ARGS+=("--client" "nethermind")
+                shift
+                ;;
             --client)
                 SETUP_ARGS+=("--client" "$2")
                 shift 2
@@ -454,10 +458,11 @@ Options:
   --dry-run        Show what will be done without executing
   --verify         Verify SHA256 checksum before execution
   --verify-gpg     Verify GPG signature (implies --verify)
-  --all            Install all clients (geth + erigon)
+  --all            Install all clients (geth + erigon + nethermind)
   --erigon         Install erigon client only
+  --nethermind     Install nethermind client only
   --geth           Install geth client only (default)
-  --client CLIENT  Client type: stable, erigon, geth-pr5, all
+  --client CLIENT  Client type: stable, erigon, geth-pr5, nethermind, all
   --email EMAIL    Email for SkyNet alerts
   --tg HANDLE      Telegram handle for SkyNet alerts
   --network NET    Network: mainnet, testnet, devnet (default: mainnet)

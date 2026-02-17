@@ -1,0 +1,60 @@
+{
+  "Init": {
+    "ChainSpecPath": "/nethermind/chainspec/xdc.json",
+    "GenesisHash": "0x769c51f43c7f8170b76687a0085b7a5b10c1ade0041b383a52ab910f50505060",
+    "BaseDbPath": "/nethermind/data",
+    "LogFileName": "nethermind.log",
+    "LogLevel": "INFO"
+  },
+  "Network": {
+    "DiscoveryPort": 30303,
+    "P2PPort": 30303,
+    "MaxActivePeers": 50,
+    "ProcessingThreadCount": 4
+  },
+  "JsonRpc": {
+    "Enabled": true,
+    "Host": "0.0.0.0",
+    "Port": 8545,
+    "EnabledModules": ["eth", "net", "web3", "admin", "debug", "trace", "txpool"],
+    "AdditionalRpcUrls": [],
+    "JwtSecretFile": null,
+    "UnsecureDevNoRpcAuthentication": true
+  },
+  "Sync": {
+    "FastSync": false,
+    "SnapSync": false,
+    "FastBlocks": false,
+    "UseGethLimitsInFastBlocks": false,
+    "FastSyncCatchUpHeightDelta": 10000000000
+  },
+  "EthStats": {
+    "Enabled": true,
+    "Server": "wss://stats.apothem.network/api",
+    "Name": "XDC-Apothem-Nethermind-Node",
+    "Secret": "xdc-apothem-nethermind-stats",
+    "Contact": "admin@localhost"
+  },
+  "Metrics": {
+    "Enabled": true,
+    "ExposePort": 6060,
+    "IntervalSeconds": 10
+  },
+  "Mining": {
+    "Enabled": false,
+    "MinGasPrice": 1,
+    "TargetBlockGasLimit": 420000000
+  },
+  "TxPool": {
+    "Size": 2048,
+    "GasLimit": 420000000
+  },
+  "Blocks": {
+    "SecondsPerSlot": 2,
+    "TargetBlockGasLimit": 420000000
+  },
+  "Aura": {
+    "ForceSealing": false,
+    "AllowAuRaPrivateChains": true
+  }
+}

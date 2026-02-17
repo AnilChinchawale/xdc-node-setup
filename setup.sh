@@ -501,6 +501,11 @@ init_config() {
     ERIGON_P2P_PORT_68="${ERIGON_P2P_PORT_68:-30311}"
     ERIGON_DASHBOARD_PORT="${ERIGON_DASHBOARD_PORT:-7071}"
 
+    # NETHERMIND-specific ports (for multi-client mode)
+    NETHERMIND_RPC_PORT="${NETHERMIND_RPC_PORT:-8556}"
+    NETHERMIND_P2P_PORT="${NETHERMIND_P2P_PORT:-30306}"
+    NETHERMIND_DASHBOARD_PORT="${NETHERMIND_DASHBOARD_PORT:-7072}"
+
     # Auto-resolve port conflicts
     RPC_PORT=$(find_free_port "$RPC_PORT")
     P2P_PORT=$(find_free_port "$P2P_PORT")
@@ -595,12 +600,13 @@ prompt_client() {
     echo "1) XDC Stable (v2.6.8) - Official Docker image (recommended)"
     echo "2) XDC Geth PR5 - Latest geth with XDPoS (builds from source, ~10-15 min)"
     echo "3) Erigon-XDC - Multi-client diversity, experimental (builds from source, ~10-15 min)"
+    echo "4) Nethermind-XDC - .NET-based client, experimental (builds from source, ~10-15 min)"
     echo ""
-    echo -e "${YELLOW}Note: Building from source requires Go 1.22+ and takes 10-15 minutes${NC}"
+    echo -e "${YELLOW}Note: Building from source requires Go 1.22+ (.NET 9 for Nethermind) and takes 10-15 minutes${NC}"
     echo ""
     
     while true; do
-        read -rp "Select client [1-3] (default: 1): " choice
+        read -rp "Select client [1-4] (default: 1): " choice
         choice=${choice:-1}
         case $choice in
             1) CLIENT="stable"; break ;;
@@ -620,7 +626,15 @@ prompt_client() {
                     break
                 fi
                 ;;
-            *) echo "Invalid selection. Please choose 1-3." ;;
+            4) 
+                warn "Nethermind-XDC is experimental and will be built from source. This may take 10-15 minutes."
+                read -rp "Continue? [y/N]: " confirm
+                if [[ "${confirm:-N}" =~ ^[Yy]$ ]]; then
+                    CLIENT="nethermind"
+                    break
+                fi
+                ;;
+            *) echo "Invalid selection. Please choose 1-4." ;;
         esac
     done
     
@@ -997,6 +1011,13 @@ ERIGON_P2P_PORT=30304
 ERIGON_P2P_PORT_68=30311
 ERIGON_DASHBOARD_PORT=7071
 ERIGON_RPC_URL=http://xdc-erigon:8547
+
+# NETHERMIND-specific ports (for multi-client mode)
+# These ports are used when running nethermind alongside geth
+NETHERMIND_RPC_PORT=8556
+NETHERMIND_P2P_PORT=30306
+NETHERMIND_DASHBOARD_PORT=7072
+NETHERMIND_RPC_URL=http://xdc-nethermind:8556
 ENVEOF
 
     # Create password file (remove if Docker created it as a directory)
@@ -1618,6 +1639,13 @@ start_services() {
         else
             docker compose -f docker-compose.yml -f docker-compose.erigon.yml up -d --remove-orphans
         fi
+    elif [[ "$CLIENT" == "nethermind" ]]; then
+        if [[ -f "docker-compose.nethermind-standalone.yml" ]]; then
+            docker network create xdc-network 2>/dev/null || true
+            docker compose -f docker-compose.nethermind-standalone.yml up -d
+        else
+            docker compose -f docker-compose.yml -f docker-compose.nethermind.yml up -d --remove-orphans
+        fi
     else
         docker compose up -d --remove-orphans
     fi
@@ -2171,6 +2199,7 @@ main() {
         all)      CLIENT="all" ;;
         erigon)   CLIENT="erigon" ;;
         geth-pr5) CLIENT="geth-pr5" ;;
+        nethermind) CLIENT="nethermind" ;;
         stable|xdc|geth) CLIENT="stable" ;;
         *) CLIENT="stable" ;;
     esac

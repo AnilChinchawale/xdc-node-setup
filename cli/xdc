@@ -765,6 +765,12 @@ EOF
         mkdir -p "${XDC_DATA}" 2>/dev/null || true
         disk_usage=$(df -h "${XDC_DATA}" 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}' || echo "0")
         
+        # Check if nethermind is running
+        local nethermind_running=false
+        if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^xdc-node-nethermind$"; then
+            nethermind_running=true
+        fi
+        
         # Multi-client status display
         if [[ "$geth_running" == "true" && "$erigon_running" == "true" ]]; then
             # Both clients running - show multi-client status
@@ -835,6 +841,82 @@ EOF
             echo -e "$(c BOLD)RPC Endpoints:$(c NC)"
             echo -e "  Geth:    $(c CYAN)http://localhost:8545$(c NC)"
             echo -e "  Erigon:  $(c CYAN)http://localhost:${erigon_rpc_port}$(c NC)"
+            echo ""
+            echo -e "$(c DIM)Both clients are running simultaneously and can peer with each other$(c NC)"
+            echo ""
+            return 0
+        fi
+        
+        # Check for geth + nethermind multi-client
+        if [[ "$geth_running" == "true" && "$nethermind_running" == "true" ]]; then
+            # Both geth and nethermind running
+            local geth_env_file="../${XDC_NETWORK:-mainnet}/.xdc-node/.env"
+            local nethermind_rpc_port=$(grep -E '^NETHERMIND_RPC_PORT=' "$geth_env_file" 2>/dev/null | cut -d= -f2 || echo 8556)
+            : "${nethermind_rpc_port:=8556}"
+            
+            # Get geth status (default RPC port)
+            local geth_status geth_block geth_sync geth_peers geth_ver geth_node geth_net geth_netid
+            IFS='|' read -r geth_block geth_sync_pct geth_sync geth_peers geth_ver geth_node geth_net geth_netid <<< "$(get_client_status "http://localhost:8545")"
+            
+            # Get nethermind status
+            local nethermind_status nethermind_block nethermind_sync nethermind_peers nethermind_ver nethermind_node nethermind_net nethermind_netid
+            IFS='|' read -r nethermind_block nethermind_sync_pct nethermind_sync nethermind_peers nethermind_ver nethermind_node nethermind_net nethermind_netid <<< "$(get_client_status "http://localhost:${nethermind_rpc_port}")"
+            
+            # Determine status indicators
+            local geth_status_ind="$(c GREEN)●$(c NC) Online"
+            [[ $geth_block -eq 0 ]] && geth_status_ind="$(c RED)●$(c NC) Offline"
+            [[ "$geth_sync" == "syncing" ]] && geth_status_ind="$(c YELLOW)●$(c NC) Syncing"
+            
+            local nethermind_status_ind="$(c GREEN)●$(c NC) Online"
+            [[ $nethermind_block -eq 0 ]] && nethermind_status_ind="$(c RED)●$(c NC) Offline"
+            [[ "$nethermind_sync" == "syncing" ]] && nethermind_status_ind="$(c YELLOW)●$(c NC) Syncing"
+            
+            if json_output ""; then
+                cat << EOF
+{
+  "multiClient": true,
+  "geth": {
+    "clientVersion": "$geth_ver",
+    "blockHeight": $geth_block,
+    "syncPercent": $geth_sync_pct,
+    "syncStatus": "$geth_sync",
+    "peers": $geth_peers
+  },
+  "nethermind": {
+    "clientVersion": "$nethermind_ver",
+    "blockHeight": $nethermind_block,
+    "syncPercent": $nethermind_sync_pct,
+    "syncStatus": "$nethermind_sync",
+    "peers": $nethermind_peers
+  },
+  "cpu": $cpu_usage,
+  "ram": $ram_usage,
+  "disk": $disk_usage,
+  "timestamp": "$(date -Iseconds)"
+}
+EOF
+                return 0
+            fi
+            
+            # Print multi-client table
+            echo ""
+            echo -e "$(c BOLD)┌─────────────────────────────────────────────────────────────────────────────────┐$(c NC)"
+            echo -e "$(c BOLD)│$(c NC)                 $(c CYAN)XDC Multi-Client Status$(c NC) (Geth + Nethermind)             $(c BOLD)│$(c NC)"
+            echo -e "$(c BOLD)├──────────────┬───────────┬───────┬───────┬─────────┬────────────────────────────┤$(c NC)"
+            echo -e "$(c BOLD)│$(c NC) $(c WHITE)Client$(c NC)       $(c BOLD)│$(c NC) $(c WHITE)Block$(c NC)     $(c BOLD)│$(c NC) $(c WHITE)Peers$(c NC) $(c BOLD)│$(c NC) $(c WHITE)Sync%$(c NC) $(c BOLD)│$(c NC) $(c WHITE)Status$(c NC)  $(c BOLD)│$(c NC) $(c WHITE)Version$(c NC)                  $(c BOLD)│$(c NC)"
+            echo -e "$(c BOLD)├──────────────┼───────────┼───────┼───────┼─────────┼────────────────────────────┤$(c NC)"
+            printf "$(c BOLD)│$(c NC) $(c CYAN)%-12s$(c NC) $(c BOLD)│$(c NC) %-9s $(c BOLD)│$(c NC) %-5s $(c BOLD)│$(c NC) %-5s $(c BOLD)│$(c NC) %-7s $(c BOLD)│$(c NC) %-26s $(c BOLD)│$(c NC)\n" \
+                "Geth" "$geth_block" "$geth_peers" "${geth_sync_pct}%" "$geth_status_ind" "${geth_ver:0:26}"
+            printf "$(c BOLD)│$(c NC) $(c BLUE)%-12s$(c NC) $(c BOLD)│$(c NC) %-9s $(c BOLD)│$(c NC) %-5s $(c BOLD)│$(c NC) %-5s $(c BOLD)│$(c NC) %-7s $(c BOLD)│$(c NC) %-26s $(c BOLD)│$(c NC)\n" \
+                "Nethermind" "$nethermind_block" "$nethermind_peers" "${nethermind_sync_pct}%" "$nethermind_status_ind" "${nethermind_ver:0:26}"
+            echo -e "$(c BOLD)└──────────────┴───────────┴───────┴───────┴─────────┴────────────────────────────┘$(c NC)"
+            echo ""
+            echo -e "$(c BOLD)System Resources:$(c NC)"
+            echo -e "  CPU: ${cpu_usage}% | RAM: ${ram_usage}% | Disk: ${disk_usage}%"
+            echo ""
+            echo -e "$(c BOLD)RPC Endpoints:$(c NC)"
+            echo -e "  Geth:       $(c CYAN)http://localhost:8545$(c NC)"
+            echo -e "  Nethermind: $(c CYAN)http://localhost:${nethermind_rpc_port}$(c NC)"
             echo ""
             echo -e "$(c DIM)Both clients are running simultaneously and can peer with each other$(c NC)"
             echo ""
@@ -942,6 +1024,9 @@ EOF
         if [[ "$client_version" == *"erigon"* ]]; then
             client="erigon"
             client_display="Erigon-XDC"
+        elif [[ "$client_version" == *"Nethermind"* ]] || [[ "$client_version" == *"nethermind"* ]]; then
+            client="nethermind"
+            client_display="Nethermind-XDC"
         elif [[ "$client_version" == *"XDC"* ]]; then
             if [[ "$client_version" == *"feature/xdpos"* ]] || [[ "$client_version" == *"pr5"* ]]; then
                 client="geth-pr5"
@@ -1838,12 +1923,16 @@ EOF
     if [[ -z "$client" ]]; then
         if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "erigon"; then
             client="erigon"
+        elif docker ps --format '{{.Names}}' 2>/dev/null | grep -q "nethermind"; then
+            client="nethermind"
         elif docker ps --format '{{.Names}}' 2>/dev/null | grep -q "xdc-node"; then
             client="geth"
         else
             # Check data directories
             if [[ -d "${PROJECT_DIR}/mainnet/erigon-datadir" ]]; then
                 client="erigon"
+            elif [[ -d "${PROJECT_DIR}/mainnet/nethermind-db" ]]; then
+                client="nethermind"
             else
                 client="geth"
             fi
@@ -1856,6 +1945,9 @@ EOF
         case "$client" in
             erigon)
                 datadir="${PROJECT_DIR}/${XDC_NETWORK}/erigon-datadir"
+                ;;
+            nethermind)
+                datadir="${PROJECT_DIR}/${XDC_NETWORK}/nethermind-db"
                 ;;
             geth|*)
                 datadir="${PROJECT_DIR}/${XDC_NETWORK}/xdcchain"
@@ -1901,6 +1993,9 @@ EOF
     if [[ "$client" == "erigon" ]]; then
         docker stop xdc-node-erigon 2>/dev/null || true
         docker rm xdc-node-erigon 2>/dev/null || true
+    elif [[ "$client" == "nethermind" ]]; then
+        docker stop xdc-node-nethermind 2>/dev/null || true
+        docker rm xdc-node-nethermind 2>/dev/null || true
     else
         cmd_stop
     fi
@@ -1912,6 +2007,9 @@ EOF
         # Remove only chaindata, keep config
         case "$client" in
             erigon)
+                rm -rf "${datadir:?}"/* 2>/dev/null || true
+                ;;
+            nethermind)
                 rm -rf "${datadir:?}"/* 2>/dev/null || true
                 ;;
             geth|*)
@@ -1931,6 +2029,8 @@ EOF
     info "Starting $client node..."
     if [[ "$client" == "erigon" ]]; then
         xdc start --client erigon
+    elif [[ "$client" == "nethermind" ]]; then
+        xdc start --client nethermind
     else
         cmd_start
     fi
@@ -1976,7 +2076,7 @@ $(c BOLD)USAGE:$(c NC)
 $(c BOLD)OPTIONS:$(c NC)
     --lines, -n N       Number of lines to show (default: 50)
     --follow, -f        Follow log output (like tail -f)
-    --client NAME       Specific client logs (geth, erigon)
+    --client NAME       Specific client logs (geth, erigon, nethermind)
     --component NAME    Show logs for specific component:
                         heartbeat|lfg|dashboard|node
     --since TIME        Show logs since time (e.g., '1h', '30m', '2024-01-01')
@@ -2517,8 +2617,8 @@ $(c BOLD)DESCRIPTION:$(c NC)
 
 $(c BOLD)OPTIONS:$(c NC)
     --network NETWORK    Network: mainnet, testnet, devnet, apothem (default: mainnet)
-    --client CLIENT      Client: stable, geth-pr5, erigon (default: auto-detect from config)
-    --multi-client, --all Start both geth AND erigon clients simultaneously
+    --client CLIENT      Client: stable, geth-pr5, erigon, nethermind (default: auto-detect from config)
+    --multi-client, --all Start multiple clients simultaneously
     --monitoring         Start with full monitoring stack (Prometheus, Grafana, etc.)
     --logging            Start with log aggregation stack (Loki, Promtail, Grafana)
     --help               Show this help
@@ -2529,7 +2629,8 @@ $(c BOLD)EXAMPLES:$(c NC)
     xdc-node start --logging                 # Start with log aggregation (Loki)
     xdc-node start --network testnet         # Start testnet
     xdc-node start --client erigon           # Start erigon (standalone if geth running)
-    xdc-node start --multi-client            # Start both geth AND erigon
+    xdc-node start --client nethermind       # Start nethermind (standalone if geth running)
+    xdc-node start --multi-client            # Start multiple clients
     xdc-node start --all                     # Alias for --multi-client
 
 EOF
@@ -2820,6 +2921,61 @@ EOF
             fi
         fi
         
+        # Single client mode with --client nethermind
+        # If geth is running and user wants nethermind, use standalone compose
+        if [[ "$client_override" == "nethermind" ]] && [[ "$geth_running" == "true" ]]; then
+            info "Starting nethermind alongside existing geth node..."
+            start_spinner "Starting Nethermind"
+            
+            # Resolve nethermind port conflicts
+            local orig_nethermind_rpc=$nethermind_rpc_port orig_nethermind_p2p=$nethermind_p2p_port
+            local orig_nethermind_dash=$nethermind_dash_port
+            nethermind_rpc_port=$(_find_free_port "$nethermind_rpc_port")
+            nethermind_p2p_port=$(_find_free_port "$nethermind_p2p_port")
+            nethermind_dash_port=$(_find_free_port "$nethermind_dash_port")
+            
+            # Log any changes
+            [[ "$nethermind_rpc_port" != "$orig_nethermind_rpc" ]] && warn "Nethermind RPC port $orig_nethermind_rpc in use → using $nethermind_rpc_port"
+            [[ "$nethermind_p2p_port" != "$orig_nethermind_p2p" ]] && warn "Nethermind P2P port $orig_nethermind_p2p in use → using $nethermind_p2p_port"
+            [[ "$nethermind_dash_port" != "$orig_nethermind_dash" ]] && warn "Nethermind Dashboard port $orig_nethermind_dash in use → using $nethermind_dash_port"
+            
+            # Export nethermind ports
+            export NETHERMIND_RPC_PORT="$nethermind_rpc_port" NETHERMIND_P2P_PORT="$nethermind_p2p_port"
+            export NETHERMIND_DASHBOARD_PORT="$nethermind_dash_port"
+            [[ -n "$network" ]] && export NETWORK="$network"
+            
+            if [[ -f "docker-compose.nethermind-standalone.yml" ]]; then
+                # Create xdc-network if it doesn't exist (geth should have created it)
+                docker network create xdc-network 2>/dev/null || true
+                
+                if docker compose -f docker-compose.nethermind-standalone.yml up -d 2>/dev/null; then
+                    stop_spinner true "Nethermind started"
+                    log "Nethermind client started alongside geth"
+                    
+                    echo ""
+                    echo -e "$(c GREEN)$(c BOLD)═══════════════════════════════════════════$(c NC)"
+                    echo -e "$(c GREEN)$(c BOLD)  Nethermind Node Running Alongside Geth!$(c NC)"
+                    echo -e "$(c GREEN)$(c BOLD)═══════════════════════════════════════════$(c NC)"
+                    echo ""
+                    echo -e "  $(c BOLD)Geth (existing):$(c NC)"
+                    echo -e "    RPC:        http://127.0.0.1:${rpc_port}"
+                    echo ""
+                    echo -e "  $(c BOLD)Nethermind (new):$(c NC)"
+                    echo -e "    Dashboard:  http://localhost:${nethermind_dash_port}"
+                    echo -e "    RPC:        http://127.0.0.1:${nethermind_rpc_port}"
+                    echo -e "    P2P:        :${nethermind_p2p_port}"
+                    echo ""
+                    return 0
+                else
+                    stop_spinner false "Nethermind start failed"
+                    die "Failed to start Nethermind. Check 'docker compose logs' for details."
+                fi
+            else
+                stop_spinner false "Nethermind compose not found"
+                die "docker-compose.nethermind-standalone.yml not found"
+            fi
+        fi
+        
         # Standard single-client mode
         start_spinner "Starting XDC node"
         
@@ -2862,6 +3018,17 @@ EOF
                         info "Using Erigon-XDC client (override mode)"
                     else
                         warn "Erigon compose file not found, using stable client"
+                    fi
+                fi
+                ;;
+            nethermind)
+                # If geth is NOT running, use override compose
+                if [[ "$geth_running" != "true" ]]; then
+                    if [[ -f "docker-compose.nethermind.yml" ]]; then
+                        compose_cmd="$compose_cmd -f docker-compose.nethermind.yml"
+                        info "Using Nethermind-XDC client (override mode)"
+                    else
+                        warn "Nethermind compose file not found, using stable client"
                     fi
                 fi
                 ;;
