@@ -3,26 +3,15 @@
 # Multi-arch support: linux/amd64, linux/arm64
 # Source: https://github.com/AnilChinchawale/go-ethereum/tree/feature/xdpos-consensus
 
-# Support setting various labels on the final image
-ARG COMMIT=""
-ARG VERSION=""
-ARG BUILDNUM=""
-ARG GIT_BRANCH=feature/xdpos-consensus
-ARG GIT_REPO=https://github.com/AnilChinchawale/go-ethereum.git
-
 # Build Geth in a stock Go builder container
-FROM --platform=$BUILDPLATFORM golang:1.23-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS builder
 
 RUN apk add --no-cache gcc musl-dev linux-headers git make
 
 WORKDIR /go-ethereum
 
-# Get dependencies - will also be cached if we won't change go.mod/go.sum
 # Clone XDC Geth
-RUN git clone -b ${GIT_BRANCH} --depth 1 ${GIT_REPO} .
-
-# Download dependencies first (better layer caching)
-RUN go mod download
+RUN git clone -b feature/xdpos-consensus --depth 1 https://github.com/AnilChinchawale/go-ethereum.git .
 
 # Build XDC Geth with static linking
 RUN go run build/ci.go install -static ./cmd/geth
@@ -46,24 +35,11 @@ USER xdc
 WORKDIR /data
 
 # Expose ports
-# 8545: HTTP RPC
-# 8546: WebSocket
-# 30303: P2P TCP/UDP
 EXPOSE 8545 8546 30303 30303/udp
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
     CMD curl -sf -X POST http://localhost:8545 -H "Content-Type: application/json" \
     -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' | jq -e '.result' > /dev/null || exit 1
-
-# Add some metadata labels to help programmatic image consumption
-ARG COMMIT=""
-ARG VERSION=""
-ARG BUILDNUM=""
-
-LABEL commit="$COMMIT" version="$VERSION" buildnum="$BUILDNUM" \
-      org.opencontainers.image.title="XDC Geth" \
-      org.opencontainers.image.description="XDC Network Geth client with XDPoS consensus" \
-      org.opencontainers.image.source="${GIT_REPO}"
 
 ENTRYPOINT ["XDC"]
