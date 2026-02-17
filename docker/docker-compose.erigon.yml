@@ -1,29 +1,35 @@
-# Erigon client for XDC multi-client setup
-# Usage: docker compose -f docker-compose.yml -f docker-compose.erigon.yml up -d
-
+# XDC Erigon Multi-Client Setup
 services:
   xdc-erigon:
-    image: erigontech/erigon:latest
-    platform: linux/amd64
+    image: docker-xdc-erigon:latest
     container_name: xdc-erigon
     restart: always
     ports:
       - "30304:30304"
       - "30304:30304/udp"
       - "127.0.0.1:8555:8555"
-      - "127.0.0.1:8556:8556"
       - "127.0.0.1:9090:9090"
       - "127.0.0.1:6060:6060"
     volumes:
       - ../${NETWORK:-mainnet}/erigon:/home/erigon/.local/share/erigon
-      - ./${NETWORK:-mainnet}/bootnodes.list:/work/bootnodes.list:ro
-      - ./erigon-entrypoint.sh:/entrypoint.sh:ro
       - /etc/localtime:/etc/localtime:ro
     environment:
       - NETWORK=${NETWORK:-mainnet}
-      - NETWORK_ID=${NETWORK_ID:-50}
-      - BOOTNODES_FILE=/work/bootnodes.list
-    entrypoint: ["/bin/bash", "/entrypoint.sh"]
+    entrypoint: ["/usr/local/bin/erigon"]
+    command:
+      - --datadir=/home/erigon/.local/share/erigon
+      - --chain=xdc-apothem
+      - --networkid=51
+      - --port=30304
+      - --http
+      - --http.addr=0.0.0.0
+      - --http.port=8555
+      - --http.vhosts=*
+      - --http.corsdomain=*
+      - --http.api=eth,net,web3,txpool,debug,erigon
+      - --metrics
+      - --metrics.addr=0.0.0.0
+      - --metrics.port=6060
     networks:
       - xdc-network
     healthcheck:
@@ -32,19 +38,6 @@ services:
       timeout: 10s
       start_period: 300s
       retries: 10
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "5"
-    deploy:
-      resources:
-        limits:
-          cpus: "4"
-          memory: 8G
-        reservations:
-          cpus: "2"
-          memory: 4G
 
 networks:
   xdc-network:
