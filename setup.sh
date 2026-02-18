@@ -540,6 +540,15 @@ init_config() {
             CHAIN_ID=50
             ;;
     esac
+
+    # Apothem testnet flag configuration
+    if [[ "$NETWORK" == "apothem" || "$NETWORK" == "testnet" ]]; then
+        APOTHEM_FLAG="--apothem"
+        NETWORK_ID=51
+    else
+        APOTHEM_FLAG=""
+        NETWORK_ID=${CHAIN_ID:-50}
+    fi
 }
 
 #==============================================================================
@@ -893,43 +902,50 @@ setup_docker_compose() {
                     if [[ -f "$SCRIPT_DIR/docker/mainnet/start-node.sh" ]]; then
                         cp "$SCRIPT_DIR/docker/mainnet/start-node.sh" "$network_dir/start-node.sh"
                     else
-                        cat > "$network_dir/start-node.sh" << 'STARTEOF'
+                        cat > "$network_dir/start-node.sh" << STARTEOF
 #!/bin/bash
 set -e
 for bin in XDC XDC-mainnet XDC-testnet XDC-devnet; do
-    command -v "$bin" &>/dev/null && { [ "$bin" != "XDC" ] && ln -sf "$(which "$bin")" /usr/bin/XDC; break; }
+    command -v "\$bin" &>/dev/null && { [ "\$bin" != "XDC" ] && ln -sf "\$(which "\$bin")" /usr/bin/XDC; break; }
 done
 command -v XDC &>/dev/null || { echo "FATAL: No XDC binary"; exit 1; }
-: "${SYNC_MODE:=full}" "${GC_MODE:=full}" "${LOG_LEVEL:=2}" "${RPC_ADDR:=0.0.0.0}" "${RPC_PORT:=8545}"
-: "${RPC_API:=admin,eth,net,web3,XDPoS}" "${WS_ADDR:=0.0.0.0}" "${WS_PORT:=8546}"
+: "\${SYNC_MODE:=full}" "\${GC_MODE:=full}" "\${LOG_LEVEL:=2}" "\${RPC_ADDR:=0.0.0.0}" "\${RPC_PORT:=8545}"
+: "\${RPC_API:=admin,eth,net,web3,XDPoS}" "\${WS_ADDR:=0.0.0.0}" "\${WS_PORT:=8546}"
 if [ ! -d /work/xdcchain/XDC/chaindata ]; then
-    wallet=$(XDC account new --password /work/.pwd --datadir /work/xdcchain 2>/dev/null | awk -F '[{}]' '{print $2}')
-    echo "$wallet" > /work/xdcchain/coinbase.txt
+    wallet=\$(XDC account new --password /work/.pwd --datadir /work/xdcchain 2>/dev/null | awk -F '[{}]' '{print \$2}')
+    echo "\$wallet" > /work/xdcchain/coinbase.txt
     XDC init --datadir /work/xdcchain /work/genesis.json
 else
-    wallet=$(XDC account list --datadir /work/xdcchain 2>/dev/null | head -1 | awk -F '[{}]' '{print $2}')
+    wallet=\$(XDC account list --datadir /work/xdcchain 2>/dev/null | head -1 | awk -F '[{}]' '{print \$2}')
 fi
-bootnodes=""; [ -f /work/bootnodes.list ] && while IFS= read -r l; do [ -z "$l" ] && continue; [ -z "$bootnodes" ] && bootnodes="$l" || bootnodes="$bootnodes,$l"; done < /work/bootnodes.list
+bootnodes=""; [ -f /work/bootnodes.list ] && while IFS= read -r l; do [ -z "\$l" ] && continue; [ -z "\$bootnodes" ] && bootnodes="\$l" || bootnodes="\$bootnodes,\$l"; done < /work/bootnodes.list
 # Detect flag style
-if XDC --help 2>&1 | grep -q '\-\-http.addr'; then
-    RPC_FLAGS="--http --http.addr $RPC_ADDR --http.port $RPC_PORT --http.api $RPC_API --http.corsdomain * --http.vhosts * --ws --ws.addr $WS_ADDR --ws.port $WS_PORT --ws.origins *"
+if XDC --help 2>&1 | grep -q '\\-\\-http.addr'; then
+    RPC_FLAGS="--http --http.addr \$RPC_ADDR --http.port \$RPC_PORT --http.api \$RPC_API --http.corsdomain * --http.vhosts * --ws --ws.addr \$WS_ADDR --ws.port \$WS_PORT --ws.origins *"
 else
-    RPC_FLAGS="--rpc --rpcaddr $RPC_ADDR --rpcport $RPC_PORT --rpcapi $RPC_API --rpccorsdomain * --rpcvhosts * --ws --wsaddr $WS_ADDR --wsport $WS_PORT --wsorigins *"
+    RPC_FLAGS="--rpc --rpcaddr \$RPC_ADDR --rpcport \$RPC_PORT --rpcapi \$RPC_API --rpccorsdomain * --rpcvhosts * --ws --wsaddr \$WS_ADDR --wsport \$WS_PORT --wsorigins *"
 fi
-exec XDC --datadir /work/xdcchain --networkid 50 --port 30303 --syncmode "$SYNC_MODE" --gcmode "$GC_MODE" \
-    --verbosity "$LOG_LEVEL" --password /work/.pwd --mine --gasprice 1 --targetgaslimit 420000000 \
-    ${wallet:+--unlock "$wallet"} ${bootnodes:+--bootnodes "$bootnodes"} \
-    --ethstats "${INSTANCE_NAME:-XDC_Node}:xinfin_xdpos_hybrid_network_stats@stats.xinfin.network:3000" \
-    --XDCx.datadir /work/xdcchain/XDCx $RPC_FLAGS "$@" 2>&1 | tee -a /work/xdcchain/xdc.log
+exec XDC --datadir /work/xdcchain --networkid \${NETWORK_ID:-50} --port 30303 --syncmode "\$SYNC_MODE" --gcmode "\$GC_MODE" \\
+    --verbosity "\$LOG_LEVEL" --password /work/.pwd --mine --gasprice 1 --targetgaslimit 420000000 \\
+    \${wallet:+--unlock "\$wallet"} \${bootnodes:+--bootnodes "\$bootnodes"} \\
+    \${APOTHEM_FLAG:-} \\
+    \${ETHSTATS_FLAG:---ethstats "\${INSTANCE_NAME:-XDC_Node}:xinfin_xdpos_hybrid_network_stats@stats.xinfin.network:3000"} \\
+    --XDCx.datadir /work/xdcchain/XDCx \$RPC_FLAGS "\$@" 2>&1 | tee -a /work/xdcchain/xdc.log
 STARTEOF
                     fi
                     chmod +x "$network_dir/start-node.sh"
                     ;;
                 bootnodes.list)
                     warn "Generating bootnodes.list with default XDC bootnodes..."
-                    cat > "$network_dir/bootnodes.list" << 'BNEOF'
+                    if [[ "$NETWORK" == "apothem" || "$NETWORK" == "testnet" ]]; then
+                        cat > "$network_dir/bootnodes.list" << 'BNEOF'
+enode://91e59fa1b034ae35e9f4e8a99cc6621f09d74e76a6220abb6c93b29ed41a9e1fc4e5b70e2c5fc43f883cffbdcd6f4f6cbc1d23af077f28c2aecc22403355d4b1@bootnodes.apothem.network:30312
+BNEOF
+                    else
+                        cat > "$network_dir/bootnodes.list" << 'BNEOF'
 enode://9a977b1ac4320fa2c862dcaf536aaaea3a8f8f7cd14e3bcde32e5a1c0152bd17bd18bfdc3c2ca8c4a0f3da153c62935fea1dc040cc1e66d2c07d6b4c91e2ed42@bootnode.xinfin.network:30303
 BNEOF
+                    fi
                     ;;
                 *)
                     warn "Failed to get $f from all sources. Place manually in $network_dir/"
@@ -968,6 +984,8 @@ CONTACT_DETAILS=admin@localhost
 SYNC_MODE=${SYNC_MODE}
 GC_MODE=full
 NETWORK=${NETWORK}
+NETWORK_ID=${NETWORK_ID:-50}
+APOTHEM_FLAG=${APOTHEM_FLAG:-}
 PRIVATE_KEY=0000000000000000000000000000000000000000000000000000000000000000
 LOG_LEVEL=2
 ENABLE_RPC=true
@@ -1033,14 +1051,17 @@ services:
       - "${P2P_PORT}:30303/udp"
     volumes:
       - ../${NETWORK}/xdcchain:/work/xdcchain
-      - ./mainnet/genesis.json:/work/genesis.json
-      - ./mainnet/start-node.sh:/work/start.sh
+      - ./${NETWORK}/genesis.json:/work/genesis.json
+      - ./${NETWORK}/start-node.sh:/work/start.sh
       - ./entrypoint.sh:/work/entrypoint.sh
-      - ./mainnet/bootnodes.list:/work/bootnodes.list
-      - ./mainnet/.pwd:/work/.pwd
+      - ./${NETWORK}/bootnodes.list:/work/bootnodes.list
+      - ./${NETWORK}/.pwd:/work/.pwd
       - ../${NETWORK}/.xdc-node/config.toml:/etc/xdc-node/config.toml:ro
     env_file:
       - ../${NETWORK}/.xdc-node/.env
+    environment:
+      - NETWORK_ID=${NETWORK_ID:-50}
+      - APOTHEM_FLAG=${APOTHEM_FLAG:-}
     entrypoint: ["/bin/bash", "/work/entrypoint.sh"]
     networks:
       - xdc-network

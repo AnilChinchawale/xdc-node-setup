@@ -2780,6 +2780,49 @@ EOF
         
         # Multi-client mode: start both geth and erigon
         if [[ "$multi_client" == "true" ]]; then
+            # Check if apothem/testnet network is requested
+            if [[ "$network" == "apothem" || "$network" == "testnet" ]]; then
+                info "Starting all Apothem clients..."
+                if [[ -f "docker-compose.apothem-full.yml" ]]; then
+                    docker compose -f docker-compose.apothem-full.yml up -d
+                    
+                    # Wait for startup
+                    sleep 5
+                    
+                    stop_spinner true "All Apothem clients started"
+                    
+                    # Print status
+                    echo ""
+                    echo -e "\$(c GREEN)\$(c BOLD)═══════════════════════════════════════════\$(c NC)"
+                    echo -e "\$(c GREEN)\$(c BOLD)  Apothem Multi-Client Mode Active!\$(c NC)"
+                    echo -e "\$(c GREEN)\$(c BOLD)═══════════════════════════════════════════\$(c NC)"
+                    echo ""
+                    echo -e "  \$(c BOLD)Geth v2.6.8 (xdc-node-apothem):\$(c NC)"
+                    echo -e "    RPC:        http://127.0.0.1:8545"
+                    echo -e "    WebSocket:  ws://127.0.0.1:8546"
+                    echo -e "    P2P:        :30303"
+                    echo ""
+                    echo -e "  \$(c BOLD)Geth PR5 (xdc-node-gx-apothem):\$(c NC)"
+                    echo -e "    RPC:        http://127.0.0.1:8557"
+                    echo -e "    P2P:        :30307"
+                    echo ""
+                    echo -e "  \$(c BOLD)Erigon (xdc-node-erigon-apothem):\$(c NC)"
+                    echo -e "    RPC:        http://127.0.0.1:8556"
+                    echo -e "    P2P:        :30306"
+                    echo ""
+                    echo -e "  \$(c BOLD)Nethermind (xdc-node-nethermind-apothem):\$(c NC)"
+                    echo -e "    RPC:        http://127.0.0.1:8558"
+                    echo -e "    P2P:        :30308"
+                    echo ""
+                    echo -e "  \$(c DIM)Check status:  xdc status\$(c NC)"
+                    echo -e "  \$(c DIM)View logs:     xdc logs --client nethermind\$(c NC)"
+                    echo ""
+                    return 0
+                else
+                    warn "docker-compose.apothem-full.yml not found, falling back to standard multi-client"
+                fi
+            fi
+            
             info "Starting multi-client mode (both geth and erigon)..."
             start_spinner "Starting XDC nodes"
             
