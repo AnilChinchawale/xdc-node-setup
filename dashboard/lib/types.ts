@@ -136,3 +136,41 @@ export interface PeersData {
   countries: Record<string, CountryInfo>;
   totalPeers: number;
 }
+
+// SkyNet Fleet Types
+export interface SkyNetNode {
+  id: string;
+  name: string;
+  clientType: 'erigon' | 'nethermind' | 'geth' | 'unknown';
+  clientVersion: string;
+  network: 'mainnet' | 'apothem' | 'devnet';
+  blockHeight: number;
+  syncProgress: number;
+  syncing: boolean;
+  peerCount: number;
+  chainDataSize: number;
+  databaseSize: number;
+  lastHeartbeat: string;
+  online: boolean;
+  country?: string;
+  region?: string;
+}
+
+export interface FleetStatus {
+  totalNodes: number;
+  onlineNodes: number;
+  offlineNodes: number;
+  syncingNodes: number;
+  maxBlockHeight: number;
+  clientDistribution: {
+    erigon: number;
+    nethermind: number;
+    geth: number;
+    unknown: number;
+  };
+  networkDistribution: {
+    mainnet: number;
+    apothem: number;
+    devnet: number;
+  };
+}

@@ -12,7 +12,7 @@ import {
   BarChart3,
   Menu,
   X,
-  Users,
+  Radio,
   Activity,
   Settings,
   Sun,
@@ -30,6 +30,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, path: '/', section: 'Overview' },
+  { id: 'nodes', label: 'SkyNet Nodes', icon: <Radio className="w-5 h-5" />, path: '/nodes', section: 'Overview' },
   { id: 'network', label: 'Network', icon: <BarChart3 className="w-5 h-5" />, path: '/network', section: 'Monitoring' },
   { id: 'peers', label: 'Peers', icon: <Globe className="w-5 h-5" />, path: '/peers', section: 'Monitoring' },
   { id: 'alerts', label: 'Alerts', icon: <Bell className="w-5 h-5" />, path: '/alerts', section: 'Monitoring' },

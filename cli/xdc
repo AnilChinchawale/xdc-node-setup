@@ -2746,6 +2746,7 @@ EOF
         # Read current ports from env or defaults
         local rpc_port=8545 ws_port=8546 p2p_port=30303 dash_port=7070
         local erigon_rpc_port=8547 erigon_p2p_port=30304 erigon_p2p_68=30311 erigon_dash_port=7071
+        local nethermind_rpc_port=8548 nethermind_p2p_port=30305 nethermind_dash_port=7072
         if [[ -n "$env_file" ]]; then
             rpc_port=$(grep -E '^RPC_PORT=' "$env_file" 2>/dev/null | cut -d= -f2 || echo 8545)
             ws_port=$(grep -E '^WS_PORT=' "$env_file" 2>/dev/null | cut -d= -f2 || echo 8546)
@@ -2756,9 +2757,14 @@ EOF
             erigon_p2p_port=$(grep -E '^ERIGON_P2P_PORT=' "$env_file" 2>/dev/null | cut -d= -f2 || echo 30304)
             erigon_p2p_68=$(grep -E '^ERIGON_P2P_PORT_68=' "$env_file" 2>/dev/null | cut -d= -f2 || echo 30311)
             erigon_dash_port=$(grep -E '^ERIGON_DASHBOARD_PORT=' "$env_file" 2>/dev/null | cut -d= -f2 || echo 7071)
+            # Nethermind ports
+            nethermind_rpc_port=$(grep -E '^NETHERMIND_RPC_PORT=' "$env_file" 2>/dev/null | cut -d= -f2 || echo 8548)
+            nethermind_p2p_port=$(grep -E '^NETHERMIND_P2P_PORT=' "$env_file" 2>/dev/null | cut -d= -f2 || echo 30305)
+            nethermind_dash_port=$(grep -E '^NETHERMIND_DASHBOARD_PORT=' "$env_file" 2>/dev/null | cut -d= -f2 || echo 7072)
         fi
         : "${rpc_port:=8545}" "${ws_port:=8546}" "${p2p_port:=30303}" "${dash_port:=7070}"
         : "${erigon_rpc_port:=8547}" "${erigon_p2p_port:=30304}" "${erigon_p2p_68:=30311}" "${erigon_dash_port:=7071}"
+        : "${nethermind_rpc_port:=8548}" "${nethermind_p2p_port:=30305}" "${nethermind_dash_port:=7072}"
         
         # Check if geth (xdc-node) is already running
         local geth_running=false
@@ -2827,19 +2833,55 @@ EOF
                     docker network create xdc-network 2>/dev/null || true
                     
                     if ! docker compose -f docker-compose.erigon-standalone.yml up -d 2>/dev/null; then
-                        stop_spinner false "Failed to start erigon"
-                        die "Failed to start erigon client. Check 'docker compose logs' for details."
+                        warn "Failed to start erigon — skipping"
+                    else
+                        log "Erigon client started"
                     fi
-                    log "Erigon client started"
                 else
-                    stop_spinner false "Erigon standalone compose not found"
-                    die "docker-compose.erigon-standalone.yml not found. Please check your installation."
+                    warn "docker-compose.erigon-standalone.yml not found, skipping erigon"
                 fi
             else
                 info "Erigon already running, skipping..."
             fi
             
-            stop_spinner true "Both clients started"
+            # Check if nethermind is already running
+            local nethermind_running=false
+            if docker ps --format '{{.Names}}' | grep -q "xdc-node-nethermind\|xdc-nethermind"; then
+                nethermind_running=true
+            fi
+            
+            # Start nethermind using standalone compose
+            if [[ "$nethermind_running" != "true" ]]; then
+                info "Starting nethermind (xdc-nethermind)..."
+                
+                # Resolve nethermind port conflicts
+                local orig_nm_rpc=$nethermind_rpc_port orig_nm_p2p=$nethermind_p2p_port orig_nm_dash=$nethermind_dash_port
+                nethermind_rpc_port=$(_find_free_port "$nethermind_rpc_port")
+                nethermind_p2p_port=$(_find_free_port "$nethermind_p2p_port")
+                nethermind_dash_port=$(_find_free_port "$nethermind_dash_port")
+                [[ "$nethermind_rpc_port" != "$orig_nm_rpc" ]] && warn "Nethermind RPC port $orig_nm_rpc in use → using $nethermind_rpc_port"
+                [[ "$nethermind_p2p_port" != "$orig_nm_p2p" ]] && warn "Nethermind P2P port $orig_nm_p2p in use → using $nethermind_p2p_port"
+                [[ "$nethermind_dash_port" != "$orig_nm_dash" ]] && warn "Nethermind Dashboard port $orig_nm_dash in use → using $nethermind_dash_port"
+                
+                export NETHERMIND_RPC_PORT="$nethermind_rpc_port" NETHERMIND_P2P_PORT="$nethermind_p2p_port"
+                export NETHERMIND_DASHBOARD_PORT="$nethermind_dash_port"
+                
+                if [[ -f "docker-compose.nethermind-standalone.yml" ]]; then
+                    docker network create xdc-network 2>/dev/null || true
+                    
+                    if ! docker compose -f docker-compose.nethermind-standalone.yml up -d 2>/dev/null; then
+                        warn "Failed to start nethermind — skipping"
+                    else
+                        log "Nethermind client started"
+                    fi
+                else
+                    warn "docker-compose.nethermind-standalone.yml not found, skipping nethermind"
+                fi
+            else
+                info "Nethermind already running, skipping..."
+            fi
+            
+            stop_spinner true "All clients started"
             
             # Print status
             echo ""
@@ -2858,8 +2900,13 @@ EOF
             echo -e "    RPC:        http://127.0.0.1:${erigon_rpc_port}"
             echo -e "    P2P:        :${erigon_p2p_port} (eth/63), :${erigon_p2p_68} (eth/68)"
             echo ""
+            echo -e "  $(c BOLD)Nethermind (xdc-nethermind):$(c NC)"
+            echo -e "    Dashboard:  http://localhost:${nethermind_dash_port}"
+            echo -e "    RPC:        http://127.0.0.1:${nethermind_rpc_port}"
+            echo -e "    P2P:        :${nethermind_p2p_port}"
+            echo ""
             echo -e "  $(c DIM)Check status:  xdc status$(c NC)"
-            echo -e "  $(c DIM)View logs:     xdc logs --client erigon$(c NC)"
+            echo -e "  $(c DIM)View logs:     xdc logs --client nethermind$(c NC)"
             echo ""
             return 0
         fi
