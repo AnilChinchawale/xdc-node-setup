@@ -278,7 +278,7 @@ EOF
   done
 ) &
 
-# Start Next.js dashboard
-echo "Starting Next.js dashboard on port 3000..."
-cd /app
-exec node_modules/.bin/next start
+# Keep container running (heartbeat loop runs in background)
+echo "[SkyNet Agent] Heartbeat loop running in background..."
+echo "[SkyNet Agent] No dashboard in this image (agent-only mode)"
+wait

@@ -278,7 +278,12 @@ EOF
   done
 ) &
 
-# Start Next.js dashboard
-echo "Starting Next.js dashboard on port 3000..."
-cd /app
-exec node_modules/.bin/next start
+# Start dashboard if available, otherwise just run heartbeat
+if [ -d "/app" ] && [ -f "/app/node_modules/.bin/next" ]; then
+  echo "Starting Next.js dashboard on port 3000..."
+  cd /app
+  exec node_modules/.bin/next start
+else
+  echo "[SkyNet Agent] Heartbeat loop running in background (agent-only mode)..."
+  wait
+fi
