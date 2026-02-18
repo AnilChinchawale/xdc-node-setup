@@ -1627,29 +1627,43 @@ start_services() {
     # Start services (remove orphans from other projects sharing this dir)
     info "Starting containers..."
     if [[ "$CLIENT" == "all" ]]; then
-        # Multi-client: start geth first, then erigon standalone
-        info "Multi-client mode: starting geth + erigon..."
-        docker compose up -d --remove-orphans
-        docker network create xdc-network 2>/dev/null || true
-        if [[ -f "docker-compose.erigon-standalone.yml" ]]; then
-            docker compose -f docker-compose.erigon-standalone.yml up -d
-        fi
-        if [[ -f "docker-compose.nethermind-standalone.yml" ]]; then
-            docker compose -f docker-compose.nethermind-standalone.yml up -d
+        # Check if apothem full compose exists for multi-client apothem
+        if [[ ("$NETWORK" == "apothem" || "$NETWORK" == "testnet") && -f "docker-compose.apothem-full.yml" ]]; then
+            info "Multi-client mode (Apothem): starting all 4 clients..."
+            docker compose -f docker-compose.apothem-full.yml up -d
+        else
+            # Multi-client: start geth first, then others standalone
+            info "Multi-client mode: starting geth + geth-pr5 + erigon + nethermind..."
+            docker compose up -d --remove-orphans
+            docker network create docker_xdc-network 2>/dev/null || true
+            export NETWORK_ID="${NETWORK_ID:-50}" APOTHEM_FLAG="${APOTHEM_FLAG:-}" NETWORK="${NETWORK:-mainnet}"
+            if [[ -f "docker-compose.geth-pr5-standalone.yml" ]]; then
+                docker compose -f docker-compose.geth-pr5-standalone.yml up -d || warn "Failed to start Geth PR5"
+            fi
+            if [[ -f "docker-compose.erigon-standalone.yml" ]]; then
+                docker compose -f docker-compose.erigon-standalone.yml up -d || warn "Failed to start Erigon"
+            fi
+            if [[ -f "docker-compose.nethermind-standalone.yml" ]]; then
+                docker compose -f docker-compose.nethermind-standalone.yml up -d || warn "Failed to start Nethermind"
+            fi
         fi
     elif [[ "$CLIENT" == "geth-pr5" ]]; then
-        info "Starting Geth PR5 using Docker Hub image..."
-        docker network create xdc-network 2>/dev/null || true
-        if [[ -f "docker-compose.geth-pr5.yml" ]]; then
+        info "Starting Geth PR5 using Docker Hub image (anilchinchawale/gx)..."
+        docker network create docker_xdc-network 2>/dev/null || true
+        export NETWORK_ID="${NETWORK_ID:-50}" APOTHEM_FLAG="${APOTHEM_FLAG:-}"
+        export NETWORK="${NETWORK:-mainnet}"
+        if [[ -f "docker-compose.geth-pr5-standalone.yml" ]]; then
+            docker compose -f docker-compose.geth-pr5-standalone.yml up -d
+        elif [[ -f "docker-compose.geth-pr5.yml" ]]; then
             docker compose -f docker-compose.geth-pr5.yml up -d
         else
             # Fallback: run directly from Docker Hub image
-            docker run -d --name xdc-node-gx \
+            docker run -d --name xdc-node-geth-pr5 \
                 --network docker_xdc-network \
                 --restart unless-stopped \
                 -p "127.0.0.1:${GP5_RPC_PORT:-8557}:8557" \
                 -p "${GP5_P2P_PORT:-30307}:30307" \
-                -v "xdc-gx-data:/data/xdc" \
+                -v "${NETWORK:-mainnet}-geth-pr5-data:/data/xdc" \
                 anilchinchawale/gx:latest \
                 --datadir=/data/xdc --networkid=${NETWORK_ID:-50} --port=30307 \
                 --http --http.addr=0.0.0.0 --http.port=8557 --http.vhosts="*" \

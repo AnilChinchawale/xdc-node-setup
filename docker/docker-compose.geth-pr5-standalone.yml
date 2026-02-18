@@ -1,0 +1,83 @@
+#==============================================================================
+# XDC Node Docker Compose — Geth PR5 Standalone
+# Usage: docker compose -f docker-compose.geth-pr5-standalone.yml up -d
+# Or: xdc start --client geth-pr5
+# Runs alongside existing geth v2.6.8 on different ports
+#==============================================================================
+
+services:
+  xdc-node-geth-pr5:
+    image: anilchinchawale/gx:latest
+    platform: linux/amd64
+    container_name: xdc-node-geth-pr5
+    restart: always
+    ports:
+      - "${GP5_P2P_PORT:-30307}:30307"
+      - "${GP5_P2P_PORT:-30307}:30307/udp"
+      - "127.0.0.1:${GP5_RPC_PORT:-8557}:8557"
+      - "127.0.0.1:${GP5_WS_PORT:-8560}:8560"
+    volumes:
+      - ../${NETWORK:-mainnet}/geth-pr5-data:/data/xdc
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - NETWORK=${NETWORK:-mainnet}
+      - NETWORK_ID=${NETWORK_ID:-50}
+      - APOTHEM_FLAG=${APOTHEM_FLAG:-}
+    entrypoint: ["/usr/local/bin/XDC"]
+    command:
+      - --datadir=/data/xdc
+      - --networkid=${NETWORK_ID:-50}
+      - --port=30307
+      - --http
+      - --http.addr=0.0.0.0
+      - --http.port=8557
+      - --http.vhosts=*
+      - --http.corsdomain=*
+      - --http.api=eth,net,web3,txpool,debug,admin
+      - --ws
+      - --ws.addr=0.0.0.0
+      - --ws.port=8560
+      - --ws.origins=*
+      - --syncmode=full
+      - --state.scheme=hash
+    networks:
+      - docker_xdc-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8557 --post-data='{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' --header='Content-Type: application/json' | grep -q 'result' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+        reservations:
+          cpus: '2'
+          memory: 4G
+
+  xdc-agent-geth-pr5:
+    image: anilchinchawale/xdc-agent:latest
+    platform: linux/amd64
+    container_name: xdc-agent-geth-pr5
+    restart: unless-stopped
+    environment:
+      - RPC_URL=http://xdc-node-geth-pr5:8557
+      - SKYNET_NODE_NAME=${SKYNET_NODE_NAME:-xdc-geth-pr5}
+      - SKYNET_API_URL=https://net.xdc.network/api/v1
+      - SKYNET_MASTER_KEY=${SKYNET_MASTER_KEY:-xdc-netown-key-2026-prod}
+    networks:
+      - docker_xdc-network
+    depends_on:
+      xdc-node-geth-pr5:
+        condition: service_started
+
+networks:
+  docker_xdc-network:
+    external: true

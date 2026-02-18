@@ -2959,18 +2959,43 @@ EOF
             info "Starting Geth PR5 from Docker Hub..."
             start_spinner "Starting Geth PR5"
             
-            docker network create xdc-network 2>/dev/null || true
+            docker network create docker_xdc-network 2>/dev/null || true
             
-            if [[ -f "docker-compose.geth-pr5.yml" ]]; then
-                export RPC_PORT="${rpc_port}" WS_PORT="${ws_port}" P2P_PORT="${p2p_port}"
-                [[ -n "$network" ]] && export NETWORK="$network"
-                
-                if docker compose -f docker-compose.geth-pr5.yml up -d 2>/dev/null; then
+            # Determine network settings
+            local gp5_network_id=50
+            local gp5_apothem_flag=""
+            if [[ "$network" == "apothem" || "$network" == "testnet" ]]; then
+                gp5_network_id=51
+                gp5_apothem_flag="--apothem"
+            fi
+            
+            # Resolve GP5-specific ports
+            local gp5_rpc=$(_find_free_port "${GP5_RPC_PORT:-8557}")
+            local gp5_p2p=$(_find_free_port "${GP5_P2P_PORT:-30307}")
+            local gp5_ws=$(_find_free_port "${GP5_WS_PORT:-8560}")
+            
+            export GP5_RPC_PORT="$gp5_rpc" GP5_P2P_PORT="$gp5_p2p" GP5_WS_PORT="$gp5_ws"
+            export NETWORK_ID="$gp5_network_id" APOTHEM_FLAG="$gp5_apothem_flag"
+            [[ -n "$network" ]] && export NETWORK="$network"
+            
+            local compose_file="docker-compose.geth-pr5-standalone.yml"
+            [[ ! -f "$compose_file" ]] && compose_file="docker-compose.geth-pr5.yml"
+            
+            if [[ -f "$compose_file" ]]; then
+                if docker compose -f "$compose_file" up -d 2>/dev/null; then
                     stop_spinner true "Geth PR5 started"
                     echo ""
+                    echo -e "$(c GREEN)$(c BOLD)═══════════════════════════════════════════$(c NC)"
                     echo -e "$(c GREEN)$(c BOLD)  Geth PR5 Node Running!$(c NC)"
-                    echo -e "  RPC:  http://127.0.0.1:${rpc_port}"
-                    echo -e "  P2P:  :${p2p_port}"
+                    echo -e "$(c GREEN)$(c BOLD)═══════════════════════════════════════════$(c NC)"
+                    echo ""
+                    echo -e "  $(c BOLD)Network:$(c NC)    ${network:-mainnet} (Chain ID: $gp5_network_id)"
+                    echo -e "  $(c BOLD)RPC:$(c NC)        http://127.0.0.1:${gp5_rpc}"
+                    echo -e "  $(c BOLD)WebSocket:$(c NC)  ws://127.0.0.1:${gp5_ws}"
+                    echo -e "  $(c BOLD)P2P:$(c NC)        :${gp5_p2p}"
+                    echo ""
+                    echo -e "  $(c DIM)Image:  anilchinchawale/gx:latest$(c NC)"
+                    echo -e "  $(c DIM)Logs:   xdc logs --client geth-pr5$(c NC)"
                     echo ""
                     return 0
                 else
@@ -2978,8 +3003,26 @@ EOF
                     die "Failed to start Geth PR5. Check 'docker compose logs' for details."
                 fi
             else
-                stop_spinner false "Compose file not found"
-                die "docker-compose.geth-pr5.yml not found"
+                # Fallback: run directly
+                if docker run -d --name xdc-node-geth-pr5 \
+                    --network docker_xdc-network \
+                    --restart unless-stopped \
+                    -p "127.0.0.1:${gp5_rpc}:8557" \
+                    -p "${gp5_p2p}:30307" \
+                    -v "xdc-gx-data:/data/xdc" \
+                    anilchinchawale/gx:latest \
+                    --datadir=/data/xdc --networkid="$gp5_network_id" --port=30307 \
+                    --http --http.addr=0.0.0.0 --http.port=8557 --http.vhosts="*" \
+                    --http.api=eth,net,web3,txpool,debug,admin \
+                    --syncmode=full --state.scheme=hash \
+                    $gp5_apothem_flag 2>/dev/null; then
+                    stop_spinner true "Geth PR5 started (direct)"
+                    echo -e "  RPC: http://127.0.0.1:${gp5_rpc}"
+                    return 0
+                else
+                    stop_spinner false "Geth PR5 start failed"
+                    die "Failed to start Geth PR5"
+                fi
             fi
         fi
         
