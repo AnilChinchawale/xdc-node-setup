@@ -1,12 +1,14 @@
 version: '3.8'
 
 # Apothem Testnet Multi-Client Docker Compose
-# Geth (XDC) + Erigon + Nethermind
+# Geth (XDC v2.6.8) + Geth PR5 + Erigon + Nethermind
+# Works on Linux AND macOS (ARM64/Rosetta via platform: linux/amd64)
 
 services:
-  # ==================== GETH APOTHEM ====================
+  # ==================== GETH v2.6.8 APOTHEM ====================
   xdc-node-apothem:
     image: xinfinorg/xdposchain:v2.6.8
+    platform: linux/amd64
     container_name: xdc-node-apothem
     restart: unless-stopped
     ports:
@@ -20,22 +22,22 @@ services:
       - ./apothem/bootnodes.list:/work/bootnodes.list:ro
     environment:
       - NETWORK=apothem
-    command: >
-      --datadir /work/xdcchain
-      --networkid 51
-      --port 30303
-      --http
-      --http.addr 0.0.0.0
-      --http.port 8545
-      --http.vhosts "*"
-      --http.corsdomain "*"
-      --http.api eth,net,web3,txpool,debug,admin
-      --ws
-      --ws.addr 0.0.0.0
-      --ws.port 8546
-      --ws.origins "*"
-      --syncmode full
-      --bootnodes $(cat /work/bootnodes.list | tr '\n' ',')
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        # v2.6.8 image has XDC-testnet binary
+        BINARY=$$(which XDC-testnet 2>/dev/null || which XDC 2>/dev/null || echo "/usr/bin/XDC-testnet")
+        exec $$BINARY \
+          --datadir /work/xdcchain \
+          --networkid 51 \
+          --port 30303 \
+          --rpc --rpcaddr 0.0.0.0 --rpcport 8545 \
+          --rpccorsdomain "*" --rpcvhosts "*" \
+          --rpcapi eth,net,web3,txpool,debug,admin \
+          --ws --wsaddr 0.0.0.0 --wsport 8546 --wsorigins "*" \
+          --syncmode full \
+          --apothem \
+          --bootnodes "enode://91e59fa1b034ae35e9f4e8a99cc6621f09d74e76a6220abb6c93b29ed41a9e1fc4e5b70e2c5fc43f883cffbdcd6f4f6cbc1d23af077f28c2aecc22403355d4b1@bootnodes.apothem.network:30312"
     networks:
       - xdc-network
     healthcheck:
@@ -45,16 +47,57 @@ services:
       retries: 5
       start_period: 60s
 
+  # ==================== GETH PR5 APOTHEM ====================
+  xdc-node-gx-apothem:
+    image: anilchinchawale/gx:latest
+    platform: linux/amd64
+    container_name: xdc-node-gx-apothem
+    restart: unless-stopped
+    ports:
+      - "8557:8557"      # HTTP RPC
+      - "8560:8560"      # WebSocket
+      - "30307:30307"    # P2P TCP
+      - "30307:30307/udp"  # P2P UDP
+    volumes:
+      - xdc-gx-apothem-data:/data/xdc
+    entrypoint: ["/usr/local/bin/XDC"]
+    command:
+      - --datadir=/data/xdc
+      - --networkid=51
+      - --port=30307
+      - --http
+      - --http.addr=0.0.0.0
+      - --http.port=8557
+      - --http.vhosts=*
+      - --http.corsdomain=*
+      - --http.api=eth,net,web3,txpool,debug,admin
+      - --ws
+      - --ws.addr=0.0.0.0
+      - --ws.port=8560
+      - --ws.origins=*
+      - --syncmode=full
+      - --state.scheme=hash
+      - --apothem
+    networks:
+      - xdc-network
+    depends_on:
+      xdc-node-apothem:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf -X POST http://localhost:8557 -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' | grep -q result || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
   # ==================== ERIGON APOTHEM ====================
   xdc-node-erigon-apothem:
-    build:
-      context: https://github.com/AnilChinchawale/erigon-xdc.git#build/xdc-testnet
-      dockerfile: Dockerfile
+    image: anilchinchawale/erix:latest
+    platform: linux/amd64
     container_name: xdc-node-erigon-apothem
     restart: unless-stopped
     ports:
-      - "8556:8556"      # HTTP RPC (changed from 8555 to avoid conflicts)
-      - "8557:8557"      # WebSocket
+      - "8556:8556"      # HTTP RPC
       - "30306:30306"    # P2P TCP
       - "30306:30306/udp"  # P2P UDP
       - "9090:9090"      # Private API
@@ -65,7 +108,7 @@ services:
       - NETWORK=apothem
     command: >
       --datadir=/data/erigon
-      --chain=apothem
+      --chain=xdc-testnet
       --networkid=51
       --port=30306
       --http
@@ -73,12 +116,11 @@ services:
       --http.port=8556
       --http.vhosts="*"
       --http.corsdomain="*"
-      --http.api=eth,net,web3,txpool,debug,erigon
+      --http.api=eth,net,web3,txpool,debug,erigon,admin
       --ws
       --metrics
       --metrics.addr=0.0.0.0
       --metrics.port=6060
-      --trustedpeers=enode://91e59fa1b034ae35e9f4e8a99cc6621f09d74e76a6220abb6c93b29ed41a9e1fc4e5b70e2c5fc43f883cffbdcd6f4f6cbc1d23af077f28c2aecc22403355d4b1@xdc-node-apothem:30303
     networks:
       - xdc-network
     depends_on:
@@ -93,9 +135,8 @@ services:
 
   # ==================== NETHERMIND APOTHEM ====================
   xdc-node-nethermind-apothem:
-    build:
-      context: https://github.com/AnilChinchawale/nethermind.git#build/xdc-net9-stable
-      dockerfile: Dockerfile
+    image: anilchinchawale/nmx:latest
+    platform: linux/amd64
     container_name: xdc-node-nethermind-apothem
     restart: unless-stopped
     ports:
@@ -105,22 +146,19 @@ services:
       - "30308:30308/udp"  # P2P UDP
     volumes:
       - xdc-nethermind-apothem-data:/nethermind/data
-      - ./nethermind/xdc-apothem-chainspec.json:/nethermind/configs/xdc-apothem-chainspec.json:ro
-      - ./nethermind/start-nethermind.sh:/start.sh:ro
-    environment:
-      - NETHERMIND_CONFIG=xdc-apothem
-      - NETHERMIND_NETWORK__BOOTNODES=enode://91e59fa1b034ae35e9f4e8a99cc6621f09d74e76a6220abb6c93b29ed41a9e1fc4e5b70e2c5fc43f883cffbdcd6f4f6cbc1d23af077f28c2aecc22403355d4b1@xdc-node-apothem:30303
     command: >
-      --datadir=/nethermind/data
-      --config=/nethermind/configs/xdc-apothem.cfg
+      --config xdc
+      --datadir /nethermind/data
       --Network.DiscoveryPort=30308
       --Network.P2PPort=30308
       --JsonRpc.Enabled=true
       --JsonRpc.Host=0.0.0.0
       --JsonRpc.Port=8558
       --JsonRpc.WebSocketsPort=8559
+      --JsonRpc.EnabledModules="eth,net,web3,admin,txpool"
       --Sync.FastSync=false
       --Sync.SnapSync=false
+      --Network.StaticPeers="enode://91e59fa1b034ae35e9f4e8a99cc6621f09d74e76a6220abb6c93b29ed41a9e1fc4e5b70e2c5fc43f883cffbdcd6f4f6cbc1d23af077f28c2aecc22403355d4b1@xdc-node-apothem:30303"
     networks:
       - xdc-network
     depends_on:
@@ -133,72 +171,52 @@ services:
       retries: 5
       start_period: 300s
 
-  # ==================== SKYNET AGENTS ====================
-  skynet-agent-geth:
+  # ==================== PEER CONNECTOR ====================
+  # Automatically adds peers between all clients
+  peer-connector:
     image: alpine/curl:latest
-    container_name: skynet-agent-geth
-    restart: unless-stopped
-    environment:
-      - RPC_URL=http://xdc-node-apothem:8545
-      - SKYNET_NODE_NAME=gcx-apothem-geth
-      - SKYNET_API_URL=https://net.xdc.network/api/v1
-      - SKYNET_MASTER_KEY=xdc-netown-key-2026-prod
-      - AGENT_PORT=7070
-    ports:
-      - "7070:7070"
-    volumes:
-      - ./dashboard/combined-start.sh:/start.sh:ro
-    command: /bin/sh -c "apk add --no-cache jq bash && exec bash /start.sh"
+    platform: linux/amd64
+    container_name: peer-connector
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        apk add --no-cache jq > /dev/null 2>&1
+        echo "Waiting 30s for nodes to start..."
+        sleep 30
+        
+        # Get enode from geth v2.6.8
+        GETH_ENODE=$$(curl -sf -X POST http://xdc-node-apothem:8545 -H 'Content-Type: application/json' \
+          -d '{"jsonrpc":"2.0","method":"admin_nodeInfo","params":[],"id":1}' | jq -r '.result.enode')
+        echo "Geth enode: $$GETH_ENODE"
+        
+        # Add geth as peer to GP5
+        curl -sf -X POST http://xdc-node-gx-apothem:8557 -H 'Content-Type: application/json' \
+          -d "{\"jsonrpc\":\"2.0\",\"method\":\"admin_addPeer\",\"params\":[\"$$GETH_ENODE\"],\"id\":1}" || true
+        
+        # Add geth as trusted peer to erigon
+        curl -sf -X POST http://xdc-node-erigon-apothem:8556 -H 'Content-Type: application/json' \
+          -d "{\"jsonrpc\":\"2.0\",\"method\":\"admin_addTrustedPeer\",\"params\":[\"$$GETH_ENODE\"],\"id\":1}" || true
+        
+        echo "Peers connected!"
+        # Keep running and re-add peers every 5 minutes
+        while true; do
+          sleep 300
+          curl -sf -X POST http://xdc-node-gx-apothem:8557 -H 'Content-Type: application/json' \
+            -d "{\"jsonrpc\":\"2.0\",\"method\":\"admin_addPeer\",\"params\":[\"$$GETH_ENODE\"],\"id\":1}" > /dev/null 2>&1 || true
+          curl -sf -X POST http://xdc-node-erigon-apothem:8556 -H 'Content-Type: application/json' \
+            -d "{\"jsonrpc\":\"2.0\",\"method\":\"admin_addTrustedPeer\",\"params\":[\"$$GETH_ENODE\"],\"id\":1}" > /dev/null 2>&1 || true
+        done
     networks:
       - xdc-network
     depends_on:
       xdc-node-apothem:
         condition: service_healthy
 
-  skynet-agent-erigon:
-    image: alpine/curl:latest
-    container_name: skynet-agent-erigon
-    restart: unless-stopped
-    environment:
-      - RPC_URL=http://xdc-node-erigon-apothem:8556
-      - SKYNET_NODE_NAME=gcx-apothem-erigon
-      - SKYNET_API_URL=https://net.xdc.network/api/v1
-      - SKYNET_MASTER_KEY=xdc-netown-key-2026-prod
-      - AGENT_PORT=7071
-    ports:
-      - "7071:7071"
-    volumes:
-      - ./dashboard/combined-start.sh:/start.sh:ro
-    command: /bin/sh -c "apk add --no-cache jq bash && exec bash /start.sh"
-    networks:
-      - xdc-network
-    depends_on:
-      xdc-node-erigon-apothem:
-        condition: service_healthy
-
-  skynet-agent-nethermind:
-    image: alpine/curl:latest
-    container_name: skynet-agent-nethermind
-    restart: unless-stopped
-    environment:
-      - RPC_URL=http://xdc-node-nethermind-apothem:8558
-      - SKYNET_NODE_NAME=gcx-apothem-nethermind
-      - SKYNET_API_URL=https://net.xdc.network/api/v1
-      - SKYNET_MASTER_KEY=xdc-netown-key-2026-prod
-      - AGENT_PORT=7072
-    ports:
-      - "7072:7072"
-    volumes:
-      - ./dashboard/combined-start.sh:/start.sh:ro
-    command: /bin/sh -c "apk add --no-cache jq bash && exec bash /start.sh"
-    networks:
-      - xdc-network
-    depends_on:
-      xdc-node-nethermind-apothem:
-        condition: service_healthy
-
 volumes:
   xdc-apothem-data:
+    driver: local
+  xdc-gx-apothem-data:
     driver: local
   xdc-erigon-apothem-data:
     driver: local
