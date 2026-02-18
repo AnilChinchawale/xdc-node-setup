@@ -90,10 +90,7 @@ services:
       retries: 5
       start_period: 60s
 
-  # ==================== ERIGON (MAINNET ONLY) ====================
-  # NOTE: Erigon XDC only supports --chain=xdc (mainnet). 
-  # Apothem chain spec not yet implemented (GitHub issue #3).
-  # This runs erigon on MAINNET alongside Apothem nodes.
+  # ==================== ERIGON APOTHEM ====================
   xdc-node-erigon-apothem:
     image: anilchinchawale/erix:latest
     platform: linux/amd64
@@ -111,8 +108,8 @@ services:
       - NETWORK=apothem
     command: >
       --datadir=/data/erigon
-      --chain=xdc
-      --networkid=50
+      --chain=xdc-apothem
+      --networkid=51
       --port=30306
       --http
       --http.addr=0.0.0.0

@@ -15,7 +15,7 @@ services:
       - xdc-erigon-apothem-data:/data/erigon
     command: >
       --datadir=/data/erigon
-      --chain=apothem
+      --chain=xdc-apothem
       --networkid=51
       --port=30306
       --http
