@@ -14,36 +14,9 @@ readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source cross-platform utilities
 # shellcheck source=scripts/lib/utils.sh
-source "${SCRIPT_DIR}/scripts/lib/utils.sh" 2>/dev/null || {
-    # Fallback if utils.sh is not available
-    detect_os() {
-        case "$(uname -s)" in
-            Linux*)
-                if [[ -n "${WSL_DISTRO_NAME:-}" ]] || grep -qi microsoft /proc/version 2>/dev/null; then
-                    echo "wsl2"
-                else
-                    echo "linux"
-                fi
-                ;;
-            Darwin*)    echo "macos";;
-            MINGW*|CYGWIN*|MSYS*) echo "windows";;
-            *)          echo "unknown";;
-        esac
-    }
-    readonly OS=$(detect_os)
-
-    sed_inplace() {
-        local pattern="$1"
-        local file="$2"
-        if [[ "$OS" == "macos" ]]; then
-            sed -i '' "$pattern" "$file"
-        else
-            sed -i "$pattern" "$file"
-        fi
-    }
-
-    to_upper() { echo "$1" | tr '[:lower:]' '[:upper:]'; }
-    to_lower() { echo "$1" | tr '[:upper:]' '[:lower:]'; }
+source "${SCRIPT_DIR}/scripts/lib/utils.sh" || {
+    echo "ERROR: Failed to load utilities from scripts/lib/utils.sh" >&2
+    exit 1
 }
 
 # Ensure OS is set

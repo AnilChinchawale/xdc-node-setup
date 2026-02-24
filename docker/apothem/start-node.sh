@@ -1,12 +1,22 @@
 #!/bin/bash
 set -e
 
-echo "[INFO] Starting XDC Apothem Testnet Node (Network ID: 51)..."
+# Source common utilities
+# shellcheck source=/dev/null
+source "$(dirname "$0")/../scripts/lib/common.sh" 2>/dev/null || {
+    # Fallback bootnode loader if common.sh not available
+    load_bootnodes() {
+        local bootnodes_file="${1:-/work/bootnodes.list}"
+        grep -v "^#" "$bootnodes_file" 2>/dev/null | grep -v "^$" | tr "\n" "," | sed 's/,$//'
+    }
+}
+
+log_info "Starting XDC Apothem Testnet Node (Network ID: 51)..."
 
 # Load bootnodes
-BOOTNODES=$(grep -v "^#" /work/bootnodes.list | grep -v "^$" | tr "\n" "," | sed "s/,$//")
+BOOTNODES=$(load_bootnodes /work/bootnodes.list)
 
-echo "[INFO] Loaded $(echo "$BOOTNODES" | tr "," "\n" | wc -l) bootnodes"
+log_info "Loaded $(echo "$BOOTNODES" | tr "," "\n" | wc -l) bootnodes"
 
 # Start XDC with proper Apothem testnet flags
 exec XDC \
