@@ -28,7 +28,7 @@ exec XDC \
   --rpcaddr 0.0.0.0 \
   --rpcport 8545 \
   --rpcapi admin,eth,net,web3,XDPoS \
-  --rpccorsdomain "*" \
+  --rpccorsdomain "${RPC_CORS:-localhost,https://*.xdc.network,https://*.xinfin.org}" \
   --rpcvhosts "*" \
   --store-reward \
   --ws \

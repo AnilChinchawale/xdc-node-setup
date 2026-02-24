@@ -152,7 +152,7 @@ else
     # Use section-prefixed HTTP_PORT from [Node.HTTP], not [Metrics] Port
     export RPC_PORT="${HTTP_PORT:-${RPC_PORT:-8545}}"
     export RPC_API="${API:-admin,eth,net,web3,XDPoS}"
-    export RPC_CORS_DOMAIN="${CORS_DOMAIN:-*}"
+    export RPC_CORS_DOMAIN="${CORS_DOMAIN:-${RPC_CORS:-localhost,https://*.xdc.network,https://*.xinfin.org}}"
     export RPC_VHOSTS="${VHOSTS:-*}"
 fi
 

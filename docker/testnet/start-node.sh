@@ -99,7 +99,7 @@ ENABLE_RPC="${ENABLED:-${ENABLE_RPC:-true}}"
 RPC_ADDR="${ADDR:-${RPC_ADDR:-0.0.0.0}}"
 RPC_PORT="${PORT:-${RPC_PORT:-8545}}"
 RPC_API="${API:-${RPC_API:-admin,eth,net,web3,XDPoS}}"
-RPC_CORS_DOMAIN="${CORS_DOMAIN:-${RPC_CORS_DOMAIN:-*}}"
+RPC_CORS_DOMAIN="${CORS_DOMAIN:-${RPC_CORS:-localhost,https://*.xdc.network,https://*.xinfin.org}}"
 RPC_VHOSTS="${VHOSTS:-${RPC_VHOSTS:-*}}"
 
 # WebSocket configuration

@@ -166,7 +166,7 @@ if echo "$ENABLE_RPC" | grep -iq "true"; then
         --rpcaddr "$RPC_ADDR"
         --rpcport "$RPC_PORT"
         --rpcapi "$RPC_API"
-        --rpccorsdomain "*"
+        --rpccorsdomain "${RPC_CORS:-localhost,https://*.xdc.network,https://*.xinfin.org}"
         --rpcvhosts "*"
         --store-reward
         --ws
