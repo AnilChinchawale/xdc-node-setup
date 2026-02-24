@@ -17,17 +17,23 @@ BootstrapNodes = [
 
 [Node.HTTP]
 Enabled = true
-Host = "0.0.0.0"
+# SECURITY FIX (#93): Bind to localhost only by default
+# Change to "0.0.0.0" only if you need external RPC access (behind firewall/nginx)
+Host = "127.0.0.1"
 Port = {{RPC_PORT}}
-CORSDomains = ["*"]
-VirtualHosts = ["*"]
+# SECURITY FIX (#92): Restrict CORS to specific origins instead of wildcard
+# Default: localhost only. Add your dashboard domain for web access
+CORSDomains = ["http://localhost:3000", "http://localhost:7070", "http://127.0.0.1:3000"]
+VirtualHosts = ["localhost", "127.0.0.1"]
 Modules = [{{RPC_API}}]
 
 [Node.WS]
 Enabled = true
-Host = "0.0.0.0"
+# SECURITY FIX (#93): Bind to localhost only by default
+Host = "127.0.0.1"
 Port = {{WS_PORT}}
-Origins = ["*"]
+# SECURITY FIX (#92): Restrict origins instead of wildcard
+Origins = ["http://localhost:3000", "http://localhost:7070", "http://127.0.0.1:3000"]
 Modules = [{{WS_API}}]
 
 [Node.GraphQL]
@@ -72,7 +78,8 @@ Lifetime = 10800000000000
 
 [Metrics]
 Enabled = {{METRICS_ENABLED}}
-HTTP = "0.0.0.0"
+# SECURITY FIX (#93): Bind metrics to localhost only by default
+HTTP = "127.0.0.1"
 Port = {{METRICS_PORT}}
 InfluxDBEnabled = false
 InfluxDBEndpoint = "http://localhost:8086"

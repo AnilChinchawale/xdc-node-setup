@@ -87,10 +87,12 @@ services:
       - "0.0.0.0:${DASHBOARD_PORT:-7070}:3000"
     volumes:
       - ./skynet-agent.sh:/agent.sh:ro
-      - ../${NETWORK:-mainnet}/.xdc-node/skynet.conf:/etc/xdc-node/skynet.conf
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ../${NETWORK:-mainnet}/.xdc-node/skynet.conf:/etc/xdc-node/skynet.conf:ro
+      # SECURITY FIX (#94): Docker socket mount requires 'docker-monitor' profile
+      # Only enable if you need container monitoring (risk of container escape)
+      # Usage: docker compose --profile docker-monitor up -d
       - /proc:/host/proc:ro
-      - ../${NETWORK:-mainnet}/.xdc-node/logs:/var/log/xdc
+      - ../${NETWORK:-mainnet}/.xdc-node/logs:/var/log/xdc:ro
     environment:
       # RPC_URL: Container-to-container uses internal port 8545
       # For external access (dev mode), use http://localhost:${RPC_PORT}

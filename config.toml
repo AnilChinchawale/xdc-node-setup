@@ -1,5 +1,8 @@
 # XDC Node Configuration File (TOML format)
 # Place this file at /opt/xdc-node/config.toml
+# SECURITY NOTES:
+# - Issues #92, #93 fixed: RPC now binds to localhost by default
+# - Change to 0.0.0.0 ONLY if you have firewall/nginx in front
 
 #==============================================================================
 # Network Configuration
@@ -28,28 +31,35 @@ nat = "any"
 #==============================================================================
 [rpc]
 enabled = true
-addr = "0.0.0.0"
+# SECURITY FIX (#93): Changed from 0.0.0.0 to 127.0.0.1
+# Only change to 0.0.0.0 if you have proper firewall/nginx in front
+addr = "127.0.0.1"
 port = 8545
 api = ["admin", "eth", "net", "web3", "XDPoS"]
-cors_domain = "*"
-vhosts = "*"
+# SECURITY FIX (#92): Changed from "*" to localhost-only
+# Add your specific domains if needed for web dashboard access
+cors_domain = "http://localhost:3000,http://localhost:7070"
+vhosts = "localhost,127.0.0.1"
 
 #==============================================================================
 # WebSocket Configuration
 #==============================================================================
 [websocket]
 enabled = true
-addr = "0.0.0.0"
+# SECURITY FIX (#93): Changed from 0.0.0.0 to 127.0.0.1
+addr = "127.0.0.1"
 port = 8546
 api = ["eth", "net", "web3", "XDPoS"]
-origins = "*"
+# SECURITY FIX (#92): Changed from "*" to localhost-only
+origins = "http://localhost:3000,http://localhost:7070"
 
 #==============================================================================
 # Metrics
 #==============================================================================
 [metrics]
 enabled = true
-addr = "0.0.0.0"
+# SECURITY FIX (#93): Changed from 0.0.0.0 to 127.0.0.1
+addr = "127.0.0.1"
 port = 6060
 
 #==============================================================================

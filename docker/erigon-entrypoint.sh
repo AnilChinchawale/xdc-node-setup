@@ -27,21 +27,22 @@ esac
 echo "[Erigon] Chain: $CHAIN"
 
 # Build erigon command
+# SECURITY FIX (#77): Use localhost-only defaults instead of wildcards
 ERIGON_ARGS=(
     "--datadir=/home/erigon/.local/share/erigon"
     "--chain=$CHAIN"
     "--networkid=$NETWORK_ID"
     "--port=30304"
     "--http"
-    "--http.addr=0.0.0.0"
+    "--http.addr=${RPC_ADDR:-127.0.0.1}"  # SECURITY: localhost only by default
     "--http.port=8555"
-    "--http.vhosts=*"
-    "--http.corsdomain=*"
+    "--http.vhosts=${RPC_VHOSTS:-localhost,127.0.0.1}"  # SECURITY: no wildcard
+    "--http.corsdomain=${RPC_CORS:-http://localhost:3000}"  # SECURITY: no wildcard
     "--http.api=eth,net,web3,txpool,debug,erigon"
     "--ws"
-    "--private.api.addr=0.0.0.0:9090"
+    "--private.api.addr=127.0.0.1:9090"  # SECURITY: localhost only
     "--metrics"
-    "--metrics.addr=0.0.0.0"
+    "--metrics.addr=127.0.0.1"  # SECURITY: localhost only
     "--metrics.port=6060"
 )
 

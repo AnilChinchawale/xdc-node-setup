@@ -433,6 +433,67 @@ calculate_restart_effectiveness() {
   fi
 }
 
+# === ISSUE REPORTING WITH COOLDOWN ===
+# Report issue to SkyNet with cooldown to prevent spam
+report_issue_to_skynet() {
+  local api_url="$1"
+  local node_id="$2"
+  local api_key="$3"
+  local issue_type="$4"
+  local severity="$5"
+  local title="$6"
+  local description="$7"
+  local diagnostics="$8"
+  local cooldown_minutes="${9:-60}"
+  
+  if [ -z "$api_url" ] || [ -z "$node_id" ] || [ -z "$api_key" ]; then
+    return 1
+  fi
+  
+  # Check cooldown - only report same issue type once per hour (or custom interval)
+  local cooldown_file="/tmp/skynet-issue-${issue_type}-reported"
+  local current_time=$(date +%s)
+  local cooldown_seconds=$((cooldown_minutes * 60))
+  
+  if [ -f "$cooldown_file" ]; then
+    local last_report=$(cat "$cooldown_file" 2>/dev/null || echo "0")
+    local time_since=$((current_time - last_report))
+    if [ $time_since -lt $cooldown_seconds ]; then
+      echo "[SkyNet-Issue] Cooldown active for $issue_type (${time_since}s since last report)"
+      return 0
+    fi
+  fi
+  
+  # Build issue payload
+  local issue_payload=$(cat <<EOF
+{
+  "nodeId": "${node_id}",
+  "nodeName": "${SKYNET_NODE_NAME:-$node_id}",
+  "type": "${issue_type}",
+  "severity": "${severity}",
+  "title": "${title}",
+  "description": "${description}",
+  "diagnostics": ${diagnostics}
+}
+EOF
+)
+  
+  # Send to SkyNet issue API
+  local response=$(curl -s -m 15 -X POST "${api_url}/v1/issues/report" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer ${api_key}" \
+    -d "$issue_payload" 2>/dev/null)
+  
+  if echo "$response" | jq -e '.success' >/dev/null 2>&1; then
+    echo "$current_time" > "$cooldown_file"
+    echo "[SkyNet-Issue] ✅ Reported $issue_type to SkyNet"
+    return 0
+  else
+    echo "[SkyNet-Issue] ⚠️ Failed to report $issue_type: $(echo "$response" | jq -r '.error // "unknown error"')"
+    return 1
+  fi
+}
+
 # === PHASE 2: NETWORK HEIGHT AWARENESS ===
 fetch_network_height() {
   local network="$1"
@@ -1129,6 +1190,9 @@ monitor_container_logs() {
   STALL_COUNT=0
   LAST_RESTART_TIME=""
   
+  # Peer drop detection variables
+  PEER_ZERO_COUNT=0
+  
   # === PHASE 2: COUNTERS (30s interval) ===
   NETWORK_HEIGHT_COUNTER=0     # Every 20 HB = 10 min
   PEER_MGMT_COUNTER=0          # Every 10 HB = 5 min
@@ -1390,6 +1454,23 @@ monitor_container_logs() {
     else
       STALL_COUNT=0
     fi
+    
+    # Calculate stall minutes based on heartbeat interval
+    STALL_MINUTES=$((STALL_COUNT * HEARTBEAT_INTERVAL / 60))
+
+    # Report to SkyNet if stalled for >30 minutes with cooldown
+    if [ "$SYNC_TREND" = "stalled" ] || [ "$STALL_MINUTES" -gt 30 ]; then
+      report_issue_to_skynet \
+        "$SKYNET_API_URL" \
+        "$SKYNET_NODE_ID" \
+        "${SKYNET_API_KEY:-$SKYNET_NODE_ID}" \
+        "sync_stall" \
+        "high" \
+        "Sync stalled at block ${BLOCK_NUM} for ${STALL_MINUTES}min" \
+        "Node has not progressed for ${STALL_MINUTES} minutes. Peers: ${PEER_COUNT}, CPU: ${CPU_PERCENT}%, Disk: ${DISK_PERCENT}%" \
+        "{ \"blockHeight\": ${BLOCK_NUM}, \"peerCount\": ${PEER_COUNT}, \"cpuPercent\": ${CPU_PERCENT}, \"memoryPercent\": ${MEMORY_PERCENT}, \"diskPercent\": ${DISK_PERCENT}, \"clientType\": \"${CLIENT_TYPE}\", \"isSyncing\": ${IS_SYNCING}, \"syncPercent\": ${SYNC_PERCENT} }" \
+        60
+    fi
 
     # Trigger auto-heal if stalled for 10 consecutive heartbeats (5 minutes at 30s interval)
     if [ $STALL_COUNT -ge 10 ] && [ "$CAN_RESTART" = true ]; then
@@ -1426,6 +1507,45 @@ EOF
     elif [ $STALL_COUNT -ge 10 ]; then
       echo "[SkyOne] Stall detected but in cooldown period (restart at: $LAST_RESTART_TIME)"
       STALLED=true
+    fi
+    
+    # === PEER DROP DETECTION ===
+    # Track peer count for extended zero-peer detection
+    if [ "$PEER_COUNT" -eq 0 ]; then
+      PEER_ZERO_COUNT=${PEER_ZERO_COUNT:-0}
+      PEER_ZERO_COUNT=$((PEER_ZERO_COUNT + 1))
+    else
+      PEER_ZERO_COUNT=0
+    fi
+    PEER_ZERO_MINUTES=$((PEER_ZERO_COUNT * HEARTBEAT_INTERVAL / 60))
+    
+    # Report peer drop if peers=0 for >10 minutes
+    if [ "$PEER_ZERO_MINUTES" -gt 10 ]; then
+      report_issue_to_skynet \
+        "$SKYNET_API_URL" \
+        "$SKYNET_NODE_ID" \
+        "${SKYNET_API_KEY:-$SKYNET_NODE_ID}" \
+        "peer_drop" \
+        "high" \
+        "Peer count dropped to 0 for ${PEER_ZERO_MINUTES}min" \
+        "Node has no peers for ${PEER_ZERO_MINUTES} minutes. Block: ${BLOCK_NUM}, CPU: ${CPU_PERCENT}%, Disk: ${DISK_PERCENT}%" \
+        "{ \"blockHeight\": ${BLOCK_NUM}, \"peerCount\": 0, \"cpuPercent\": ${CPU_PERCENT}, \"memoryPercent\": ${MEMORY_PERCENT}, \"diskPercent\": ${DISK_PERCENT}, \"clientType\": \"${CLIENT_TYPE}\", \"isSyncing\": ${IS_SYNCING}, \"syncPercent\": ${SYNC_PERCENT} }" \
+        60
+    fi
+    
+    # === DISK CRITICAL DETECTION ===
+    # Report if disk usage >90%
+    if [ -n "$DISK_PERCENT" ] && [ "$DISK_PERCENT" -gt 90 ]; then
+      report_issue_to_skynet \
+        "$SKYNET_API_URL" \
+        "$SKYNET_NODE_ID" \
+        "${SKYNET_API_KEY:-$SKYNET_NODE_ID}" \
+        "disk_critical" \
+        "critical" \
+        "Disk usage critical at ${DISK_PERCENT}%" \
+        "Node disk usage is at ${DISK_PERCENT}%. Used: ${DISK_USED_GB}GB / ${DISK_TOTAL_GB}GB. Block: ${BLOCK_NUM}, Peers: ${PEER_COUNT}" \
+        "{ \"blockHeight\": ${BLOCK_NUM}, \"peerCount\": ${PEER_COUNT}, \"cpuPercent\": ${CPU_PERCENT}, \"memoryPercent\": ${MEMORY_PERCENT}, \"diskPercent\": ${DISK_PERCENT}, \"diskUsedGb\": ${DISK_USED_GB}, \"diskTotalGb\": ${DISK_TOTAL_GB}, \"clientType\": \"${CLIENT_TYPE}\" }" \
+        60
     fi
 
     # Update previous block for next iteration

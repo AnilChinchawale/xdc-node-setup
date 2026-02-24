@@ -91,15 +91,19 @@ fi
 
 # ============================================================
 # Defaults — Docker env takes priority over config.toml
+# SECURITY FIX (#77): Changed defaults from wildcards (*) to localhost-only
+# Use environment variables to override for external access
 # ============================================================
 SYNC_MODE="${SYNC_MODE:-full}"
 LOG_LEVEL="${LEVEL:-3}"
 INSTANCE_NAME="${INSTANCE_NAME:-Erigon_XDC_Node}"
-RPC_ADDR="${HTTP_ADDR:-${ADDR:-0.0.0.0}}"
+# SECURITY FIX (#77): Default to localhost only, not 0.0.0.0
+RPC_ADDR="${_DOCKER_RPC_ADDR:-${HTTP_ADDR:-${ADDR:-127.0.0.1}}}}"
 RPC_PORT="${_DOCKER_RPC_PORT:-${HTTP_PORT:-${PORT:-8547}}}"
 RPC_API="${HTTP_API:-${API:-eth,net,web3,admin,XDPoS}}"
-RPC_CORS_DOMAIN="${HTTP_CORS_DOMAIN:-${CORS_DOMAIN:-*}}"
-RPC_VHOSTS="${HTTP_VHOSTS:-${VHOSTS:-*}}"
+# SECURITY FIX (#77): Changed defaults from * to localhost-only
+RPC_CORS_DOMAIN="${_DOCKER_RPC_CORS:-${HTTP_CORS_DOMAIN:-${CORS_DOMAIN:-http://localhost:3000,http://localhost:7070}}}}"
+RPC_VHOSTS="${_DOCKER_RPC_VHOSTS:-${HTTP_VHOSTS:-${VHOSTS:-localhost,127.0.0.1}}}}"
 P2P_PORT_63="${_DOCKER_P2P_PORT:-${P2P_PORT:-30304}}"
 P2P_PORT_68="${_DOCKER_P2P_PORT_68:-${P2P_PORT_68:-30311}}"
 

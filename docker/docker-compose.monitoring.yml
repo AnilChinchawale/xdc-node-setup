@@ -80,12 +80,17 @@ services:
 
   #--------------------------------------------------------------------------
   # cAdvisor - Container metrics
+  # SECURITY FIX (#95): Removed privileged mode, using capabilities instead
   #--------------------------------------------------------------------------
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.47.2
     container_name: xdc-cadvisor
     restart: unless-stopped
-    privileged: true
+    # SECURITY FIX (#95): privileged: true removed
+    # Using fine-grained capabilities instead
+    cap_add:
+      - DAC_READ_SEARCH
+      - SYS_PTRACE
     devices:
       - /dev/kmsg:/dev/kmsg
     volumes:
