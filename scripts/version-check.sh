@@ -10,7 +10,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="${SCRIPT_DIR}/lib"
 
-# Source notification library
+# Source libraries
+# shellcheck source=/dev/null
+source "${LIB_DIR}/error-handler.sh" 2>/dev/null || {
+    echo "Error: error-handler.sh library not found at ${LIB_DIR}/error-handler.sh"
+    exit 1
+}
 # shellcheck source=/dev/null
 source "${LIB_DIR}/notify.sh" 2>/dev/null || {
     echo "Warning: Notification library not found at ${LIB_DIR}/notify.sh"
@@ -65,24 +70,9 @@ info() {
 }
 
 #==============================================================================
-# Lock Management
+# Lock Management (using lib/error-handler.sh functions)
 #==============================================================================
-acquire_lock() {
-    if [[ -f "$LOCK_FILE" ]]; then
-        local pid
-        pid=$(cat "$LOCK_FILE" 2>/dev/null)
-        if kill -0 "$pid" 2>/dev/null; then
-            warn "Another version check is running (PID: $pid)"
-            exit 0
-        fi
-        rm -f "$LOCK_FILE"
-    fi
-    echo $$ > "$LOCK_FILE"
-}
-
-release_lock() {
-    rm -f "$LOCK_FILE"
-}
+# acquire_lock() and release_lock() are now sourced from lib/error-handler.sh
 
 #==============================================================================
 # GitHub API with ETag Caching (for rate limit avoidance)
@@ -630,7 +620,7 @@ main() {
     log "ETag cache: $ETAG_CACHE_DIR"
     log "Log file: $LOG_FILE"
     
-    acquire_lock
+    acquire_lock "$LOCK_FILE"
     trap release_lock EXIT
     
     # Check if versions.json exists
