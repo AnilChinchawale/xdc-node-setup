@@ -1,0 +1,111 @@
+{
+  "version": "1.0",
+  "playbook": [
+    {
+      "id": "missing_trie_node",
+      "pattern": "missing trie node",
+      "clients": ["geth", "geth-pr5"],
+      "severity": "critical",
+      "auto_heal": {
+        "enabled": true,
+        "action": "rollback",
+        "params": {"blocks_back": 1000},
+        "cooldown_min": 60,
+        "max_attempts": 3
+      },
+      "escalate": {"after_failures": 3, "github_repo": "AnilChinchawale/go-ethereum", "labels": ["bug", "sync"]},
+      "related_issues": ["#17"]
+    },
+    {
+      "id": "sync_stall_with_peers",
+      "pattern": "sync_stall",
+      "condition": "peers > 3 && block_unchanged_min >= 5",
+      "clients": ["*"],
+      "severity": "warning",
+      "auto_heal": {
+        "enabled": true,
+        "action": "restart",
+        "cooldown_min": 30,
+        "max_attempts": 5
+      },
+      "escalate": {"after_failures": 5, "github_repo": "auto", "labels": ["bug", "sync"]},
+      "related_issues": ["#18"]
+    },
+    {
+      "id": "breach_of_protocol",
+      "pattern": "BreachOfProtocol|Reason: Other, Type: Remote",
+      "clients": ["nethermind"],
+      "severity": "warning",
+      "auto_heal": {
+        "enabled": false,
+        "reason": "restart causes block regression"
+      },
+      "escalate": {"after_occurrences": 10, "github_repo": "AnilChinchawale/nethermind", "labels": ["bug", "p2p"]},
+      "related_issues": ["#39"]
+    },
+    {
+      "id": "bad_block",
+      "pattern": "BAD BLOCK|bad block",
+      "clients": ["*"],
+      "severity": "critical",
+      "auto_heal": {
+        "enabled": true,
+        "action": "rollback",
+        "params": {"blocks_back": 100},
+        "cooldown_min": 120,
+        "max_attempts": 2
+      },
+      "escalate": {"after_failures": 2, "github_repo": "auto", "labels": ["bug", "consensus"]},
+      "related_issues": []
+    },
+    {
+      "id": "disk_pressure",
+      "pattern": "disk_percent > 90",
+      "clients": ["*"],
+      "severity": "warning",
+      "auto_heal": {
+        "enabled": true,
+        "action": "cleanup",
+        "params": {"targets": ["ancient_freezer", "old_logs"]},
+        "cooldown_min": 360
+      },
+      "escalate": {"after_failures": 1, "github_repo": null, "notify": "telegram"},
+      "related_issues": []
+    },
+    {
+      "id": "container_crashed",
+      "pattern": "container_down",
+      "clients": ["*"],
+      "severity": "critical",
+      "auto_heal": {
+        "enabled": true,
+        "action": "restart",
+        "cooldown_min": 10,
+        "max_attempts": 3
+      },
+      "escalate": {"after_failures": 3, "github_repo": null, "notify": "telegram"}
+    },
+    {
+      "id": "zero_peers",
+      "pattern": "peer_count == 0",
+      "condition": "peer_count == 0 && duration_min >= 10",
+      "clients": ["*"],
+      "severity": "warning",
+      "auto_heal": {
+        "enabled": true,
+        "action": "inject_peers",
+        "cooldown_min": 15,
+        "max_attempts": 10
+      },
+      "escalate": {"after_failures": 10, "github_repo": null, "notify": "telegram"}
+    },
+    {
+      "id": "uint256_overflow",
+      "pattern": "uint256 overflow|panic.*overflow",
+      "clients": ["geth", "geth-pr5", "erigon"],
+      "severity": "critical",
+      "auto_heal": {"enabled": false, "reason": "requires code fix"},
+      "escalate": {"immediately": true, "github_repo": "auto", "labels": ["bug", "critical"]}
+    }
+  ]
+}

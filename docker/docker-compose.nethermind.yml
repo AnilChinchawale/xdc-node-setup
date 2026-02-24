@@ -75,6 +75,7 @@ services:
       - SKYNET_API_KEY=${SKYNET_API_KEY:-}
       - SKYNET_NODE_ID=${SKYNET_NODE_ID:-}
       - SKYNET_NODE_NAME=${SKYNET_NODE_NAME:-xdc-nethermind-168-mainnet}
+      - XDC_CONTAINER_NAME=xdc-node-nethermind
       - NEXT_PUBLIC_REFRESH_INTERVAL=10
       - DASHBOARD_AUTH_ENABLED=${DASHBOARD_AUTH_ENABLED:-false}
       - DASHBOARD_USER=${DASHBOARD_USER:-admin}

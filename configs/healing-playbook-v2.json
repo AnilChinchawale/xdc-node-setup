@@ -1,0 +1,109 @@
+{
+  "version": "2.0",
+  "description": "XDC Node Healing Playbook v2 - Comprehensive error patterns with intelligent auto-heal",
+  "patterns": [
+    {
+      "id": "missing_trie_node",
+      "regex": "missing trie node",
+      "severity": "critical",
+      "action": "rollback",
+      "rollbackBlocks": 1000,
+      "cooldown": 3600,
+      "escalationThreshold": 3,
+      "description": "Missing trie node indicates state DB corruption",
+      "supportedClients": ["geth", "erigon", "nethermind"]
+    },
+    {
+      "id": "breach_of_protocol",
+      "regex": "BreachOfProtocol|Reason: Other, Type: Remote",
+      "severity": "warning",
+      "action": "none",
+      "cooldown": 1800,
+      "escalationThreshold": 10,
+      "description": "Peer protocol violation, usually self-resolves",
+      "supportedClients": ["geth", "nethermind"]
+    },
+    {
+      "id": "bad_block",
+      "regex": "BAD BLOCK|bad block",
+      "severity": "critical",
+      "action": "rollback",
+      "rollbackBlocks": 100,
+      "cooldown": 3600,
+      "escalationThreshold": 2,
+      "description": "Invalid block detected, rollback required",
+      "supportedClients": ["geth", "erigon", "nethermind"]
+    },
+    {
+      "id": "uint256_overflow",
+      "regex": "uint256 overflow|panic.*overflow",
+      "severity": "critical",
+      "action": "restart",
+      "cooldown": 1800,
+      "escalationThreshold": 2,
+      "description": "Arithmetic overflow, code-level bug",
+      "supportedClients": ["geth", "nethermind"]
+    },
+    {
+      "id": "state_root_mismatch",
+      "regex": "state root mismatch|invalid merkle root",
+      "severity": "critical",
+      "action": "rollback",
+      "rollbackBlocks": 500,
+      "cooldown": 3600,
+      "escalationThreshold": 2,
+      "description": "State merkle tree corruption",
+      "supportedClients": ["geth", "erigon", "nethermind"]
+    },
+    {
+      "id": "protocol_mismatch",
+      "regex": "unsupported eth protocol|rlp: expected input",
+      "severity": "warning",
+      "action": "peer_refresh",
+      "cooldown": 1800,
+      "escalationThreshold": 5,
+      "description": "Protocol version mismatch with peers",
+      "supportedClients": ["geth", "erigon", "nethermind"]
+    },
+    {
+      "id": "disk_corruption",
+      "regex": "corrupted|checksum mismatch|bad file descriptor",
+      "severity": "critical",
+      "action": "escalate",
+      "cooldown": 600,
+      "escalationThreshold": 1,
+      "description": "Disk-level corruption, manual intervention required",
+      "supportedClients": ["geth", "erigon", "nethermind"]
+    },
+    {
+      "id": "memory_oom",
+      "regex": "out of memory|cannot allocate",
+      "severity": "critical",
+      "action": "restart",
+      "cooldown": 1800,
+      "escalationThreshold": 3,
+      "description": "Out of memory condition",
+      "supportedClients": ["geth", "erigon", "nethermind"]
+    },
+    {
+      "id": "genesis_mismatch",
+      "regex": "genesis block mismatch|wrong genesis",
+      "severity": "critical",
+      "action": "escalate",
+      "cooldown": 600,
+      "escalationThreshold": 1,
+      "description": "Wrong network configuration, manual fix required",
+      "supportedClients": ["geth", "erigon", "nethermind"]
+    },
+    {
+      "id": "fork_choice",
+      "regex": "forked block|side chain",
+      "severity": "warning",
+      "action": "none",
+      "cooldown": 1800,
+      "escalationThreshold": 5,
+      "description": "Chain fork detected, usually self-resolves",
+      "supportedClients": ["geth", "erigon", "nethermind"]
+    }
+  ]
+}

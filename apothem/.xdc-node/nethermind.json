@@ -1,0 +1,27 @@
+{
+  "Init": {
+    "ChainSpecPath": "chainspec/xdc-testnet.json",
+    "BaseDbPath": "/nethermind/data",
+    "LogFileName": "/nethermind/logs/nethermind.log"
+  },
+  "Network": {
+    "DiscoveryPort": 30303,
+    "P2PPort": 30303,
+    "MaxActivePeers": 50,
+    "Bootnodes": "enode://528d6060387a9279bff7b5a1192fc7a98a4f96bf084cba63a624bd66fe22614a28410dc715639ead3cf0b56836c284ec4d768ed62a589557f8e4ace561de40d0@172.17.0.2:30303",
+    "StaticPeers": "enode://528d6060387a9279bff7b5a1192fc7a98a4f96bf084cba63a624bd66fe22614a28410dc715639ead3cf0b56836c284ec4d768ed62a589557f8e4ace561de40d0@172.17.0.2:30303"
+  },
+  "JsonRpc": {
+    "Enabled": true,
+    "EnabledModules": ["eth", "net", "web3", "admin", "debug", "trace", "txpool"],
+    "Host": "0.0.0.0",
+    "Port": 8545
+  },
+  "Sync": {
+    "FastSync": false,
+    "SnapSync": false
+  },
+  "Mining": {
+    "Enabled": false
+  }
+}

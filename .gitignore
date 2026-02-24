@@ -150,3 +150,21 @@ docker-compose.override.yml
 **/skynet.conf
 **/skynet-erigon.conf
 mainnet/nethermind-db
+
+# Database files - DO NOT commit
+apothem/nethermind-db/
+apothem/nethermind-old-*/
+*.sst
+*.bloom
+*.log
+*.ldb
+dashboard/node_modules/
+dashboard/.next/
+mainnet/
+apothem/*.db
+apothem/*-db/
+apothem/*-old*/
+*.pack
+*.node
+node_modules/
+.next/
