@@ -1,5 +1,6 @@
 #!/bin/bash
-set -e
+# NOTE: Do NOT use set -e here — this is a long-running agent.
+# Transient errors (curl timeouts, jq parse failures) must not kill the process.
 
 # ============================================================================
 # XDC UNIFIED AGENT V2 - PHASE 2 AI INTELLIGENCE
@@ -1302,7 +1303,7 @@ monitor_container_logs() {
     
     # === PHASE 2: BLOCK PROGRESS TRACKING ===
     # Update block window (rolling 30-entry window = 15 min at 30s interval)
-    local block_window=$(cat "$BLOCK_WINDOW_FILE" 2>/dev/null || echo '{"blocks":[]}')
+    block_window=$(cat "$BLOCK_WINDOW_FILE" 2>/dev/null || echo '{"blocks":[]}')
     block_window=$(echo "$block_window" | jq --argjson blk "$BLOCK_NUM" '.blocks += [$blk] | .blocks = .blocks[-30:]' 2>/dev/null)
     echo "$block_window" > "$BLOCK_WINDOW_FILE"
     
@@ -1326,7 +1327,7 @@ monitor_container_logs() {
       fi
     else
       # Use cached network height
-      local cached=$(cat "$NETWORK_HEIGHT_FILE" 2>/dev/null || echo '{"height":0}')
+      cached=$(cat "$NETWORK_HEIGHT_FILE" 2>/dev/null || echo '{"height":0}')
       NETWORK_HEIGHT=$(echo "$cached" | jq -r '.height' 2>/dev/null || echo "0")
       
       if [ "$NETWORK_HEIGHT" -gt 0 ] && [ "$BLOCK_NUM" -gt 0 ]; then
@@ -1342,7 +1343,7 @@ monitor_container_logs() {
     fi
     
     # Update peer history
-    local peer_history=$(cat "$PEER_HISTORY_FILE" 2>/dev/null || echo '{"peers":[]}')
+    peer_history=$(cat "$PEER_HISTORY_FILE" 2>/dev/null || echo '{"peers":[]}')
     peer_history=$(echo "$peer_history" | jq --argjson p "$PEER_COUNT" '.peers += [$p] | .peers = .peers[-30:]' 2>/dev/null)
     echo "$peer_history" > "$PEER_HISTORY_FILE"
     
