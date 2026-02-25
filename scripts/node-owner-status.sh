@@ -1,11 +1,15 @@
 #!/bin/bash
+
+# Source common utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/common.sh" 2>/dev/null || source "/opt/xdc-node/scripts/lib/common.sh" || true
+
 #==============================================================================
 # XDC Node Owner Status CLI
 # Quick terminal dashboard for XDC node owners
 # Displays node status, rewards, disk usage, and system resources
 #==============================================================================
 
-set -euo pipefail
 
 #==============================================================================
 # Configuration
@@ -42,10 +46,6 @@ fi
 # Helper Functions
 #==============================================================================
 
-hex_to_dec() {
-    local hex="${1#0x}"
-    printf '%d' "0x${hex}" 2>/dev/null || echo "0"
-}
 
 format_number() {
     local num="$1"
@@ -61,18 +61,6 @@ format_xdc() {
     fi
 }
 
-format_bytes() {
-    local bytes="$1"
-    if [[ $bytes -ge 1099511627776 ]]; then
-        echo "$(echo "scale=1; $bytes/1099511627776" | bc) TB"
-    elif [[ $bytes -ge 1073741824 ]]; then
-        echo "$(echo "scale=1; $bytes/1073741824" | bc) GB"
-    elif [[ $bytes -ge 1048576 ]]; then
-        echo "$(echo "scale=1; $bytes/1048576" | bc) MB"
-    else
-        echo "$(echo "scale=1; $bytes/1024" | bc) KB"
-    fi
-}
 
 format_duration() {
     local seconds="$1"
@@ -89,15 +77,6 @@ format_duration() {
     fi
 }
 
-rpc_call() {
-    local method="$1"
-    local params="${2:-[]}"
-    local timeout="${3:-5}"
-    
-    curl -s -m "$timeout" -X POST "$RPC_URL" \
-        -H "Content-Type: application/json" \
-        -d "{\"jsonrpc\":\"2.0\",\"method\":\"${method}\",\"params\":${params},\"id\":1}" 2>/dev/null || echo '{}'
-}
 
 check_rpc() {
     local response

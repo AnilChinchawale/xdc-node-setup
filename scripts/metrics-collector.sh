@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
+
+# Source common utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/common.sh" 2>/dev/null || source "/opt/xdc-node/scripts/lib/common.sh" || true
+
 #==============================================================================
 # XDC Node Metrics Collector
 # Collects XDC-specific metrics and writes them in Prometheus textfile format
 # For use with node_exporter's textfile collector
 #==============================================================================
 
-set -euo pipefail
 
 # Configuration (override via environment variables)
 RPC_URL="${RPC_URL:-http://127.0.0.1:8545}"
@@ -20,14 +24,7 @@ mkdir -p "$TEXTFILE_DIR"
 # Helper Functions
 #==============================================================================
 
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >&2
-}
 
-hex_to_dec() {
-    local hex="${1#0x}"
-    printf '%d' "0x${hex}" 2>/dev/null || echo "0"
-}
 
 # Check if RPC is available
 check_rpc() {

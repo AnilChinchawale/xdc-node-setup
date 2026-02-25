@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Source common utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/common.sh" 2>/dev/null || source "/opt/xdc-node/scripts/lib/common.sh" || true
+
+
 #==============================================================================
 # XDC Governance - Governance Participation Tools
 #==============================================================================
@@ -21,15 +26,6 @@ if [[ -f "${SCRIPT_DIR}/lib/xdc-contracts.sh" ]]; then
 fi
 
 # Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-MAGENTA='\033[0;35m'
-BOLD='\033[1m'
-NC='\033[0m'
-
 # Configuration
 readonly XDC_RPC_URL="${XDC_RPC_URL:-http://localhost:8545}"
 readonly GOVERNANCE_CONTRACT="${XDC_GOVERNANCE_CONTRACT:-0x0000000000000000000000000000000000000088}"
@@ -55,27 +51,7 @@ readonly VOTE_HISTORY="${XDC_STATE_DIR}/governance-votes.json"
 # Utility Functions
 #==============================================================================
 
-log() { echo -e "${GREEN}✓${NC} $1"; }
-info() { echo -e "${BLUE}ℹ${NC} $1"; }
-warn() { echo -e "${YELLOW}⚠${NC} $1" >&2; }
-error() { echo -e "${RED}✗${NC} $1" >&2; }
-die() { error "$1"; exit 1; }
 
-rpc_call() {
-    local url="${1:-$XDC_RPC_URL}"
-    local method="$2"
-    local params="${3:-[]}"
-    
-    curl -s -m 15 -X POST \
-        -H "Content-Type: application/json" \
-        -d "{\"jsonrpc\":\"2.0\",\"method\":\"$method\",\"params\":$params,\"id\":1}" \
-        "$url" 2>/dev/null || echo '{}'
-}
-
-hex_to_dec() {
-    local hex="${1#0x}"
-    printf "%d\n" "0x${hex}" 2>/dev/null || echo "0"
-}
 
 #==============================================================================
 # List Proposals

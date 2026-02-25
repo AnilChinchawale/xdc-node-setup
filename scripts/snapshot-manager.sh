@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Source common utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/common.sh" 2>/dev/null || source "/opt/xdc-node/scripts/lib/common.sh" || true
+
+
 #==============================================================================
 # XDC Chain Snapshot Manager
 # Download, create, and verify XDC chain snapshots
@@ -11,14 +16,6 @@ readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 # Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'
-
 # Default settings
 # Detect network for network-aware directory structure
 detect_network() {
@@ -40,39 +37,8 @@ readonly TEMP_DIR="/tmp/xdc-snapshots"
 # Utility Functions
 #==============================================================================
 
-log() { echo -e "${GREEN}✓${NC} $1"; }
-info() { echo -e "${BLUE}ℹ${NC} $1"; }
-warn() { echo -e "${YELLOW}⚠${NC} $1" >&2; }
-error() { echo -e "${RED}✗${NC} $1" >&2; }
-die() { error "$1"; exit 1; }
 
-rpc_call() {
-    local method="$1"
-    local params="${2:-[]}"
-    local url="${3:-http://localhost:8545}"
-    curl -s -m 10 -X POST \
-        -H "Content-Type: application/json" \
-        -d "{\"jsonrpc\":\"2.0\",\"method\":\"$method\",\"params\":$params,\"id\":1}" \
-        "$url" 2>/dev/null || echo '{}'
-}
 
-hex_to_dec() {
-    local hex="${1#0x}"
-    printf "%d\n" "0x${hex}" 2>/dev/null || echo "0"
-}
-
-format_bytes() {
-    local bytes="$1"
-    if [[ $bytes -gt 1099511627776 ]]; then
-        echo "$(echo "scale=2; $bytes / 1099511627776" | bc) TB"
-    elif [[ $bytes -gt 1073741824 ]]; then
-        echo "$(echo "scale=2; $bytes / 1073741824" | bc) GB"
-    elif [[ $bytes -gt 1048576 ]]; then
-        echo "$(echo "scale=2; $bytes / 1048576" | bc) MB"
-    else
-        echo "${bytes} bytes"
-    fi
-}
 
 #==============================================================================
 # Load Snapshot Configuration

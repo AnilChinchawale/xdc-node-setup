@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Source common utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/common.sh" 2>/dev/null || source "/opt/xdc-node/scripts/lib/common.sh" || true
+
+
 #==============================================================================
 # XDC Masternode Setup Wizard
 # Complete automation for setting up an XDC masternode/validator
@@ -18,42 +23,12 @@ readonly XDC_RPC_URL="${XDC_RPC_URL:-http://localhost:8545}"
 readonly XDC_DATADIR="${XDC_DATADIR:-/root/xdcchain}"
 
 # Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'
-
 #==============================================================================
 # Utility Functions
 #==============================================================================
 
-log() { echo -e "${GREEN}✓${NC} $1"; }
-info() { echo -e "${BLUE}ℹ${NC} $1"; }
-warn() { echo -e "${YELLOW}⚠${NC} $1" >&2; }
-error() { echo -e "${RED}✗${NC} $1" >&2; }
-die() { error "$1"; exit 1; }
 
-rpc_call() {
-    local method="$1"
-    local params="${2:-[]}"  
-    curl -s -m 10 -X POST \
-        -H "Content-Type: application/json" \
-        -d "{\"jsonrpc\":\"2.0\",\"method\":\"$method\",\"params\":$params,\"id\":1}" \
-        "$XDC_RPC_URL" 2>/dev/null || echo '{}'
-}
 
-hex_to_dec() {
-    local hex="${1#0x}"
-    printf "%d\n" "0x${hex}" 2>/dev/null || echo "0"
-}
-
-wei_to_xdc() {
-    local wei="$1"
-    echo "scale=6; $wei / 1000000000000000000" | bc 2>/dev/null || echo "0"
-}
 
 #==============================================================================
 # System Requirements Check

@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# Source common utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../scripts/lib/common.sh" 2>/dev/null || source "/opt/xdc-node/scripts/lib/common.sh" || true
+
 #==============================================================================
 # XDC SkyNet Agent — Auto-register + push heartbeats to XDC SkyNet Platform
 # 
@@ -52,22 +57,7 @@ API_KEY=""
 #==============================================================================
 # Helpers
 #==============================================================================
-log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >&2; }
-warn() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARN: $1" >&2; }
-err()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $1" >&2; }
 
-hex_to_dec() {
-    local hex="${1#0x}"
-    printf '%d' "0x${hex}" 2>/dev/null || echo "0"
-}
-
-rpc_call() {
-    local method=$1
-    local params=${2:-"[]"}
-    curl -s -m 10 -X POST "$RPC_URL" \
-        -H "Content-Type: application/json" \
-        -d "{\"jsonrpc\":\"2.0\",\"method\":\"$method\",\"params\":$params,\"id\":1}" 2>/dev/null || echo '{}'
-}
 
 api_call() {
     local method=$1

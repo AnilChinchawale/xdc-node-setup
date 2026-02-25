@@ -1,4 +1,9 @@
 #!/bin/bash
+
+# Source common utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/common.sh" 2>/dev/null || source "/opt/xdc-node/scripts/lib/common.sh" || true
+
 #==============================================================================
 # XDC Node Owner Metrics Collector
 # Collects owner-focused XDC metrics and writes them in Prometheus textfile format
@@ -29,36 +34,11 @@ mkdir -p "$TEXTFILE_DIR" "$METRICS_STATE_DIR"
 # Helper Functions
 #==============================================================================
 
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >&2
-}
 
-hex_to_dec() {
-    local hex="${1#0x}"
-    printf '%d' "0x${hex}" 2>/dev/null || echo "0"
-}
 
 # Format XDC value (wei to XDC with 18 decimals)
-wei_to_xdc() {
-    local wei="$1"
-    if command -v bc >/dev/null 2>&1; then
-        echo "scale=18; $wei / 1000000000000000000" | bc 2>/dev/null || echo "0"
-    else
-        # Fallback: divide by 10^18 using awk
-        awk "BEGIN {printf \"%.18f\", $wei / 1000000000000000000}" 2>/dev/null || echo "0"
-    fi
-}
 
 # RPC call helper
-rpc_call() {
-    local method="$1"
-    local params="${2:-[]}"
-    local timeout="${3:-10}"
-    
-    curl -s -m "$timeout" -X POST "$RPC_URL" \
-        -H "Content-Type: application/json" \
-        -d "{\"jsonrpc\":\"2.0\",\"method\":\"${method}\",\"params\":${params},\"id\":1}" 2>/dev/null || echo '{}'
-}
 
 # Check if RPC is available
 check_rpc() {
