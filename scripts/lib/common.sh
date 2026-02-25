@@ -1,6 +1,15 @@
 #!/bin/bash
 # Common utility functions shared across XDC Node Setup scripts
 # Avoids duplication of logging, RPC, and helper functions
+#
+# NOTE: This file is kept for backward compatibility.
+# For new code, prefer scripts/lib/logging.sh which provides:
+# - Structured JSON logging
+# - Configurable log levels
+# - Audit and metric logging
+# - Better observability
+#
+# Source order: Source logging.sh first, then this file will delegate to it.
 
 # Colors
 readonly RED='\033[0;31m'
@@ -9,12 +18,54 @@ readonly YELLOW='\033[1;33m'
 readonly BLUE='\033[0;34m'
 readonly NC='\033[0m'
 
-# Logging functions
-log() { echo -e "${GREEN}✓${NC} $1"; }
-info() { echo -e "${BLUE}ℹ${NC} $1"; }
-warn() { echo -e "${YELLOW}⚠${NC} $1" >&2; }
-error() { echo -e "${RED}✗${NC} $1" >&2; }
-die() { error "$1"; exit 1; }
+# =============================================================================
+# Logging Functions (Delegating to logging.sh when available)
+# =============================================================================
+
+# Check if logging.sh functions are available
+__logging_available() { command -v log_info &>/dev/null; }
+
+# Simple logging functions - delegates to structured logging if available
+log() { 
+    if __logging_available; then
+        log_info "$1"
+    else
+        echo -e "${GREEN}✓${NC} $1"
+    fi
+}
+
+info() { 
+    if __logging_available; then
+        log_info "$1"
+    else
+        echo -e "${BLUE}ℹ${NC} $1"
+    fi
+}
+
+warn() { 
+    if __logging_available; then
+        log_warning "$1"
+    else
+        echo -e "${YELLOW}⚠${NC} $1" >&2
+    fi
+}
+
+error() { 
+    if __logging_available; then
+        log_error "$1"
+    else
+        echo -e "${RED}✗${NC} $1" >&2
+    fi
+}
+
+die() { 
+    if __logging_available; then
+        log_fatal "$1" "{}" "${2:-1}"
+    else
+        error "$1"
+        exit "${2:-1}"
+    fi
+}
 
 # RPC helper
 rpc_call() {
