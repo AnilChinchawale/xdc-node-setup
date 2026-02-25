@@ -52,6 +52,8 @@ services:
     depends_on:
       xdc-node-gp5:
         condition: service_healthy
+    volumes:
+      - ${DATA_DIR:-../mainnet}/.xdc-node/skynet-gp5.conf:/etc/xdc-node/skynet.conf:ro
     environment:
       - RPC_URL=http://localhost:${RPC_PORT:-8582}
       - NETWORK=${NETWORK:-mainnet}
