@@ -17,6 +17,9 @@ source "${SCRIPT_DIR}/lib/common.sh" 2>/dev/null || { echo "ERROR: Cannot source
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="${SCRIPT_DIR}/lib"
 
+# Source logging library
+source "${SCRIPT_DIR}/lib/logging.sh" 2>/dev/null || { echo "ERROR: Cannot source logging.sh"; exit 1; }
+
 # Source libraries
 # shellcheck source=/dev/null
 source "${LIB_DIR}/error-handler.sh" 2>/dev/null || {
@@ -37,16 +40,12 @@ ETAG_CACHE_DIR="/tmp/xdc-version-cache"
 # Ensure directories exist
 mkdir -p "$REPORT_DIR" "$ETAG_CACHE_DIR"
 
+# Initialize logging
+LOG_FORMAT="text" LOG_OUTPUT="both" LOG_FILE="$LOG_FILE" init_logging || true
+
 # Telegram settings (from env or versions.json - legacy fallback)
 TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
 TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID:-}"
-
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
 
 # Stats
 UPDATES_AVAILABLE=0
@@ -54,22 +53,18 @@ UPDATES_APPLIED=0
 CHECKS_PERFORMED=0
 
 #==============================================================================
-# Logging
+# Logging Wrapper Functions (using shared library)
 #==============================================================================
 log() {
-    echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] $1${NC}"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE" 2>/dev/null || true
+    log_info "$1" "{\"component\":\"version-check\"}"
 }
 
 warn() {
-    echo -e "${YELLOW}[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: $1${NC}"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: $1" >> "$LOG_FILE" 2>/dev/null || true
+    log_warning "$1" "{\"component\":\"version-check\"}"
 }
 
-
 info() {
-    echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $1${NC}"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $1" >> "$LOG_FILE" 2>/dev/null || true
+    log_info "$1" "{\"component\":\"version-check\"}"
 }
 
 #==============================================================================
