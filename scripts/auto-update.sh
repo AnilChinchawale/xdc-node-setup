@@ -11,6 +11,10 @@ readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source common utilities
 source "${SCRIPT_DIR}/lib/common.sh" 2>/dev/null || { echo "ERROR: Cannot source common.sh"; exit 1; }
+source "${SCRIPT_DIR}/lib/logging.sh" 2>/dev/null || { echo "ERROR: Cannot source logging.sh"; exit 1; }
+
+# Set logging component
+export LOG_COMPONENT="auto-update"
 
 # Configuration
 readonly XDC_NODE_HOME="${XDC_NODE_HOME:-/opt/xdc-node}"
@@ -26,28 +30,7 @@ LATEST_VERSION=""
 BACKUP_TAG=""
 
 #==============================================================================
-# Colors
-#==============================================================================
-if [[ -t 1 ]]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[0;34m'
-    CYAN='\033[0;36m'
-    BOLD='\033[1m'
-    NC='\033[0m'
-else
-    RED=''
-    GREEN=''
-    YELLOW=''
-    BLUE=''
-    CYAN=''
-    BOLD=''
-    NC=''
-fi
-
-#==============================================================================
-# Logging
+# Logging Setup
 #==============================================================================
 init_logging() {
     local log_dir
@@ -55,33 +38,19 @@ init_logging() {
     mkdir -p "$log_dir" 2>/dev/null || true
     touch "$UPDATE_LOG" 2>/dev/null || true
     chmod 644 "$UPDATE_LOG" 2>/dev/null || true
+    export LOG_FILE="$UPDATE_LOG"
 }
 
+# Wrapper functions for backward compatibility
 log() {
     local level="$1"
     shift
-    local message="$*"
-    local timestamp
-    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    
-    echo "[$timestamp] [$level] $message" >> "$UPDATE_LOG"
-    
     case "$level" in
-        INFO)
-            echo -e "${BLUE}ℹ${NC} $message"
-            ;;
-        SUCCESS)
-            echo -e "${GREEN}✓${NC} $message"
-            ;;
-        WARNING)
-            echo -e "${YELLOW}⚠${NC} $message"
-            ;;
-        ERROR)
-            echo -e "${RED}✗${NC} $message" >&2
-            ;;
-        *)
-            echo "$message"
-            ;;
+        INFO) info "$@" ;;
+        SUCCESS) success "$@" ;;
+        WARNING) warn "$@" ;;
+        ERROR) error "$@" ;;
+        *) echo "$@" ;;
     esac
 }
 
