@@ -1,4 +1,7 @@
 #!/bin/bash
+# Source unified logging library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/common.sh" 2>/dev/null || source "/root/.openclaw/workspace/XDC-Node-Setup/scripts/lib/common.sh"
 # XDPoS 2.0 Quorum Certificate Validator
 # Validates QC signatures and quorum for block finalization
 # Issue #403
@@ -10,9 +13,6 @@ QUORUM_THRESHOLD=73  # 2/3 + 1 of 108 masternodes
 LOG_FILE="${LOG_FILE:-/var/log/xdc-node/qc-validation.log}"
 
 # Logging
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
-}
 
 # Get block with QC data
 get_block_with_qc() {

@@ -197,9 +197,6 @@ XDC_DATA="${XDC_DATA:-$(pwd)/${XDC_NETWORK}/xdcchain}"
 XDC_STATE_DIR="${XDC_STATE_DIR:-$(pwd)/${XDC_NETWORK}/.xdc-node}"
 STATE_DIR="${XDC_STATE_DIR}/cluster"
 
-log() {
-    echo "[$(date -Iseconds)] $1" | tee -a "$LOG_FILE"
-}
 
 check_local_health() {
     # Check if XDC node is running

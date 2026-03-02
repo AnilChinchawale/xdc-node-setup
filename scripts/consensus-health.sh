@@ -1,4 +1,7 @@
 #!/bin/bash
+# Source unified logging library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/common.sh" 2>/dev/null || source "/root/.openclaw/workspace/XDC-Node-Setup/scripts/lib/common.sh"
 # Comprehensive consensus health check for XDC masternodes
 
 set -euo pipefail
@@ -22,9 +25,6 @@ NC='\033[0m'
 mkdir -p "$(dirname "$HEALTH_LOG")"
 mkdir -p "$(dirname "$METRICS_FILE")"
 
-log() {
-    echo "[$(date -Iseconds)] $1" | tee -a "$HEALTH_LOG"
-}
 
 json_rpc() {
     local method=$1

@@ -76,17 +76,8 @@ load_config() {
 #==============================================================================
 # Logging Wrapper Functions (using shared library)
 #==============================================================================
-log() {
-    log_info "$1" "{\"component\":\"backup\"}"
-}
 
-warn() {
-    log_warning "$1" "{\"component\":\"backup\"}"
-}
 
-info() {
-    log_info "$1" "{\"component\":\"backup\"}"
-}
 
 #==============================================================================
 # Pre-flight Checks

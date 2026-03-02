@@ -35,13 +35,7 @@ MAX_SCORE=0
 PREVIOUS_SCORE=0
 
 # Wrapper functions for backward compatibility
-log() {
-    log_info "$1" "{\"component\":\"security-harden\"}"
-}
 
-warn() {
-    log_warning "$1" "{\"component\":\"security-harden\"}"
-}
 
 
 add_score() {

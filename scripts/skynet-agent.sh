@@ -56,13 +56,6 @@ API_KEY=""
 # Helpers
 #==============================================================================
 log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >&2; }
-warn() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARN: $1" >&2; }
-err()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $1" >&2; }
-
-hex_to_dec() {
-    local hex="${1#0x}"
-    printf '%d' "0x${hex}" 2>/dev/null || echo "0"
-}
 
 rpc_call() {
     local method=$1

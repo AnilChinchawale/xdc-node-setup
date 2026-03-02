@@ -55,17 +55,8 @@ CHECKS_PERFORMED=0
 #==============================================================================
 # Logging Wrapper Functions (using shared library)
 #==============================================================================
-log() {
-    log_info "$1" "{\"component\":\"version-check\"}"
-}
 
-warn() {
-    log_warning "$1" "{\"component\":\"version-check\"}"
-}
 
-info() {
-    log_info "$1" "{\"component\":\"version-check\"}"
-}
 
 #==============================================================================
 # Lock Management (using lib/error-handler.sh functions)

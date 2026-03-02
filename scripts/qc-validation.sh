@@ -16,13 +16,7 @@ ALERT_THRESHOLD=5       # Alert if QC failures exceed this count
 QC_FAILURES=0
 LAST_CHECKED_BLOCK=0
 
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >&2
-}
 
-error() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $*" >&2
-}
 
 # Get current block number
 get_block_number() {

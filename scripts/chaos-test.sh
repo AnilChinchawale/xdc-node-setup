@@ -91,18 +91,9 @@ EOF
     exit 0
 }
 
-log() {
-    echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] $1${NC}" | tee -a "$LOG_FILE"
-}
-
-warn() {
-    echo -e "${YELLOW}[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: $1${NC}" | tee -a "$LOG_FILE"
-}
 
 
-info() {
-    echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $1${NC}" | tee -a "$LOG_FILE"
-}
+
 
 section() {
     echo -e "\n${CYAN}╔════════════════════════════════════════════════════════════════╗${NC}" | tee -a "$LOG_FILE"

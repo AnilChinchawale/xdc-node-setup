@@ -1,4 +1,7 @@
 #!/bin/bash
+# Source unified logging library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/common.sh" 2>/dev/null || source "/root/.openclaw/workspace/XDC-Node-Setup/scripts/lib/common.sh"
 # Gap Block Monitor for XDPoS 2.0
 # Detects and validates gap blocks every 900 blocks
 # Issue #404
@@ -10,9 +13,6 @@ RPC_URL="${RPC_URL:-http://localhost:8545}"
 LOG_FILE="${LOG_FILE:-/var/log/xdc-node/gap-blocks.log}"
 
 # Logging function
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
-}
 
 # Get current block number
 get_current_block() {

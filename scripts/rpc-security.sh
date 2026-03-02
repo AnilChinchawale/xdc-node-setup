@@ -46,47 +46,6 @@ readonly OUTPUT_DIR="/etc/xdc-node/rpc-security"
 # Utility Functions
 #==============================================================================
 
-log() { echo -e "${GREEN}✓${NC} $1"; }
-info() { echo -e "${BLUE}ℹ${NC} $1"; }
-warn() { echo -e "${YELLOW}⚠${NC} $1" >&2; }
-error() { echo -e "${RED}✗${NC} $1" >&2; }
-die() { error "$1"; exit 1; }
-
-#==============================================================================
-# RPC Profile Generation
-#==============================================================================
-
-generate_nginx_config() {
-    local profile="$1"
-    local output_file="$2"
-    
-    local profile_file="${CONFIGS_DIR}/${profile}.json"
-    if [[ ! -f "$profile_file" ]]; then
-        die "Profile not found: $profile"
-    fi
-    
-    # Read profile
-    local allowed_methods
-    allowed_methods=$(jq -r '.allowed_methods | @json' "$profile_file")
-    local blocked_patterns
-    blocked_patterns=$(jq -r '.blocked_methods[]' "$profile_file")
-    
-    # Generate Nginx config
-    cat > "$output_file" << EOF
-# XDC RPC Security Configuration
-# Profile: $profile
-# Generated: $(date -Iseconds)
-
-# Rate limiting zones
-limit_req_zone \$binary_remote_addr zone=rpc_default:10m rate=60r/m;
-limit_req_zone \$binary_remote_addr zone=rpc_call:10m rate=100r/m;
-limit_req_zone \$binary_remote_addr zone=rpc_send:10m rate=20r/m;
-limit_req_zone \$binary_remote_addr zone=rpc_logs:10m rate=30r/m;
-
-upstream xdc_rpc {
-    server 127.0.0.1:8545;
-    keepalive 32;
-}
 
 server {
     listen 8080;

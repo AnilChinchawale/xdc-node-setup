@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Source unified logging library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/common.sh" 2>/dev/null || source "/root/.openclaw/workspace/XDC-Node-Setup/scripts/lib/common.sh"
 
 # Source utility functions
 source "$(dirname "$0")/lib/utils.sh" || { echo "Failed to load utils"; exit 1; }
@@ -120,20 +123,9 @@ ALERTS_TRIGGERED=()
 #==============================================================================
 # Logging
 #==============================================================================
-log() {
-    echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] $1${NC}"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$HEALTH_LOG" 2>/dev/null || true
-}
-
-warn() {
-    echo -e "${YELLOW}[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: $1${NC}"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: $1" >> "$HEALTH_LOG" 2>/dev/null || true
-}
 
 
-info() {
-    echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $1${NC}"
-}
+
 
 #==============================================================================
 # RPC Helpers

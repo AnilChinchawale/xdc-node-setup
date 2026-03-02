@@ -42,17 +42,6 @@ init_logging() {
 }
 
 # Wrapper functions for backward compatibility
-log() {
-    local level="$1"
-    shift
-    case "$level" in
-        INFO) info "$@" ;;
-        SUCCESS) success "$@" ;;
-        WARNING) warn "$@" ;;
-        ERROR) error "$@" ;;
-        *) echo "$@" ;;
-    esac
-}
 
 #==============================================================================
 # Usage
