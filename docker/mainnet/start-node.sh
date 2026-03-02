@@ -34,15 +34,20 @@ export GC_MODE="${GC_MODE:-full}"
 export LOG_LEVEL="${LEVEL:-2}"
 export INSTANCE_NAME="${INSTANCE_NAME:-XDC_Node}"
 export ENABLE_RPC="${ENABLED:-true}"
-export RPC_ADDR="${ADDR:-0.0.0.0}"
+# Security: Default to localhost for RPC/WS (Issue #413)
+export RPC_ADDR="${ADDR:-127.0.0.1}"
 export RPC_PORT="${HTTP_PORT:-${RPC_PORT:-8545}}"
 export RPC_API="${API:-admin,eth,net,web3,XDPoS}"
-export RPC_CORS_DOMAIN="${CORS_DOMAIN:-${RPC_CORS:-localhost,https://*.xdc.network,https://*.xinfin.org}}"
-export RPC_VHOSTS="${VHOSTS:-*}"
-export WS_ADDR="${WS_ADDR:-0.0.0.0}"
+# Security: Default to localhost only for CORS (Issue #412)
+export RPC_CORS_DOMAIN="${CORS_DOMAIN:-${RPC_CORS:-localhost}}"
+# Security: Default to localhost for vhosts (Issue #412)
+export RPC_VHOSTS="${VHOSTS:-localhost}"
+# Security: Default to localhost for WebSocket (Issue #413)
+export WS_ADDR="${WS_ADDR:-127.0.0.1}"
 export WS_PORT="${WS_PORT:-8546}"
 export WS_API="${WS_API:-eth,net,web3,XDPoS}"
-export WS_ORIGINS="${WS_ORIGINS:-*}"
+# Security: Default to localhost for WS origins (Issue #412)
+export WS_ORIGINS="${WS_ORIGINS:-localhost}"
 
 echo "Config: sync=$SYNC_MODE gc=$GC_MODE log=$LOG_LEVEL rpc=$ENABLE_RPC"
 
