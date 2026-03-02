@@ -35,16 +35,6 @@ CLUSTER_LOG="${LOG_DIR}/cluster.log"
 KEY_DIR="${CONFIG_DIR}/cluster-keys"
 
 # Detect network for network-aware directory structure
-detect_network() {
-    local network="${NETWORK:-}"
-    if [[ -z "$network" && -f "$(pwd)/config.toml" ]]; then
-        network=$(grep -E '^\s*name\s*=' "$(pwd)/config.toml" 2>/dev/null | sed -E 's/.*=\s*"([^"]+)".*/\1/' | head -1)
-    fi
-    if [[ -z "$network" && -f "/opt/xdc-node/config.toml" ]]; then
-        network=$(grep -E '^\s*name\s*=' "/opt/xdc-node/config.toml" 2>/dev/null | sed -E 's/.*=\s*"([^"]+)".*/\1/' | head -1)
-    fi
-    echo "${network:-mainnet}"
-}
 XDC_NETWORK="${XDC_NETWORK:-$(detect_network)}"
 XDC_DATA="${XDC_DATA:-$(pwd)/${XDC_NETWORK}/xdcchain}"
 XDC_STATE_DIR="${XDC_STATE_DIR:-$(pwd)/${XDC_NETWORK}/.xdc-node}"

@@ -26,17 +26,6 @@ readonly PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 readonly LOG_RETENTION_DAYS="${LOG_RETENTION_DAYS:-7}"
 
 # Network auto-detection
-detect_network() {
-    local network="${NETWORK:-}"
-    
-    # Try to read from config.toml if it exists
-    if [[ -z "$network" && -f "${PROJECT_ROOT}/config.toml" ]]; then
-        network=$(grep -E '^\s*name\s*=' "${PROJECT_ROOT}/config.toml" 2>/dev/null | sed -E 's/.*=\s*"([^"]+)".*/\1/' | head -1)
-    fi
-    
-    # Default to mainnet
-    echo "${network:-mainnet}"
-}
 
 readonly NETWORK="$(detect_network)"
 readonly CHAINDATA_DIR="${PROJECT_ROOT}/${NETWORK}/xdcchain"
