@@ -1,207 +1,110 @@
 # Multi-Client Port Allocation Guide
 
-## Overview
+## Problem
 
-Running multiple XDC clients on the same machine requires careful port allocation to avoid conflicts. This guide provides the standard port allocation strategy for running Geth, Erigon, Nethermind, and Reth simultaneously.
+Running multiple XDC clients (Geth, Erigon, Nethermind, Reth) on the same machine causes P2P port conflicts because all clients default to port 30303.
 
-## Standard Port Allocation
+## Port Allocation Strategy
 
-| Client | P2P Port | RPC HTTP | RPC WS | Metrics | Engine API |
-|--------|----------|----------|--------|---------|------------|
-| **Geth (Stable)** | 30303 | 8545 | 8546 | 6060 | 8551 |
-| **Geth (PR5)** | 30304 | 7070 | 7071 | 6070 | 8552 |
-| **Erigon** | 30305 | 7071 | 7072 | 6071 | 8553 |
-| **Nethermind** | 30306 | 7072 | 7073 | 6072 | 8554 |
-| **Reth** | 40303 | 8588 | 8589 | 6073 | 8555 |
+### Reserved Ports by Client
 
-## Docker Compose Configuration
+| Client | P2P Port | RPC HTTP | RPC WS | Metrics |
+|--------|----------|----------|--------|---------|
+| **XDC Geth Stable** | 30303 | 8545 | 8546 | 6060 |
+| **XDC Geth PR5** | 30304 | 8547 | 8548 | 6061 |
+| **Erigon XDC** | 30305 | 8549 | 8550 | 6062 |
+| **Nethermind XDC** | 30306 | 8551 | 8552 | 6063 |
+| **Reth XDC** | 30307 | 8553 | 8554 | 6064 |
 
-### Multi-Client Setup
-
-Create `docker-compose.multiclient.yml`:
+### Docker Compose Example
 
 ```yaml
 version: '3.8'
 
 services:
-  # Geth Stable
   xdc-geth-stable:
     image: xinfinorg/xdposchain:v2.6.8
-    container_name: xdc-geth-stable
     ports:
-      - "30303:30303"      # P2P
-      - "30303:30303/udp"  # P2P UDP
-      - "8545:8545"        # RPC HTTP
-      - "8546:8546"        # RPC WS
-      - "6060:6060"        # Metrics
-    volumes:
-      - ./data/geth-stable:/xdcchain
-    command: |
-      --networkid 50
-      --datadir /xdcchain
-      --http --http.addr 0.0.0.0 --http.port 8545
-      --ws --ws.addr 0.0.0.0 --ws.port 8546
-      --port 30303
-    restart: unless-stopped
-
-  # Geth PR5
+      - "30303:30303"  # P2P
+      - "8545:8545"    # RPC
+      - "8546:8546"    # WS
+      - "6060:6060"    # Metrics
+    command: --port 30303 --rpc --rpcport 8545
+    
   xdc-geth-pr5:
-    image: xinfinorg/xdposchain:pr5-latest
-    container_name: xdc-geth-pr5
+    image: xinfinorg/xdposchain:feature-pr5
     ports:
-      - "30304:30304"      # P2P
-      - "30304:30304/udp"  # P2P UDP
-      - "7070:7070"        # RPC HTTP
-      - "7071:7071"        # RPC WS
-    volumes:
-      - ./data/geth-pr5:/xdcchain
-    command: |
-      --networkid 50
-      --datadir /xdcchain
-      --http --http.addr 0.0.0.0 --http.port 7070
-      --ws --ws.addr 0.0.0.0 --ws.port 7071
-      --port 30304
-    restart: unless-stopped
-
-  # Erigon
+      - "30304:30303"
+      - "8547:8545"
+      - "8548:8546"
+      - "6061:6060"
+    command: --port 30303 --rpc --rpcport 8545
+    
   xdc-erigon:
-    image: anilchinchawale/erix:latest
-    container_name: xdc-erigon
+    build: ./docker/erigon
     ports:
-      - "30305:30305"      # P2P
-      - "30305:30305/udp"  # P2P UDP
-      - "7071:7071"        # RPC HTTP
-      - "7072:7072"        # RPC WS
-    volumes:
-      - ./data/erigon:/xdcchain
-    command: |
-      --chain=xdc
-      --datadir=/xdcchain
-      --http --http.addr=0.0.0.0 --http.port=7071
-      --ws --ws.addr=0.0.0.0
-      --port=30305
-    restart: unless-stopped
-
-  # Nethermind
+      - "30305:30303"
+      - "8549:8545"
+      - "8550:8546"
+      - "6062:6060"
+    command: --port 30303 --http.port 8545
+    
   xdc-nethermind:
-    image: anilchinchawale/nmx:latest
-    container_name: xdc-nethermind
+    build: ./docker/nethermind
     ports:
-      - "30306:30306"      # P2P
-      - "30306:30306/udp"  # P2P UDP
-      - "7072:7072"        # RPC HTTP
-      - "7073:7073"        # RPC WS
-    volumes:
-      - ./data/nethermind:/xdcchain
-    environment:
-      - NETHERMIND_CONFIG=xdc
-      - NETHERMIND_JSONRPCCONFIG_PORT=7072
-      - NETHERMIND_NETWORK_DISCOVERYPORT=30306
-      - NETHERMIND_NETWORK_P2PPORT=30306
-    restart: unless-stopped
-
-  # Reth (Experimental)
+      - "30306:30306"
+      - "8551:8545"
+      - "8552:8546"
+      - "6063:6060"
+    command: --Network.DiscoveryPort 30306 --JsonRpc.Port 8545
+    
   xdc-reth:
-    image: xdc/reth:latest
-    container_name: xdc-reth
+    build: ./docker/reth
     ports:
-      - "40303:40303"      # P2P
-      - "40303:40303/udp"  # P2P UDP
-      - "8588:8588"        # RPC HTTP
-      - "8589:8589"        # RPC WS
-    volumes:
-      - ./data/reth:/xdcchain
-    command: |
-      node
-      --chain xdc
-      --datadir /xdcchain
-      --http --http.addr 0.0.0.0 --http.port 8588
-      --ws --ws.addr 0.0.0.0 --ws.port 8589
-      --port 40303
-    restart: unless-stopped
+      - "30307:30303"
+      - "8553:8545"
+      - "8554:8546"
+      - "6064:6060"
+    command: --port 30303 --http.port 8545
 ```
 
-## Usage
+## SkyOne Agent Port Configuration
 
-### Start All Clients
-
-```bash
-docker-compose -f docker-compose.multiclient.yml up -d
-```
-
-### Start Specific Clients
+When running multiple clients, configure SkyOne agents to use the correct ports:
 
 ```bash
-# Geth + Erigon only
-docker-compose -f docker-compose.multiclient.yml up -d xdc-geth-stable xdc-erigon
-
-# All except Reth
-docker-compose -f docker-compose.multiclient.yml up -d xdc-geth-stable xdc-geth-pr5 xdc-erigon xdc-nethermind
-```
-
-### Check Status
-
-```bash
-docker-compose -f docker-compose.multiclient.yml ps
-```
-
-## Port Conflict Detection
-
-### Check for Port Conflicts
-
-```bash
-#!/bin/bash
-# scripts/check-port-conflicts.sh
-
-PORTS=(30303 30304 30305 30306 40303 8545 7070 7071 7072 8588 8589)
-
-echo "Checking for port conflicts..."
-for port in "${PORTS[@]}"; do
-    if lsof -i :$port -sTCP:LISTEN >/dev/null 2>&1; then
-        process=$(lsof -i :$port -sTCP:LISTEN | tail -1 | awk '{print $1}')
-        echo "⚠️  Port $port is already in use by: $process"
-    else
-        echo "✅ Port $port is available"
-    fi
-done
+# SkyOne agent ports by client
+export GETH_STABLE_PORT=7070
+export GETH_PR5_PORT=7071
+export ERIGON_PORT=7072
+export NETHERMIND_PORT=7073
+export RETH_PORT=7074
 ```
 
 ## Firewall Configuration
 
-### UFW (Ubuntu)
+If using UFW, allow all client P2P ports:
 
 ```bash
-# Allow multi-client P2P ports
-sudo ufw allow 30303:30306/tcp comment 'XDC P2P Geth/Erigon/Nethermind'
-sudo ufw allow 30303:30306/udp comment 'XDC P2P Geth/Erigon/Nethermind'
-sudo ufw allow 40303/tcp comment 'XDC P2P Reth'
-sudo ufw allow 40303/udp comment 'XDC P2P Reth'
-
-# Allow RPC (localhost only recommended)
-# sudo ufw allow from 127.0.0.1 to any port 8545:8589 proto tcp
+sudo ufw allow 30303:30307/tcp comment "XDC Multi-Client P2P"
+sudo ufw allow 30303:30307/udp comment "XDC Multi-Client Discovery"
 ```
 
-## Best Practices
+## Verification
 
-1. **Resource Allocation**
-   - Each client needs 4-8GB RAM
-   - 500GB-1TB disk space per client
-   - Consider using separate disks for optimal I/O
+Check for port conflicts:
 
-2. **Monitoring**
-   - Use different metrics ports (6060, 6070, 6071, 6072, 6073)
-   - Integrate with Prometheus for unified monitoring
-   - Set up SkyNet agents for each client
+```bash
+# Check listening ports
+sudo netstat -tulpn | grep -E ":(30303|30304|30305|30306|30307|8545|8547|8549|8551|8553)"
 
-3. **High Availability**
-   - Use load balancer for RPC endpoints
-   - Configure health checks per client
-   - Stagger restarts during upgrades
-
-4. **Security**
-   - Never expose RPC ports to public internet
-   - Use nginx/traefik reverse proxy with authentication
-   - Enable firewall rules for P2P ports only
+# Test peer connectivity
+curl -s http://localhost:8545 -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}'
+  
+curl -s http://localhost:8547 -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}'
+```
 
 ## Troubleshooting
 
@@ -209,40 +112,20 @@ sudo ufw allow 40303/udp comment 'XDC P2P Reth'
 
 ```bash
 # Find process using port
-lsof -i :30303
+sudo lsof -i :30303
 
-# Kill process (if safe)
-kill -9 $(lsof -t -i:30303)
-
-# Or change port in docker-compose
+# Kill conflicting process
+sudo kill -9 <PID>
 ```
 
-### Clients Not Peering
+### Peers Not Connecting
 
-```bash
-# Check P2P connectivity
-docker exec xdc-geth-stable geth attach /xdcchain/geth.ipc --exec 'admin.peers.length'
-
-# Check if ports are open externally
-nc -zv YOUR_PUBLIC_IP 30303
-```
-
-### High Resource Usage
-
-```bash
-# Monitor resource usage per container
-docker stats xdc-geth-stable xdc-erigon xdc-nethermind
-
-# Adjust sync mode if needed (--syncmode=snap)
-```
+1. Check firewall allows P2P ports
+2. Verify NAT/port forwarding configured
+3. Check bootnodes configuration
+4. Ensure unique node IDs (delete nodekey if needed)
 
 ## References
 
-- [XDC Network Documentation](https://docs.xdc.network/)
-- [Multi-Client Architecture](../docs/ARCHITECTURE.md)
-- [SkyOne Agent Setup](../docs/SKYNET-INTEGRATION.md)
-
----
-
-*Last Updated: 2026-03-02*
-*Maintainer: XDC Node Setup Team*
+- XDC Network Bootnodes: [XDC Master Node List](https://xdcchain.network/nodes)
+- Docker Networking: [Docker Network Documentation](https://docs.docker.com/network/)
