@@ -5,6 +5,7 @@ source "${SCRIPT_DIR}/lib/common.sh" 2>/dev/null || source "$(dirname "$0")/lib/
 set -euo pipefail
 
 #===============================================================================
+source "$(dirname "$0")/lib/logging.sh"
 # Enterprise CIS Benchmark Security Audit Script for XDC Nodes
 # Based on CIS Ubuntu Server Benchmark v2.0.0
 #
@@ -128,9 +129,6 @@ log_skip() {
     RESULTS+=("{\"id\":\"$check_id\",\"description\":\"$description\",\"status\":\"SKIP\",\"reason\":\"$reason\"}")
 }
 
-log_info() {
-    [[ "$QUIET" == "false" ]] && echo -e "${BLUE}[INFO]${NC} $1"
-}
 
 log_section() {
     [[ "$QUIET" == "false" ]] && echo -e "\n${CYAN}╔════════════════════════════════════════════════════════════════╗${NC}"

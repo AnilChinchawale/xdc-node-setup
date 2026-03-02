@@ -1,4 +1,14 @@
 #!/bin/bash
+# Remove duplicate logging functions across XDC-Node-Setup
+# Centralizes all logging to scripts/lib/logging.sh
+
+set -euo pipefail
+
+echo "Refactoring duplicate logging functions..."
+
+# 1. Update common.sh to source logging.sh instead of duplicating
+cat > scripts/lib/common.sh << 'COMMON'
+#!/bin/bash
 # Common utility functions for XDC Node Setup scripts
 # Sources unified logging library
 
@@ -140,3 +150,22 @@ download_with_progress() {
         return 1
     fi
 }
+COMMON
+
+echo "✅ Updated scripts/lib/common.sh to source logging.sh"
+
+# 2. Update cis-benchmark.sh to use logging.sh
+sed -i '131,133d' scripts/cis-benchmark.sh
+sed -i '7a source "$(dirname "$0")/lib/logging.sh"' scripts/cis-benchmark.sh
+
+echo "✅ Updated scripts/cis-benchmark.sh to use lib/logging.sh"
+
+# 3. Update validate-consensus.sh to use logging.sh
+sed -i '15,16d' scripts/validate-consensus.sh
+sed -i '3a source "$(dirname "$0")/lib/logging.sh"' scripts/validate-consensus.sh
+
+echo "✅ Updated scripts/validate-consensus.sh to use lib/logging.sh"
+
+echo ""
+echo "Duplicate logging functions removed successfully!"
+echo "All scripts now use centralized scripts/lib/logging.sh"

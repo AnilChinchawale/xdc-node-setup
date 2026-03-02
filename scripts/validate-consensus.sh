@@ -1,6 +1,7 @@
 #!/bin/bash
 # XDPoS 2.0 Consensus Parameter Validator
 
+source "$(dirname "$0")/lib/logging.sh"
 set -euo pipefail
 
 # Source utilities
@@ -12,8 +13,6 @@ GAP_BLOCKS=450
 QC_THRESHOLD=0.67
 RPC_URL="${RPC_URL:-http://localhost:8545}"
 
-log_info() { echo "[INFO] $1"; }
-log_warn() { echo "[WARN] $1"; }
 
 validate_epoch_parameters() {
     local client_type=$1
