@@ -58,40 +58,7 @@
 | Nethermind | 7072 | 30306 | 6072 | .NET implementation |
 | Reth | 8588 | 40303 | 6073 | Rust implementation |
 
-### Docker Compose Configuration
-
-```yaml
-# docker-compose.multiclient.yml
-services:
-  xdc-geth-stable:
-    image: xinfinorg/xdposchain:v2.6.8
-    ports:
-      - "30303:30303"
-      - "8545:8545"
-    
-  xdc-erigon:
-    image: anilchinchawale/erix:latest
-    ports:
-      - "30305:30305"
-      - "7071:7071"
-```
-
 ## XDPoS 2.0 Consensus Integration
-
-### Key Components
-
-1. **QC Validation** (`scripts/qc-validation.sh`)
-   - Validates Quorum Certificates at epoch boundaries
-   - Ensures 2/3+ masternode signatures (73/108)
-
-2. **Consensus Health Monitor** (`scripts/consensus-health.sh`)
-   - Tracks vote participation
-   - Monitors QC formation time
-   - Detects timeout certificates
-
-3. **Gap Block Monitor** (`scripts/xdpos/gap-block-monitor.sh`)
-   - Detects empty blocks at epoch transitions
-   - Alerts on abnormal gap block patterns
 
 ### Epoch Structure
 
@@ -104,123 +71,41 @@ Epoch N (Blocks 0-899):
 └────────────────────┴───────────────────┘
 ```
 
+### Key Components
+
+1. **QC Validation** (`scripts/qc-validation.sh`)
+2. **Consensus Health Monitor** (`scripts/consensus-health.sh`)
+3. **Gap Block Monitor** (`scripts/xdpos/gap-block-monitor.sh`)
+
 ## Security Architecture
-
-### Hardening Layers
-
-1. **System Level**
-   - SSH key-only authentication
-   - Non-standard SSH port
-   - UFW firewall rules
-   - Fail2ban brute-force protection
-
-2. **Container Level**
-   - Read-only root filesystem
-   - Dropped capabilities
-   - Resource limits
-   - Network policies
-
-3. **Application Level**
-   - RPC authentication
-   - CORS restrictions
-   - Rate limiting
-   - Input validation
 
 ### Security Score Calculation
 
-| Check | Points | Implementation |
-|-------|--------|----------------|
-| SSH key-only | 10 | `PasswordAuthentication no` |
-| Non-standard SSH port | 5 | Port ≠ 22 |
-| Firewall active | 10 | UFW status |
-| Fail2ban running | 5 | Service status |
-| Unattended upgrades | 5 | Package installed |
-| OS patches current | 10 | No pending updates |
-| Client version current | 15 | Version check |
-| Monitoring active | 10 | Prometheus/Grafana |
-| Backup configured | 10 | Cron job exists |
-| Audit logging | 10 | auditd running |
-| Disk encryption | 10 | LUKS detection |
+| Check | Points |
+|-------|--------|
+| SSH key-only | 10 |
+| Non-standard SSH port | 5 |
+| Firewall active | 10 |
+| Fail2ban running | 5 |
+| Unattended upgrades | 5 |
+| OS patches current | 10 |
+| Client version current | 15 |
+| Monitoring active | 10 |
+| Backup configured | 10 |
+| Audit logging | 10 |
+| Disk encryption | 10 |
+| **Total** | **100** |
 
 ## Self-Healing Mechanisms
 
-### Watchdog System (`scripts/skynet-agent.sh`)
+### Watchdog System
 
-1. **Health Checks** (every 30s)
-   - Container running status
-   - RPC responsiveness
-   - Sync progress
-   - Peer connectivity
+- Health checks every 30s
+- Auto-restart on failure (max 3/hour)
+- 5-minute cooldown between restarts
+- SkyNet escalation on persistent issues
 
-2. **Auto-Remediation**
-   - Peer injection when count = 0
-   - Container restart on failure
-   - Max 3 restarts/hour with cooldown
-
-3. **Escalation**
-   - SkyNet alert on max restarts reached
-   - Detailed diagnostics in logs
-
-### Restart Policy
-
-```
-Restart Attempt ──► Cooldown (5 min) ──► Next Check
-       │
-       ▼
-Max 3/hour ──► Alert + Manual intervention required
-```
-
-## Data Flow
-
-### Heartbeat Flow
-
-```
-┌─────────┐    ┌─────────────┐    ┌──────────┐
-│ XDC Node│───►│ skynet-agent│───►│ SkyNet   │
-│         │    │ (30s interval│    │ Dashboard│
-└─────────┘    └─────────────┘    └──────────┘
-     │
-     ▼
-Metrics:
-- Block height
-- Peer count
-- System resources
-- Security score
-- Consensus health
-```
-
-### Snapshot Flow
-
-```
-┌─────────────┐    ┌──────────────┐    ┌───────────┐
-│ Snapshot    │───►│ Verification │───►│ Extraction│
-│ Download    │    │ (checksums)  │    │ & Import  │
-└─────────────┘    └──────────────┘    └───────────┘
-```
-
-## Configuration Management
-
-### Directory Structure
-
-```
-XDC-Node-Setup/
-├── mainnet/
-│   ├── .xdc-node/
-│   │   └── config.toml
-│   └── xdcchain/
-├── testnet/
-│   └── ...
-├── docker/
-│   ├── docker-compose.yml
-│   └── docker-compose.*.yml
-└── scripts/
-    ├── lib/
-    │   ├── common.sh
-    │   └── utils.sh
-    ├── consensus-health.sh
-    ├── skynet-agent.sh
-    └── ...
-```
+## Configuration
 
 ### Environment Variables
 
@@ -231,95 +116,6 @@ XDC-Node-Setup/
 | `RPC_PORT` | 8545 | JSON-RPC port |
 | `P2P_PORT` | 30303 | P2P port |
 | `SKYNET_API_URL` | https://net.xdc.network | SkyNet endpoint |
-| `NODE_NAME` | hostname | Node identifier |
-| `NODE_ROLE` | fullnode | fullnode, masternode |
-
-## Monitoring & Observability
-
-### Metrics Collection
-
-1. **Node Metrics** (Prometheus)
-   - Block height, sync status
-   - Peer count, network latency
-   - Resource usage (CPU, memory, disk)
-
-2. **Consensus Metrics**
-   - QC formation time
-   - Vote participation rate
-   - TC rate per epoch
-
-3. **Security Metrics**
-   - Failed authentication attempts
-   - Firewall blocks
-   - Audit log events
-
-### Log Aggregation
-
-```yaml
-# docker-compose.logging.yml
-services:
-  fluentd:
-    image: fluent/fluentd
-    volumes:
-      - ./fluentd.conf:/fluentd/etc/fluent.conf
-  
-  elasticsearch:
-    image: elasticsearch:8.x
-    
-  kibana:
-    image: kibana:8.x
-```
-
-## Deployment Patterns
-
-### Single Node
-
-```bash
-# Quick start
-sudo ./install.sh
-xdc start
-```
-
-### Multi-Client Setup
-
-```bash
-# Run multiple clients simultaneously
-xdc start --client geth
-xdc start --client erigon
-xdc start --client nethermind
-```
-
-### High Availability
-
-```yaml
-# docker-compose.ha.yml
-services:
-  xdc-node-primary:
-    # Primary node configuration
-    
-  xdc-node-backup:
-    # Backup node configuration
-    
-  haproxy:
-    # Load balancer for RPC
-```
-
-## Troubleshooting Architecture
-
-### Diagnostic Tools
-
-1. **node-health-check.sh**: Comprehensive health check
-2. **consensus-health.sh**: XDPoS-specific diagnostics
-3. **fix-stuck-sync.sh**: Sync issue remediation
-4. **qc-validation.sh**: QC integrity verification
-
-### Debug Endpoints
-
-| Endpoint | Purpose |
-|----------|---------|
-| `/debug/metrics` | Prometheus metrics |
-| `/debug/pprof` | Go profiling data |
-| `/debug/vars` | Runtime variables |
 
 ---
 
