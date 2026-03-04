@@ -1,97 +1,197 @@
-# XDC Node Setup - Architecture Overview
+# XDC Node Infrastructure - Architecture Overview
 
-## System Architecture
+**Version:** 1.0  
+**Date:** March 4, 2026  
+**Author:** XDC EVM Expert Agent
+
+---
+
+## Table of Contents
+
+1. [System Overview](#system-overview)
+2. [SkyOne (Node Setup) Architecture](#skyone-node-setup-architecture)
+3. [SkyNet (Dashboard) Architecture](#skynet-dashboard-architecture)
+4. [Multi-Client Support](#multi-client-support)
+5. [XDPoS 2.0 Consensus Integration](#xdpos-20-consensus-integration)
+6. [Security Architecture](#security-architecture)
+7. [Data Flow](#data-flow)
+8. [Deployment Patterns](#deployment-patterns)
+
+---
+
+## System Overview
+
+The XDC Node Infrastructure consists of two complementary systems:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                         XDC Node Setup Architecture                      │
+│                     XDC Node Infrastructure                             │
 ├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  ┌─────────────┐    ┌──────────────┐    ┌─────────────┐                 │
-│  │   CLI Tool  │    │  SkyOne UI   │    │  SkyNet API │                 │
-│  │   (xdc)     │◄──►│  (Port 7070) │◄──►│  (Optional) │                 │
-│  └──────┬──────┘    └──────┬───────┘    └─────────────┘                 │
-│         │                  │                                             │
-│         ▼                  ▼                                             │
-│  ┌──────────────────────────────────────────────────┐                   │
-│  │              Docker Compose Stack                 │                   │
-│  ├──────────────────────────────────────────────────┤                   │
-│  │  ┌───────────┐  ┌───────────┐  ┌──────────────┐  │                   │
-│  │  │ XDC Node  │  │  SkyOne   │  │ Prometheus   │  │                   │
-│  │  │  (Geth/   │  │ Dashboard │  │  (Metrics)   │  │                   │
-│  │  │  Erigon)  │  │           │  │              │  │                   │
-│  │  └─────┬─────┘  └───────────┘  └──────────────┘  │                   │
-│  │        │                                         │                   │
-│  │        ▼                                         │                   │
-│  │  ┌───────────┐  ┌───────────┐                   │                   │
-│  │  │  XDC Chain │  │   Data    │                   │                   │
-│  │  │   Data    │  │  Volume   │                   │                   │
-│  │  └───────────┘  └───────────┘                   │                   │
-│  └──────────────────────────────────────────────────┘                   │
-│                          │                                              │
-│                          ▼                                              │
-│  ┌──────────────────────────────────────────────────┐                   │
-│  │              XDC P2P Network                      │                   │
-│  │         (Mainnet / Testnet / Devnet)              │                   │
-│  └──────────────────────────────────────────────────┘                   │
-│                                                                          │
+│                                                                         │
+│  ┌──────────────────────┐          ┌──────────────────────┐            │
+│  │     SkyOne           │          │      SkyNet          │            │
+│  │   (Node Setup)       │◄────────►│    (Dashboard)       │            │
+│  │                      │  Heartbeat│                      │            │
+│  │  • Node Deployment   │          │  • Fleet Monitoring  │            │
+│  │  • Client Management │          │  • Alerting          │            │
+│  │  • Self-Healing      │          │  • Analytics         │            │
+│  │  • Local Dashboard   │          │  • Multi-Client View │            │
+│  └──────────────────────┘          └──────────────────────┘            │
+│           │                                   │                        │
+│           └──────────┬────────────────────────┘                        │
+│                      ▼                                                  │
+│           ┌──────────────────────┐                                     │
+│           │   XDC Network        │                                     │
+│           │   (Mainnet/Testnet)  │                                     │
+│           └──────────────────────┘                                     │
+│                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Component Flow
+---
 
-1. **CLI (`xdc`)**: User interface for node management
-2. **SkyOne Dashboard**: Web UI for monitoring (Next.js + Tailwind)
-3. **XDC Node**: Core blockchain client (Geth/Erigon/Nethermind/Reth)
-4. **Prometheus**: Metrics collection and storage
-5. **SkyNet Agent**: Optional fleet monitoring integration
+## SkyOne (Node Setup) Architecture
 
-## Multi-Client Support
+### Component Diagram
 
-### Port Allocation
-
-| Client | RPC Port | P2P Port | Metrics | Notes |
-|--------|----------|----------|---------|-------|
-| Geth Stable | 8545 | 30303 | 6060 | Official XDC client |
-| Geth PR5 | 7070 | 30304 | 6070 | Latest XDPoS features |
-| Erigon | 7071 | 30305 | 6071 | Dual-sentry architecture |
-| Nethermind | 7072 | 30306 | 6072 | .NET implementation |
-| Reth | 8588 | 40303 | 6073 | Rust implementation |
-
-### Docker Compose Configuration
-
-```yaml
-# docker-compose.multiclient.yml
-services:
-  xdc-geth-stable:
-    image: xinfinorg/xdposchain:v2.6.8
-    ports:
-      - "30303:30303"
-      - "8545:8545"
-    
-  xdc-erigon:
-    image: anilchinchawale/erix:latest
-    ports:
-      - "30305:30305"
-      - "7071:7071"
 ```
-
-## XDPoS 2.0 Consensus Integration
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        SkyOne Architecture                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────┐    ┌──────────────┐    ┌─────────────┐                │
+│  │   CLI Tool  │    │  SkyOne UI   │    │  SkyNet API │                │
+│  │   (xdc)     │◄──►│  (Port 7070) │◄──►│  (Optional) │                │
+│  └──────┬──────┘    └──────┬───────┘    └─────────────┘                │
+│         │                  │                                            │
+│         ▼                  ▼                                            │
+│  ┌──────────────────────────────────────────────────┐                  │
+│  │              Docker Compose Stack                 │                  │
+│  ├──────────────────────────────────────────────────┤                  │
+│  │  ┌───────────┐  ┌───────────┐  ┌──────────────┐  │                  │
+│  │  │ XDC Node  │  │  SkyOne   │  │ Prometheus   │  │                  │
+│  │  │  (Geth/   │  │ Dashboard │  │  (Metrics)   │  │                  │
+│  │  │  Erigon)  │  │           │  │              │  │                  │
+│  │  └─────┬─────┘  └───────────┘  └──────────────┘  │                  │
+│  │        │                                         │                  │
+│  │        ▼                                         │                  │
+│  │  ┌───────────┐  ┌───────────┐                   │                  │
+│  │  │  XDC Chain │  │   Data    │                   │                  │
+│  │  │   Data    │  │  Volume   │                   │                  │
+│  │  └───────────┘  └───────────┘                   │                  │
+│  └──────────────────────────────────────────────────┘                  │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
 ### Key Components
 
-1. **QC Validation** (`scripts/qc-validation.sh`)
-   - Validates Quorum Certificates at epoch boundaries
-   - Ensures 2/3+ masternode signatures (73/108)
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| CLI | Bash/Go | Node management interface |
+| SkyOne Dashboard | Next.js + Tailwind | Local monitoring UI |
+| XDC Node | Docker (Geth/Erigon) | Blockchain client |
+| Prometheus | Docker | Metrics collection |
+| SkyNet Agent | Bash | Fleet reporting |
 
-2. **Consensus Health Monitor** (`scripts/consensus-health.sh`)
-   - Tracks vote participation
-   - Monitors QC formation time
-   - Detects timeout certificates
+---
 
-3. **Gap Block Monitor** (`scripts/xdpos/gap-block-monitor.sh`)
-   - Detects empty blocks at epoch transitions
-   - Alerts on abnormal gap block patterns
+## SkyNet (Dashboard) Architecture
+
+### Component Diagram
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                          SkyNet Architecture                              │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                           │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐          │
+│  │   Web Dashboard │  │   Mobile App    │  │   Public API    │          │
+│  │   (Next.js 14)  │  │   (React Native)│  │   (REST + WS)   │          │
+│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘          │
+│           │                    │                    │                   │
+│           └────────────────────┼────────────────────┘                   │
+│                                ▼                                        │
+│  ┌─────────────────────────────────────────────────────────────┐       │
+│  │                    API Gateway (Node.js)                     │       │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │       │
+│  │  │    Auth     │  │   Rate      │  │   Request Router    │  │       │
+│  │  │   (JWT)     │  │   Limiting  │  │                     │  │       │
+│  │  └─────────────┘  └─────────────┘  └─────────────────────┘  │       │
+│  └─────────────────────────────────────────────────────────────┘       │
+│                                │                                        │
+│           ┌────────────────────┼────────────────────┐                   │
+│           ▼                    ▼                    ▼                   │
+│  ┌───────────────┐    ┌───────────────┐    ┌───────────────┐           │
+│  │  Node Service │    │ Alert Service │    │  Analytics    │           │
+│  └───────┬───────┘    └───────┬───────┘    └───────┬───────┘           │
+│          │                    │                    │                   │
+│          └────────────────────┼────────────────────┘                   │
+│                               ▼                                        │
+│  ┌─────────────────────────────────────────────────────────────┐       │
+│  │                      Data Layer                              │       │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │       │
+│  │  │  PostgreSQL │  │    Redis    │  │   Time-Series DB    │  │       │
+│  │  │  (Metadata) │  │   (Cache)   │  │   (Metrics)         │  │       │
+│  │  └─────────────┘  └─────────────┘  └─────────────────────┘  │       │
+│  └─────────────────────────────────────────────────────────────┘       │
+│                                                                           │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### Key Components
+
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Dashboard | Next.js 14, TypeScript | Web UI |
+| API Gateway | Node.js, Express | Request handling |
+| Auth Service | JWT | Authentication |
+| Node Service | PostgreSQL | Node management |
+| Alert Service | PostgreSQL | Incident tracking |
+| Analytics | Time-Series DB | Metrics storage |
+
+---
+
+## Multi-Client Support
+
+### Supported Clients
+
+| Client | Version | Status | RPC Port | P2P Port | Memory |
+|--------|---------|--------|----------|----------|--------|
+| Geth Stable | v2.6.8 | Production | 8545 | 30303 | 4GB+ |
+| Geth PR5 | Latest | Testing | 7070 | 30304 | 4GB+ |
+| Erigon-XDC | Latest | Experimental | 8547 | 30304/30311 | 8GB+ |
+| Nethermind | Latest | Beta | 8558 | 30306 | 12GB+ |
+| Reth-XDC | Latest | Alpha | 7073 | 40303 | 16GB+ |
+
+### Port Allocation Strategy
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                 Multi-Client Port Allocation                 │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Geth Stable:                                               │
+│    RPC: 8545, WS: 8546, P2P: 30303, Metrics: 6060          │
+│                                                             │
+│  Geth PR5:                                                  │
+│    RPC: 7070, WS: 7071, P2P: 30304, Metrics: 6070          │
+│                                                             │
+│  Erigon-XDC:                                                │
+│    RPC: 8547, Auth: 8561, P2P: 30304/30311, Private: 9091  │
+│                                                             │
+│  Nethermind:                                                │
+│    RPC: 8558, P2P: 30306, Metrics: 6072                    │
+│                                                             │
+│  Reth-XDC:                                                  │
+│    RPC: 7073, P2P: 40303, Discovery: 40304, Metrics: 6073  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## XDPoS 2.0 Consensus Integration
 
 ### Epoch Structure
 
@@ -102,225 +202,165 @@ Epoch N (Blocks 0-899):
 │  Blocks 0-449      │   Blocks 450-899  │
 │  (Validator votes) │   (No votes)      │
 └────────────────────┴───────────────────┘
+         │                    │
+         ▼                    ▼
+   ┌────────────┐      ┌────────────┐
+   │ QC Formed  │      │ No Voting  │
+   │ Rewards    │      │ Prepare    │
+   │ Penalties  │      │ Next Epoch │
+   └────────────┘      └────────────┘
 ```
+
+### Consensus Monitoring
+
+| Metric | Description | Alert Threshold |
+|--------|-------------|-----------------|
+| Epoch Transition | Block number % 900 == 0 | Must complete |
+| Vote Participation | % of masternodes voting | < 75% warning |
+| QC Formation | Quorum certificate created | Timeout > 30s |
+| Gap Block | Block in gap phase | No votes allowed |
+| Missed Blocks | Blocks not produced | > 5 consecutive |
+
+---
 
 ## Security Architecture
 
-### Hardening Layers
-
-1. **System Level**
-   - SSH key-only authentication
-   - Non-standard SSH port
-   - UFW firewall rules
-   - Fail2ban brute-force protection
-
-2. **Container Level**
-   - Read-only root filesystem
-   - Dropped capabilities
-   - Resource limits
-   - Network policies
-
-3. **Application Level**
-   - RPC authentication
-   - CORS restrictions
-   - Rate limiting
-   - Input validation
-
 ### Security Score Calculation
 
-| Check | Points | Implementation |
-|-------|--------|----------------|
-| SSH key-only | 10 | `PasswordAuthentication no` |
-| Non-standard SSH port | 5 | Port ≠ 22 |
-| Firewall active | 10 | UFW status |
-| Fail2ban running | 5 | Service status |
-| Unattended upgrades | 5 | Package installed |
-| OS patches current | 10 | No pending updates |
-| Client version current | 15 | Version check |
-| Monitoring active | 10 | Prometheus/Grafana |
-| Backup configured | 10 | Cron job exists |
-| Audit logging | 10 | auditd running |
-| Disk encryption | 10 | LUKS detection |
+| Check | Points |
+|-------|--------|
+| SSH key-only | 10 |
+| Non-standard SSH port | 5 |
+| Firewall active | 10 |
+| Fail2ban running | 5 |
+| Unattended upgrades | 5 |
+| OS patches current | 10 |
+| Client version current | 15 |
+| Monitoring active | 10 |
+| Backup configured | 10 |
+| Audit logging | 10 |
+| Disk encryption | 10 |
+| **Total** | **100** |
 
-## Self-Healing Mechanisms
-
-### Watchdog System (`scripts/skynet-agent.sh`)
-
-1. **Health Checks** (every 30s)
-   - Container running status
-   - RPC responsiveness
-   - Sync progress
-   - Peer connectivity
-
-2. **Auto-Remediation**
-   - Peer injection when count = 0
-   - Container restart on failure
-   - Max 3 restarts/hour with cooldown
-
-3. **Escalation**
-   - SkyNet alert on max restarts reached
-   - Detailed diagnostics in logs
-
-### Restart Policy
+### Network Security
 
 ```
-Restart Attempt ──► Cooldown (5 min) ──► Next Check
-       │
-       ▼
-Max 3/hour ──► Alert + Manual intervention required
+┌─────────────────────────────────────────────────────────────┐
+│                    Network Security Layers                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Layer 1: Firewall (UFW)                                    │
+│    - Allow: 30303 (P2P), 22 (SSH from specific IPs)        │
+│    - Deny: All other inbound                                │
+│                                                             │
+│  Layer 2: Docker Network Isolation                          │
+│    - Internal networks for monitoring                       │
+│    - No host network mode                                   │
+│                                                             │
+│  Layer 3: RPC Access Control                                │
+│    - Default: localhost only                                │
+│    - Optional: nginx reverse proxy with auth                │
+│                                                             │
+│  Layer 4: Container Security                                │
+│    - No privileged containers                               │
+│    - Read-only root filesystem                              │
+│    - Capability dropping                                    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
+
+---
 
 ## Data Flow
 
 ### Heartbeat Flow
 
 ```
-┌─────────┐    ┌─────────────┐    ┌──────────┐
-│ XDC Node│───►│ skynet-agent│───►│ SkyNet   │
-│         │    │ (30s interval│    │ Dashboard│
-└─────────┘    └─────────────┘    └──────────┘
-     │
-     ▼
-Metrics:
-- Block height
-- Peer count
-- System resources
-- Security score
-- Consensus health
+┌──────────────┐     ┌────────────────┐     ┌─────────────────────┐
+│  XDC Node    │────►│                │────►│                     │
+│  (SkyOne)    │     │   Heartbeat    │     │   PostgreSQL        │
+└──────────────┘     │   API          │     │   (SkyNet DB)       │
+                     │   /api/v1/     │     │                     │
+                     │   nodes/       │     │   • nodes           │
+                     │   heartbeat    │     │   • node_metrics    │
+                     │                │     │   • incidents       │
+                     └────────────────┘     └─────────────────────┘
+                            │
+                            ▼
+                     ┌────────────────┐
+                     │  Response:     │
+                     │  • ok: true    │
+                     │  • commands[]  │
+                     └────────────────┘
 ```
 
-### Snapshot Flow
+### Metrics Flow
 
 ```
-┌─────────────┐    ┌──────────────┐    ┌───────────┐
-│ Snapshot    │───►│ Verification │───►│ Extraction│
-│ Download    │    │ (checksums)  │    │ & Import  │
-└─────────────┘    └──────────────┘    └───────────┘
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│   XDC Node   │────►│  Prometheus  │────►│   SkyNet     │
+│   (Metrics)  │     │  (Scrape)    │     │  (Dashboard) │
+└──────────────┘     └──────────────┘     └──────────────┘
+       │                                            │
+       └────────────────────────────────────────────┘
+                          API Query
 ```
 
-## Configuration Management
-
-### Directory Structure
-
-```
-XDC-Node-Setup/
-├── mainnet/
-│   ├── .xdc-node/
-│   │   └── config.toml
-│   └── xdcchain/
-├── testnet/
-│   └── ...
-├── docker/
-│   ├── docker-compose.yml
-│   └── docker-compose.*.yml
-└── scripts/
-    ├── lib/
-    │   ├── common.sh
-    │   └── utils.sh
-    ├── consensus-health.sh
-    ├── skynet-agent.sh
-    └── ...
-```
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `NETWORK_ID` | 50 | Mainnet=50, Testnet=51 |
-| `SYNC_MODE` | snap | snap, full, fast |
-| `RPC_PORT` | 8545 | JSON-RPC port |
-| `P2P_PORT` | 30303 | P2P port |
-| `SKYNET_API_URL` | https://net.xdc.network | SkyNet endpoint |
-| `NODE_NAME` | hostname | Node identifier |
-| `NODE_ROLE` | fullnode | fullnode, masternode |
-
-## Monitoring & Observability
-
-### Metrics Collection
-
-1. **Node Metrics** (Prometheus)
-   - Block height, sync status
-   - Peer count, network latency
-   - Resource usage (CPU, memory, disk)
-
-2. **Consensus Metrics**
-   - QC formation time
-   - Vote participation rate
-   - TC rate per epoch
-
-3. **Security Metrics**
-   - Failed authentication attempts
-   - Firewall blocks
-   - Audit log events
-
-### Log Aggregation
-
-```yaml
-# docker-compose.logging.yml
-services:
-  fluentd:
-    image: fluent/fluentd
-    volumes:
-      - ./fluentd.conf:/fluentd/etc/fluent.conf
-  
-  elasticsearch:
-    image: elasticsearch:8.x
-    
-  kibana:
-    image: kibana:8.x
-```
+---
 
 ## Deployment Patterns
 
-### Single Node
+### Single Node Deployment
 
 ```bash
-# Quick start
-sudo ./install.sh
-xdc start
+# One-liner install
+curl -fsSL https://raw.githubusercontent.com/AnilChinchawale/XDC-Node-Setup/main/install.sh | sudo bash
+
+# Manual installation
+git clone https://github.com/AnilChinchawale/xdc-node-setup.git
+cd xdc-node-setup
+sudo ./setup.sh
 ```
 
-### Multi-Client Setup
+### Multi-Client Deployment
 
 ```bash
 # Run multiple clients simultaneously
-xdc start --client geth
+docker compose -f docker-compose.multiclient.yml up -d
+
+# Or use CLI
 xdc start --client erigon
 xdc start --client nethermind
 ```
 
-### High Availability
+### Kubernetes Deployment
 
-```yaml
-# docker-compose.ha.yml
-services:
-  xdc-node-primary:
-    # Primary node configuration
-    
-  xdc-node-backup:
-    # Backup node configuration
-    
-  haproxy:
-    # Load balancer for RPC
+```bash
+# Deploy with Helm
+cd k8s/helm
+helm install xdc-node ./xdc-node
+
+# Or use manifests
+kubectl apply -f k8s/manifests/
 ```
 
-## Troubleshooting Architecture
+### Cloud Deployment
 
-### Diagnostic Tools
-
-1. **node-health-check.sh**: Comprehensive health check
-2. **consensus-health.sh**: XDPoS-specific diagnostics
-3. **fix-stuck-sync.sh**: Sync issue remediation
-4. **qc-validation.sh**: QC integrity verification
-
-### Debug Endpoints
-
-| Endpoint | Purpose |
-|----------|---------|
-| `/debug/metrics` | Prometheus metrics |
-| `/debug/pprof` | Go profiling data |
-| `/debug/vars` | Runtime variables |
+| Provider | Method | Command |
+|----------|--------|---------|
+| AWS | AMI | Launch from XDC Node AMI |
+| AWS | CloudFormation | `aws cloudformation deploy` |
+| Azure | ARM Template | `az deployment group create` |
+| GCP | Deployment Manager | `gcloud deployment-manager deployments create` |
+| DigitalOcean | 1-Click | Marketplace |
+| Akash | SDL | `akash tx deployment create` |
 
 ---
 
-*See also: SETUP.md, TROUBLESHOOTING.md, XDPOS2-OPERATOR-GUIDE.md*
+## Related Documentation
+
+- [Setup Guide](SETUP.md)
+- [Configuration Guide](CONFIGURATION.md)
+- [API Reference](API.md)
+- [Troubleshooting](TROUBLESHOOTING.md)
+- [Security Audit](SECURITY_AUDIT.md)

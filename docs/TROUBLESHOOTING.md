@@ -1,827 +1,675 @@
-# Troubleshooting Guide for XDC Node Setup
+# XDC Node Setup - Troubleshooting Guide
 
-This guide helps you diagnose and resolve common issues with XDC Node Setup.
+**Version:** 1.0  
+**Date:** March 4, 2026
+
+---
 
 ## Table of Contents
 
-- [Quick Fixes](#quick-fixes)
-- [Sync Issues (Bad Blocks / State Root Mismatches)](#sync-issues-bad-blocks--state-root-mismatches)
-  - [Issue #30: GCX Bad Block at 166,500](#issue-30-gcx-bad-block-at-166500)
-  - [Issue #44: Erigon Bad Block at 1,884,577](#issue-44-erigon-bad-block-at-1884577)
-  - [Issue #47: Erigon State Root Mismatches](#issue-47-erigon-state-root-mismatches)
-- [Erigon P2P Protocol Issues](#erigon-p2p-protocol-issues)
-  - [Issue #15: Protocol Mismatch eth/68 vs eth/62,63](#issue-15-protocol-mismatch-eth68-vs-eth6263)
-- [Peer Connection Issues](#peer-connection-issues)
-- [Sync Stalls](#sync-stalls)
-- [Port Conflicts](#port-conflicts)
-- [Docker Issues on macOS](#docker-issues-on-macos)
-- [Installation Issues](#installation-issues)
-- [Docker Issues](#docker-issues)
-- [Network Issues](#network-issues)
-- [Performance Issues](#performance-issues)
-- [Security Issues](#security-issues)
-- [API/RPC Issues](#apirpc-issues)
-- [Backup/Restore Issues](#backuprestore-issues)
-- [Getting Help](#getting-help)
+1. [Quick Diagnostics](#quick-diagnostics)
+2. [Installation Issues](#installation-issues)
+3. [Sync Issues](#sync-issues)
+4. [Connection Issues](#connection-issues)
+5. [Performance Issues](#performance-issues)
+6. [Client-Specific Issues](#client-specific-issues)
+7. [Security Issues](#security-issues)
+8. [Advanced Debugging](#advanced-debugging)
 
 ---
 
-## Quick Fixes
+## Quick Diagnostics
 
-### Reset Node and Resync
-
-If your node is stuck on a bad block or experiencing state root mismatches, the fastest fix is to reset and resync:
+### Status Check
 
 ```bash
-# Using the xdc CLI (recommended)
-xdc reset --confirm
-
-# Or manually:
-xdc stop
-rm -rf mainnet/xdcchain/XDC
-xdc start
-
-# For Erigon nodes:
-xdc stop --client erigon
-rm -rf mainnet/erigon-datadir
-xdc start --client erigon
-```
-
-### Check Node Status
-
-```bash
-# Quick status overview
+# Check node status
 xdc status
 
-# Detailed health check
+# Full system info
+xdc info
+
+# Check sync progress
+xdc sync
+
+# List connected peers
+xdc peers
+```
+
+### Health Check
+
+```bash
+# Run comprehensive health check
 xdc health --full
 
-# Watch sync progress
-xdc status --watch
-```
-
----
-
-## Sync Issues (Bad Blocks / State Root Mismatches)
-
-### Overview
-
-Bad blocks and state root mismatches are among the most common sync issues on XDC Network. These typically occur due to:
-
-1. **Consensus differences** between client implementations
-2. **Snap sync limitations** — State snapshots may have inconsistencies
-3. **XDPoS consensus edge cases** at specific block heights
-4. **Client version incompatibilities**
-
-### General Solutions
-
-#### Option 1: Clear Data and Resync (Fastest)
-
-```bash
-# Stop the node
-xdc stop
-
-# Remove chaindata (keep config!)
-rm -rf mainnet/xdcchain/XDC
-
-# Restart
-xdc start
-```
-
-#### Option 2: Use Full Sync Instead of Snap Sync
-
-Edit your start script or docker-compose.yml:
-
-```bash
-# For Geth
-XDC --syncmode full
-
-# For Erigon (uses staged sync by default)
-erigon --chain=xdc --prune=hrtc
-```
-
-#### Option 3: Download Fresh Snapshot
-
-```bash
-# Download and apply latest snapshot
-./scripts/snapshot-manager.sh download mainnet-full
-
-# This wipes existing data and applies fresh snapshot
-```
-
----
-
-### Issue #30: GCX Bad Block at 166,500
-
-**Symptoms:**
-```
-ERROR[mm-dd|hh:mm:ss] Failed to import block              number=166,500  hash=0x... err="invalid merkle root"
-```
-
-**Cause:** Known issue with geth snap sync on XDC where the state root at block 166,500 doesn't match the expected value. This is due to differences in how XDPoS consensus state is calculated during snap sync.
-
-**Solution:**
-
-1. **Reset and resync with full sync:**
-```bash
-xdc reset --confirm
-# Then edit docker-compose.yml or start-node.sh to use --syncmode full
-```
-
-2. **Or use snapshot download:**
-```bash
-./scripts/snapshot-manager.sh download mainnet-full
-```
-
-**Prevention:**
-- Use `--syncmode full` for validators or production nodes
-- Use snapshot downloads for faster initialization
-- Keep client updated to latest version
-
-**Status:** Documented workaround. This is an upstream consensus issue being tracked.
-
----
-
-### Issue #44: Erigon Bad Block at 1,884,577
-
-**Symptoms:**
-```
-ERROR[mm-dd|hh:mm:ss] Bad block at height 1,884,577      err="invalid state root"
-WARN [mm-dd|hh:mm:ss] Staged sync failed                 err="state root mismatch"
-```
-
-**Cause:** Known XDPoS consensus validation issue at block 1,884,577 in the Erigon-XDC implementation. The state transition at this block contains edge cases that differ between Erigon and Geth implementations.
-
-**Solution:**
-
-1. **Use the xdc-state-root-bypass branch:**
-```bash
-# Rebuild Erigon with the bypass branch
-cd erigon-xdc
-git checkout xdc-state-root-bypass
-make erigon
-
-# Restart node
-xdc restart --client erigon
-```
-
-2. **Or reset and resync from snapshot:**
-```bash
-xdc reset --client erigon --confirm
-./scripts/snapshot-manager.sh download mainnet-erigon
-```
-
-**Prevention:**
-- Use the `xdc-state-root-bypass` branch for Erigon nodes
-- Monitor [erigon-xdc repository](https://github.com/AnilChinchawale/erigon-xdc) for updates
-
-**Status:** Upstream erigon-xdc issue. The state root bypass branch handles this.
-
----
-
-### Issue #47: Erigon State Root Mismatches During Sync
-
-**Symptoms:**
-```
-WARN [mm-dd|hh:mm:ss] State root mismatch                expected=0x... got=0x...
-WARN [mm-dd|hh:mm:ss] Continuing with bypass...          
-```
-
-**Cause:** Erigon and Geth calculate state differently in some XDPoS consensus edge cases. This results in state root mismatch warnings during sync.
-
-**What happens:**
-- State root mismatch is logged as a warning
-- Sync continues to the next block (bypass enabled for XDPoS)
-- State reconciles at next checkpoint
-
-**Solution:**
-
-1. **Use the state root bypass branch (RECOMMENDED):**
-```bash
-git clone https://github.com/AnilChinchawale/erigon-xdc.git
-cd erigon-xdc
-git checkout xdc-state-root-bypass
-make erigon
-```
-
-2. **Monitor sync progress:**
-```bash
-# State root mismatches are logged but sync continues
-xdc logs --follow | grep -i "state root"
-
-# Check if blocks are still importing
-xdc status
-```
-
-3. **If sync stalls completely, reset:**
-```bash
-xdc reset --client erigon --confirm
-```
-
-**Explanation:**
-
-State root mismatches in Erigon-XDC are **bypassed by design** for XDPoS chains. The node will:
-- Log the mismatch as a warning
-- Continue syncing to the next block
-- Attempt to reconcile state at the next checkpoint
-
-This is being tracked upstream and will be resolved when XDPoS consensus state calculation is fully standardized.
-
-**Status:** Expected behavior. Use `xdc-state-root-bypass` branch.
-
----
-
-## Erigon P2P Protocol Issues
-
-### Issue #15: Protocol Mismatch eth/68 vs eth/62,63
-
-**Symptoms:**
-```
-WARN [mm-dd|hh:mm:ss] Peer rejected                     err="protocol mismatch: peer only supports [eth/62 eth/63], we require [eth/68]"
-WARN [mm-dd|hh:mm:ss] Failed to add peer                err="incompatible P2P protocol"
-```
-
-**Cause:** XDC geth nodes only support `eth/62`, `eth/63`, and `eth/100` (XDPoS) protocols. They do not support `eth/68` which is used by standard Ethereum nodes.
-
-**Solution (RESOLVED):**
-
-Erigon-XDC now uses a **dual-sentry architecture** to handle this:
-
-| Sentry | Port | Protocol | Purpose |
-|--------|------|----------|---------|
-| Sentry 1 | **30304** | **eth/63** | XDC-compatible (connect to XDC geth nodes) |
-| Sentry 2 | 30311 | eth/68 | Standard Ethereum (future compatibility) |
-
-**To connect Erigon to XDC peers:**
-
-```bash
-# 1. Get your Erigon enode (use port 30304!)
-curl -s -X POST http://localhost:8547 \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","method":"admin_nodeInfo","params":[],"id":1}' \
-  | jq -r '.result.enode' \
-  | sed 's/\[::\]/YOUR_PUBLIC_IP/' \
-  | sed 's/:30311/:30304/'
-
-# 2. Add Erigon as trusted peer from your XDC geth node:
-curl -X POST http://GETH_RPC:8545 \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc":"2.0",
-    "method":"admin_addTrustedPeer",
-    "params":["enode://...YOUR_ENODE...:30304"],
-    "id":1
-  }'
-```
-
-**Verification:**
-```bash
-# Check peer connections
-xdc peers
-
-# Verify eth/63 sentry is connected to XDC peers
-curl -s -X POST http://localhost:8547 \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","method":"admin_peers","params":[],"id":1}' \
-  | jq '.result[] | {name, caps, addr: .network.remoteAddress}'
-```
-
-**Status:** RESOLVED. Dual-sentry architecture handles this automatically.
-
----
-
-## Peer Connection Issues
-
-### Low Peer Count (< 5 peers)
-
-**Diagnosis:**
-```bash
-# Check peer count
-xdc peers
-
-# Or via RPC
-curl -s -X POST http://localhost:8545 \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}'
-```
-
-**Solutions:**
-
-1. **Inject peers manually:**
-```bash
-xdc addpeers
-```
-
-2. **Optimize bootnodes:**
-```bash
-./scripts/bootnode-optimize.sh
-```
-
-3. **Add specific peers:**
-```bash
-# From XDC geth node, add Erigon as trusted peer
-curl -X POST http://localhost:8545 \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc":"2.0",
-    "method":"admin_addTrustedPeer",
-    "params":["enode://..."],
-    "id":1
-  }'
-```
-
-4. **Check firewall:**
-```bash
-sudo ufw status
-sudo ufw allow 30303/tcp
-sudo ufw allow 30303/udp
-sudo ufw allow 30304/tcp  # For Erigon eth/63
-sudo ufw allow 30304/udp
-```
-
-### Peers Keep Disconnecting
-
-**Causes & Solutions:**
-
-1. **Clock drift:**
-```bash
-# Sync system clock
-sudo apt-get install -y ntp
-sudo systemctl enable ntp
-sudo systemctl restart ntp
-```
-
-2. **NAT issues:**
-```bash
-# Check NAT configuration
-./scripts/bootnode-optimize.sh --nat-check
-```
-
-3. **Protocol mismatch** (Erigon only):
-- Ensure XDC peers connect to port 30304 (eth/63), not 30311 (eth/68)
-- See [Issue #15](#issue-15-protocol-mismatch-eth68-vs-eth6263)
-
----
-
-## Sync Stalls
-
-### Node Stuck at Specific Block
-
-**Symptoms:** Block height not increasing for > 1 hour
-
-**Diagnosis:**
-```bash
-# Check if peers are responsive
-xdc peers
-
-# Check for errors
-xdc logs --follow | grep -i error
-```
-
-**Solutions:**
-
-1. **Clear peers database:**
-```bash
-xdc stop
-rm -rf mainnet/xdcchain/XDC/nodes
-xdc start
-```
-
-2. **Reset and resync:**
-```bash
-xdc reset --confirm
-```
-
-3. **Check for bad block:**
-```bash
-# If stuck at specific block (e.g., 166,500)
-# See Issue #30 for known bad blocks
-```
-
-### Sync Very Slow
-
-**Optimization checklist:**
-
-- [ ] NVMe SSD (not SATA SSD or HDD)
-- [ ] 32GB+ RAM
-- [ ] 8+ CPU cores
-- [ ] 1Gbps+ network
-- [ ] Port 30303 open (TCP/UDP)
-- [ ] Quality peers (run `xdc addpeers`)
-
-**Apply optimizations:**
-```bash
-# Increase cache (requires restart)
-# Edit docker-compose.yml or start-node.sh:
-XDC --cache=4096
-
-# Use snapshot
-./scripts/snapshot-manager.sh download mainnet-full
-```
-
----
-
-## Port Conflicts
-
-### Port Already in Use
-
-**Symptoms:**
-```
-Error: listen tcp :8545: bind: address already in use
-```
-
-**Solutions:**
-
-1. **Find and kill conflicting process:**
-```bash
-sudo lsof -i :8545
-sudo kill -9 <PID>
-```
-
-2. **Use different port:**
-```bash
-# Edit docker-compose.yml or start-node.sh
-# Change port mapping:
-ports:
-  - "8546:8545"  # Map host 8546 to container 8545
-```
-
-3. **Check xdc status auto-detects:**
-```bash
-# xdc CLI automatically detects port conflicts and offers alternatives
-xdc start
-```
-
-### Required Ports
-
-| Port | Service | Protocol | Required |
-|------|---------|----------|----------|
-| 8545 | Geth RPC | HTTP | Yes |
-| 8547 | Erigon RPC | HTTP | For Erigon |
-| 8546 | WebSocket | WS | Optional |
-| 30303 | Geth P2P | TCP/UDP | Yes |
-| 30304 | Erigon eth/63 | TCP/UDP | For Erigon |
-| 30311 | Erigon eth/68 | TCP/UDP | Optional |
-
----
-
-## Docker Issues on macOS
-
-### Shared Volume Performance
-
-**Issue:** Very slow I/O on macOS Docker
-
-**Solution:**
-```bash
-# Use named volumes instead of bind mounts
-# In docker-compose.yml:
-volumes:
-  xdc-data:  # Named volume, not ./mainnet/xdcchain
-
-# Or use virtiofs (Docker Desktop 4.6+)
-# Settings -> General -> Use Virtualization framework
-# Settings -> Features -> Use VirtioFS
-```
-
-### Memory Limits
-
-**Issue:** Docker out of memory
-
-**Solution:**
-```bash
-# Increase Docker Desktop memory to 8GB+
-# Settings -> Resources -> Memory
-```
-
-### Port Binding Issues
-
-**Issue:** Cannot bind to privileged ports
-
-**Solution:**
-```bash
-# Use higher port numbers on host
-ports:
-  - "18545:8545"  # Instead of 8545:8545
+# Check specific components
+xdc health --rpc
+xdc health --p2p
+xdc health --disk
 ```
 
 ---
 
 ## Installation Issues
 
-### "Permission denied" when running setup.sh
+### Docker Not Found
 
-**Cause:** Script doesn't have execute permissions or user lacks privileges.
-
-**Solution:**
-```bash
-chmod +x setup.sh
-sudo ./setup.sh
+**Error:**
 ```
-
-### "Command not found: docker"
-
-**Cause:** Docker is not installed or not in PATH.
+ERROR: Docker is not installed
+```
 
 **Solution:**
 ```bash
 # Install Docker
-curl -fsSL https://get.docker.com | sh
+sudo apt-get update
+sudo apt-get install -y docker.io docker-compose-plugin
+
+# Add user to docker group
 sudo usermod -aG docker $USER
 newgrp docker
+
+# Verify installation
+docker --version
+docker compose version
 ```
 
-### "Unsupported OS" error
+### Permission Denied
 
-**Cause:** Operating system not officially supported.
-
-**Solution:**
-- Supported: Ubuntu 20.04/22.04/24.04, Debian 11/12, macOS 12+
-- For other systems, use Docker deployment method
-
----
-
-## Docker Issues
-
-### Container fails to start
-
-**Check logs:**
-```bash
-xdc logs
+**Error:**
 ```
-
-**Common causes:**
-
-1. Port already in use (see [Port Conflicts](#port-conflicts))
-
-2. Volume permissions:
-   ```bash
-   sudo chown -R $(id -u):$(id -g) ./xdcchain
-   ```
-
-3. Out of disk space:
-   ```bash
-   df -h
-   docker system prune -a  # Clean up unused images
-   ```
-
-### "No such file or directory" for genesis.json
+Permission denied: /var/lib/xdc
+```
 
 **Solution:**
 ```bash
-# Ensure proper file structure
-mkdir -p mainnet
-cp configs/genesis.json mainnet/
+# Use configurable state directory
+export XDC_STATE_DIR=$HOME/.xdc-node
+
+# Or fix permissions
+sudo chown -R $USER:$USER /var/lib/xdc
+```
+
+### Port Already in Use
+
+**Error:**
+```
+Bind for 0.0.0.0:8545 failed: port is already allocated
+```
+
+**Solution:**
+```bash
+# Find process using port
+sudo lsof -i :8545
+
+# Kill process or use different port
+xdc config set RPC_PORT 8546
+xdc restart
 ```
 
 ---
 
-## Network Issues
+## Sync Issues
 
-### Cannot connect to RPC endpoint
+### Node Won't Sync
 
-**Check:**
+**Symptoms:**
+- Block height not increasing
+- Peer count is 0 or very low
+- Sync progress stuck
+
+**Diagnostics:**
 ```bash
+# Check peer count
 curl -X POST http://localhost:8545 \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
+  -d '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}'
+
+# Check sync status
+curl -X POST http://localhost:8545 \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}'
 ```
 
-**Common fixes:**
+**Solutions:**
 
-1. Check if container is running:
-   ```bash
-   docker ps | grep xdc-node
-   ```
+1. **Reset peer discovery:**
+```bash
+xdc stop
+rm -rf mainnet/.xdc-node/geth/nodes
+xdc start
+```
 
-2. Verify port binding:
-   ```bash
-   docker port xdc-node
-   ```
+2. **Add bootnodes manually:**
+```bash
+# Get current bootnodes
+curl -X POST http://localhost:8545 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "admin_addPeer",
+    "params": ["enode://..."],
+    "id": 1
+  }'
+```
 
-3. Check firewall:
-   ```bash
-   sudo ufw status
-   sudo ufw allow 8545/tcp
-   ```
+3. **Download snapshot for fast sync:**
+```bash
+xdc snapshot download --network mainnet
+xdc snapshot apply
+xdc start
+```
+
+### Sync Stalled at Specific Block
+
+**Symptoms:**
+- Block height stuck at specific number
+- Error messages about "BAD BLOCK"
+
+**Solution:**
+```bash
+# Check for bad block
+xdc logs | grep -i "bad block"
+
+# If bad block detected, resync from snapshot
+xdc stop
+rm -rf mainnet/xdcchain/XDC/chaindata
+xdc snapshot download --network mainnet
+xdc snapshot apply
+xdc start
+```
+
+### Slow Sync Speed
+
+**Symptoms:**
+- Very slow block import rate
+- High CPU/disk usage
+
+**Solutions:**
+
+1. **Increase cache size:**
+```bash
+xdc config set cache 8192  # Increase to 8GB
+xdc restart
+```
+
+2. **Check disk performance:**
+```bash
+# Test disk I/O
+fio --name=randread --ioengine=libaio --iodepth=32 --rw=randread --bs=4k --direct=1 --size=1G
+
+# If using HDD, consider SSD upgrade
+```
+
+3. **Use snap sync mode:**
+```bash
+xdc config set SYNC_MODE snap
+xdc restart
+```
+
+---
+
+## Connection Issues
+
+### RPC Connection Refused
+
+**Error:**
+```
+Connection refused: localhost:8545
+```
+
+**Diagnostics:**
+```bash
+# Check if RPC is enabled
+xdc config get rpc_enabled
+
+# Check if port is listening
+netstat -tlnp | grep 8545
+
+# Check Docker port mapping
+docker ps | grep xdc
+```
+
+**Solutions:**
+
+1. **Enable RPC:**
+```bash
+xdc config set rpc_enabled true
+xdc restart
+```
+
+2. **Check firewall:**
+```bash
+sudo ufw status
+sudo ufw allow 8545/tcp
+```
+
+3. **Verify Docker network:**
+```bash
+docker network ls
+docker network inspect xdc-network
+```
+
+### WebSocket Connection Issues
+
+**Error:**
+```
+WebSocket connection failed
+```
+
+**Solution:**
+```bash
+# Check WebSocket configuration
+xdc config get ws_enabled
+xdc config get ws_port
+
+# Test WebSocket
+curl -i -N \
+  -H "Connection: Upgrade" \
+  -H "Upgrade: websocket" \
+  -H "Host: localhost:8546" \
+  http://localhost:8546
+```
+
+### Peer Connection Issues
+
+**Symptoms:**
+- Low peer count
+- "p2p dial timeout" errors
+
+**Solutions:**
+
+1. **Check P2P port:**
+```bash
+# Verify port is open
+sudo ufw allow 30303/tcp
+sudo ufw allow 30303/udp
+
+# Check port forwarding (if behind NAT)
+```
+
+2. **Add trusted peers:**
+```bash
+# Get peer enode from another node
+curl -X POST http://localhost:8545 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "admin_addTrustedPeer",
+    "params": ["enode://..."],
+    "id": 1
+  }'
+```
+
+3. **Check network connectivity:**
+```bash
+# Test connectivity to bootnodes
+telnet bootnode.xinfin.network 30303
+
+# Check NAT traversal
+curl ifconfig.me
+```
 
 ---
 
 ## Performance Issues
 
-### High CPU usage
+### High CPU Usage
 
-**Diagnosis:**
+**Symptoms:**
+- CPU usage consistently above 80%
+- Slow response times
+
+**Solutions:**
+
+1. **Check sync status:**
 ```bash
-# Identify process
-ps aux | grep -E "XDC|xdc"
-
-# Check sync status
-./scripts/node-health-check.sh --full
+# High CPU during sync is normal
+xdc sync
 ```
 
-**Solutions:**
-
-1. Limit CPU usage:
-   ```yaml
-   # docker-compose.yml
-   deploy:
-     resources:
-       limits:
-         cpus: '4.0'
-   ```
-
-2. Reduce peer count:
-   ```bash
-   # In start-node.sh
-   --maxpeers 25
-   ```
-
-### High memory usage
-
-**Solutions:**
-
-1. Reduce cache size
-2. Limit concurrent connections
-3. Add swap space (emergency only):
-   ```bash
-   sudo fallocate -l 8G /swapfile
-   sudo chmod 600 /swapfile
-   sudo mkswap /swapfile
-   sudo swapon /swapfile
-   ```
-
-### Disk space issues
-
-**Check:**
+2. **Reduce cache size:**
 ```bash
-du -sh xdcchain/* | sort -h
+xdc config set cache 2048
+xdc restart
 ```
 
+3. **Limit peers:**
+```bash
+xdc config set max_peers 25
+xdc restart
+```
+
+### High Memory Usage
+
+**Symptoms:**
+- Out of memory errors
+- System swapping
+
 **Solutions:**
 
-1. Enable pruning (if not archive node)
-2. Move data to larger disk
-3. Set up automated cleanup:
-   ```bash
-   ./scripts/cleanup-logs.sh
-   ```
+1. **Check current usage:**
+```bash
+free -h
+xdc info | grep memory
+```
+
+2. **Reduce memory cache:**
+```bash
+xdc config set cache 1024
+xdc restart
+```
+
+3. **Enable swap (if not already):**
+```bash
+sudo fallocate -l 4G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+```
+
+### Disk Space Issues
+
+**Symptoms:**
+- "No space left on device" errors
+- Disk usage > 90%
+
+**Solutions:**
+
+1. **Check disk usage:**
+```bash
+df -h
+xdc info | grep disk
+```
+
+2. **Enable pruning:**
+```bash
+xdc config set prune_mode full
+xdc restart
+```
+
+3. **Clean up old logs:**
+```bash
+# Rotate logs
+sudo logrotate -f /etc/logrotate.d/xdc
+
+# Clean Docker logs
+docker system prune -a
+```
+
+4. **Move data to larger disk:**
+```bash
+# Mount new disk
+sudo mount /dev/sdb1 /mnt/xdc-data
+
+# Move data
+xdc stop
+sudo rsync -av mainnet/xdcchain/ /mnt/xdc-data/
+
+# Update configuration
+xdc config set DATA_DIR /mnt/xdc-data
+xdc start
+```
+
+---
+
+## Client-Specific Issues
+
+### Erigon-XDC Issues
+
+#### Build Fails
+
+**Solution:**
+```bash
+# Clean and rebuild
+cd docker/erigon
+docker build --no-cache -t erigon-xdc:latest .
+
+# Check build logs
+docker build -t erigon-xdc:latest . 2>&1 | tee build.log
+```
+
+#### Port Conflicts
+
+**Solution:**
+```bash
+# Check port usage
+sudo ss -tlnp | grep -E '30304|30311|8547'
+
+# Use different ports
+export ERIGON_P2P_PORT=30305
+export ERIGON_RPC_PORT=8548
+xdc start --client erigon
+```
+
+#### Peer Connection Issues
+
+**Important:** Always use port 30304 (eth/63) for XDC peers, NOT 30311 (eth/68).
+
+```bash
+# Check peer count
+curl -X POST http://localhost:8547 \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}'
+
+# Add trusted peer on correct port
+curl -X POST http://localhost:8547 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "admin_addTrustedPeer",
+    "params": ["enode://...:30304"],
+    "id": 1
+  }'
+```
+
+### Nethermind-XDC Issues
+
+#### High Memory Usage
+
+**Solution:**
+```bash
+# Nethermind requires more memory
+# Minimum 12GB recommended
+# Reduce pruning cache
+export NETHERMIND_PRUNINGCONFIG_CACHEMB=1024
+```
+
+#### Sync Issues
+
+**Solution:**
+```bash
+# Check Nethermind-specific logs
+docker logs xdc-nethermind
+
+# Reset sync
+docker exec xdc-nethermind rm -rf /xdcchain/nethermind_db
+```
+
+### Reth-XDC Issues
+
+#### Requires debug.tip
+
+**Solution:**
+```bash
+# Get latest block hash from explorer
+# Add to startup flags
+xdc start --client reth -- --debug.tip 0x...
+```
+
+#### Alpha Status Limitations
+
+**Note:** Reth-XDC is in early alpha. Known issues:
+- Requires more memory (16GB+)
+- Manual sync tip hash required
+- Limited XDPoS method support
 
 ---
 
 ## Security Issues
 
-### SSH brute force attacks
-
-**Symptoms:**
-- Many failed login attempts in `/var/log/auth.log`
-
-**Solution:**
-```bash
-# Run security hardening
-sudo ./scripts/security-harden.sh
-
-# Check fail2ban status
-sudo fail2ban-client status sshd
-```
-
-### Unauthorized RPC access
+### Unauthorized RPC Access
 
 **Symptoms:**
 - Unknown transactions
-- Unexpected API calls
+- Configuration changes
 
 **Solution:**
+```bash
+# Check current RPC settings
+xdc config get rpc_addr
+xdc config get rpc_cors
 
-1. Enable authentication
-2. Bind to localhost only:
-   ```yaml
-   ports:
-     - "127.0.0.1:8545:8545"
-   ```
-3. Use firewall to restrict access
+# Secure RPC
+xdc config set rpc_addr 127.0.0.1
+xdc config set rpc_cors localhost
+xdc restart
+
+# Check firewall
+sudo ufw status
+sudo ufw deny 8545/tcp  # Block external access
+```
+
+### Failed SSH Login Attempts
+
+**Solution:**
+```bash
+# Check fail2ban status
+sudo fail2ban-client status
+
+# Review logs
+sudo tail -f /var/log/fail2ban.log
+
+# Add IP to whitelist (if needed)
+sudo fail2ban-client set sshd addignoreip YOUR_IP
+```
+
+### Suspicious Container Activity
+
+**Solution:**
+```bash
+# Check running containers
+docker ps
+
+# Inspect container
+docker inspect xdc-node
+
+# Check container logs
+docker logs xdc-node
+
+# Remove and recreate if compromised
+xdc stop
+xdc remove
+curl -fsSL https://raw.githubusercontent.com/AnilChinchawale/XDC-Node-Setup/main/install.sh | sudo bash
+```
 
 ---
 
-## API/RPC Issues
+## Advanced Debugging
 
-### "Method not found" error
+### Enable Debug Logging
 
-**Cause:** API namespace not enabled
-
-**Solution:**
 ```bash
-# Enable required APIs
-# In start-node.sh, add to --rpcapi:
---rpcapi eth,net,web3,admin,debug
+# Set log level
+xdc config set log_level 5  # Debug
+xdc restart
+
+# View debug logs
+xdc logs --follow | grep -i debug
 ```
 
-### CORS errors from browser
+### RPC Debugging
 
-**Solution:**
 ```bash
-# Add allowed origins
---rpccorsdomain "http://localhost:3000,https://myapp.com"
+# Test RPC with verbose output
+curl -v -X POST http://localhost:8545 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "eth_blockNumber",
+    "params": [],
+    "id": 1
+  }'
 ```
 
----
+### Network Debugging
 
-## Backup/Restore Issues
-
-### Backup fails with "permission denied"
-
-**Solution:**
 ```bash
-# Fix permissions
-sudo chown -R $(whoami) /opt/xdc-node/backups
+# Capture P2P traffic
+sudo tcpdump -i any port 30303 -w xdc-p2p.pcap
 
-# Run backup with sudo
-sudo ./scripts/backup.sh create
+# Analyze with Wireshark
+# Filter: eth.protocol
+
+# Check network connections
+sudo netstat -tulpn | grep xdc
 ```
 
-### Restore fails with "corrupted data"
+### Database Debugging
 
-**Causes:**
-- Incomplete backup
-- Version mismatch
-- Wrong network
+```bash
+# Check chaindata integrity
+docker exec xdc-node ls -la /xdcchain/XDC/chaindata
 
-**Solution:**
+# Get database stats
+curl -X POST http://localhost:8545 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "debug_chaindbProperty",
+    "params": ["leveldb.stats"],
+    "id": 1
+  }'
+```
 
-1. Verify backup integrity:
-   ```bash
-   ./scripts/backup.sh verify <backup-file>
-   ```
+### Performance Profiling
 
-2. Check version compatibility
-3. Ensure correct network type
+```bash
+# Enable pprof
+curl http://localhost:6060/debug/pprof/goroutine?debug=1
+
+# Get heap profile
+curl http://localhost:6060/debug/pprof/heap > heap.prof
+
+# Analyze with go tool
+go tool pprof heap.prof
+```
 
 ---
 
 ## Getting Help
 
-### Collect diagnostic information
+### Community Resources
+
+- [GitHub Issues](https://github.com/AnilChinchawale/xdc-node-setup/issues)
+- [XDC Community Discord](https://discord.gg/xdc)
+- [XDC Network Docs](https://docs.xdc.community/)
+
+### Diagnostic Information to Include
+
+When reporting issues, include:
 
 ```bash
-# Run diagnostic script
-./scripts/diagnostics.sh
+# System info
+xdc info > diagnostic.txt
 
-# Or manually collect:
-- OS version: lsb_release -a
-- Docker version: docker version
-- Node logs: xdc logs
-- System resources: free -h, df -h
-- Network: netstat -tlnp, iptables -L
+# Recent logs
+xdc logs --tail 100 >> diagnostic.txt
+
+# Docker info
+docker ps >> diagnostic.txt
+docker logs xdc-node --tail 50 >> diagnostic.txt
+
+# System resources
+free -h >> diagnostic.txt
+df -h >> diagnostic.txt
 ```
-
-### Community Support
-
-- **Discord:** https://discord.gg/xdc
-- **GitHub Issues:** https://github.com/AnilChinchawale/xdc-node-setup/issues
-- **Documentation:** https://docs.xdc.network
-
-### Related Issues
-
-- **Issue #30:** [GCX bad block at 166,500](https://github.com/AnilChinchawale/xdc-node-setup/issues/30) — State root mismatch during snap sync
-- **Issue #44:** [Erigon bad block at 1,884,577](https://github.com/AnilChinchawale/xdc-node-setup/issues/44) — XDPoS consensus validation
-- **Issue #47:** [Erigon state root mismatches](https://github.com/AnilChinchawale/xdc-node-setup/issues/47) — Expected with current implementation
-- **Issue #15:** [Erigon P2P protocol mismatch](https://github.com/AnilChinchawale/xdc-node-setup/issues/15) — Resolved with dual-sentry
 
 ---
 
-## Quick Reference
+## Related Documentation
 
-### Common Commands
-
-```bash
-# Check node status
-xdc status
-
-# View logs
-xdc logs --follow
-
-# Restart node
-xdc restart
-
-# Health check
-xdc health --full
-
-# Reset and resync
-xdc reset --confirm
-
-# Update node
-xdc update
-```
-
-### Important File Locations
-
-| File/Directory | Purpose |
-|---------------|---------|
-| `/opt/xdc-node/` | Installation directory |
-| `mainnet/xdcchain/` | Blockchain data (Geth) |
-| `mainnet/erigon-datadir/` | Blockchain data (Erigon) |
-| `mainnet/.xdc-node/` | Node state and config |
-| `logs/` | Log files |
-
----
-
-*Last updated: February 15, 2026*
+- [Architecture Overview](ARCHITECTURE.md)
+- [Configuration Guide](CONFIGURATION.md)
+- [API Reference](API.md)
+- [Security Audit](SECURITY_AUDIT.md)
