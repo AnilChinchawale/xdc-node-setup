@@ -12,7 +12,7 @@ if [ -d "$SKYNET_CONF" ]; then
   rm -rf "$SKYNET_CONF"
   # Create minimal config — auto-registration will fill in the rest
   cat > "$SKYNET_CONF" <<EOCONF
-SKYNET_API_URL=https://net.xdc.network/api/v1
+SKYNET_API_URL=https://net.xdc.network/api
 SKYNET_API_KEY=${SKYNET_API_KEY:-}
 SKYNET_NODE_NAME=$(hostname)
 SKYNET_ROLE=fullnode
@@ -72,7 +72,7 @@ echo "Starting SkyNet heartbeat loop..." | tee -a /var/log/xdc/dashboard.log
   sleep 10  # quick startup
   while true; do
     # Get metrics from XDC node
-    RPC_URL="${XDC_RPC_URL:-http://localhost:8545}"
+    RPC_URL="${RPC_URL:-${XDC_RPC_URL:-http://localhost:8545}}"
     BLOCK_HEX=$(curl -s -m 5 -X POST "$RPC_URL" -H "Content-Type: application/json" \
       -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' 2>/dev/null | grep -o '"result":"[^"]*"' | cut -d'"' -f4)
     PEER_HEX=$(curl -s -m 5 -X POST "$RPC_URL" -H "Content-Type: application/json" \
