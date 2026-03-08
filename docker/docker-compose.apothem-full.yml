@@ -183,7 +183,7 @@ services:
     environment:
       - RPC_URL=http://xdc-node-apothem:8545
       - SKYNET_NODE_NAME=local-apothem-geth
-      - SKYNET_API_URL=https://net.xdc.network/api/v1
+      - SKYNET_API_URL=https://net.xdc.network/api
       - SKYNET_MASTER_KEY=xdc-netown-key-2026-prod
       - XDC_CONTAINER_NAME=xdc-node-apothem
     networks:
@@ -201,7 +201,7 @@ services:
     environment:
       - RPC_URL=http://xdc-node-gx-apothem:8557
       - SKYNET_NODE_NAME=local-apothem-gx
-      - SKYNET_API_URL=https://net.xdc.network/api/v1
+      - SKYNET_API_URL=https://net.xdc.network/api
       - SKYNET_MASTER_KEY=xdc-netown-key-2026-prod
       - XDC_CONTAINER_NAME=xdc-node-gx-apothem
     networks:
@@ -219,7 +219,7 @@ services:
     environment:
       - RPC_URL=http://xdc-node-erigon-apothem:8556
       - SKYNET_NODE_NAME=local-apothem-erigon
-      - SKYNET_API_URL=https://net.xdc.network/api/v1
+      - SKYNET_API_URL=https://net.xdc.network/api
       - SKYNET_MASTER_KEY=xdc-netown-key-2026-prod
       - XDC_CONTAINER_NAME=xdc-node-erigon-apothem
     networks:
@@ -237,7 +237,7 @@ services:
     environment:
       - RPC_URL=http://xdc-node-nethermind-apothem:8558
       - SKYNET_NODE_NAME=local-apothem-nethermind
-      - SKYNET_API_URL=https://net.xdc.network/api/v1
+      - SKYNET_API_URL=https://net.xdc.network/api
       - SKYNET_MASTER_KEY=xdc-netown-key-2026-prod
       - XDC_CONTAINER_NAME=xdc-node-nethermind-apothem
     networks:
