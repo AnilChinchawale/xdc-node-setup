@@ -7,26 +7,42 @@
     "MemoryHint": 2048000000
   },
   "Sync": {
-    "FastSync": false,
-    "SnapSync": false,
-    "DownloadReceiptsInFastSync": false,
-    "DownloadBodiesInFastSync": false,
-    "NonValidatorNode": true
+    "FastSync": true,
+    "SnapSync": true,
+    "DownloadReceiptsInFastSync": true,
+    "DownloadBodiesInFastSync": true,
+    "NonValidatorNode": true,
+    "FastSyncCatchUpHeightDelta": 100,
+    "UseGethLimitsInFastBlocks": false,
+    "FastBlocks": true,
+    "PivotNumber": 0,
+    "PivotHash": null,
+    "PivotTotalDifficulty": null
   },
   "Metrics": {
-    "NodeName": "XDC-Nethermind"
+    "NodeName": "XDC-Nethermind",
+    "Enabled": true,
+    "ExposePort": 6060,
+    "PushGatewayUrl": null
   },
   "JsonRpc": {
     "Enabled": true,
-    "Timeout": 20000,
+    "Timeout": 30000,
     "Host": "0.0.0.0",
     "Port": 8545,
+    "WebSocketsEnabled": true,
     "EnabledModules": [
       "Eth",
       "Net",
       "Web3",
-      "Admin"
-    ]
+      "Admin",
+      "Debug",
+      "Trace",
+      "TxPool",
+      "Parity",
+      "Subscribe"
+    ],
+    "AdditionalRpcUrls": []
   },
   "Merge": {
     "Enabled": false
@@ -38,6 +54,30 @@
     "P2PPort": 30303,
     "DiscoveryPort": 30303,
     "StaticPeers": "",
-    "MaxActivePeers": 50
+    "MaxActivePeers": 50,
+    "PeersPersistenceInterval": 1000,
+    "NettyArenaOrder": 11,
+    "MaxNettyArenaCount": 16
+  },
+  "Discovery": {
+    "Bootnodes": [],
+    "MaxDiscoveryRounds": 10,
+    "EvictionCheckInterval": 30000,
+    "SendNodeTimeout": 10000,
+    "PongTimeout": 15000,
+    "BootnodePongTimeout": 30000,
+    "PingRetryCount": 3
+  },
+  "TxPool": {
+    "Size": 2048
+  },
+  "Blocks": {
+    "TargetBlockGasLimit": 42000000
+  },
+  "EthStats": {
+    "Enabled": true,
+    "Name": "XDC-Nethermind",
+    "Secret": "xdc-nethermind-stats",
+    "Server": "wss://stats.xinfin.network/api"
   }
 }
