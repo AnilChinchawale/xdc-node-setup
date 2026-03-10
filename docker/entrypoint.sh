@@ -144,6 +144,17 @@ wait_for_dependencies() {
     fi
 }
 
+# Bug #516: Setup private key for XDC node (xinfinorg/xdposchain:v2.6.8)
+setup_xdc_private_key() {
+    if [ -n "${PRIVATE_KEY:-}" ]; then
+        log_info "Setting up PRIVATE_KEY for XDC node..."
+        mkdir -p ~/.xdc
+        echo "$PRIVATE_KEY" > ~/.xdc/private_key
+        chmod 600 ~/.xdc/private_key
+        log_success "Private key written to ~/.xdc/private_key"
+    fi
+}
+
 # =============================================================================
 # Main Entrypoint
 # =============================================================================
@@ -163,6 +174,7 @@ main() {
     init_directories
     setup_skynet_config
     setup_nginx_config
+    setup_xdc_private_key
     
     # Wait for external dependencies
     wait_for_dependencies

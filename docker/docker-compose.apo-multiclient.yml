@@ -18,10 +18,11 @@ x-skynet-common: &skynet-common
   restart: unless-stopped
   network_mode: host
   volumes:
-    - /var/run/docker.sock:/var/run/docker.sock
+    # Security (#499): docker.sock required for xdc-agent container monitoring — see docs/SECURITY.md
+    - /var/run/docker.sock:/var/run/docker.sock:ro
   environment: &skynet-env
-    SKYNET_API_KEY: xdc-netown-key-2026-prod
-    SKYNET_MASTER_KEY: xdc-netown-key-2026-prod
+    SKYNET_API_KEY: ${SKYNET_API_KEY:-xdc-netown-key-2026-prod}
+    SKYNET_MASTER_KEY: ${SKYNET_MASTER_KEY:-xdc-netown-key-2026-prod}
     SKYNET_API_URL: https://net.xdc.network/api
     HOST_IP: "185.180.220.183"
     NETWORK: apothem

@@ -1,5 +1,7 @@
 #!/bin/bash
-# Combined startup script for XDC Agent (Dashboard + SkyNet)
+# Security Fix (#508): Combined startup script for XDC Agent (Dashboard + SkyNet)
+set -euo pipefail
+trap 'echo "ERROR at line $LINENO"' ERR
 
 # Ensure log directory exists
 mkdir -p /var/log/xdc
