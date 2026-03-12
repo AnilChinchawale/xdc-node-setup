@@ -11,8 +11,8 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:8556:8545"
-      - "30306:30306"
-      - "30306:30306/udp"
+      - "0.0.0.0:30306:30306"
+      - "0.0.0.0:30306:30306/udp"
     volumes:
       - xdc-erigon-apothem-data:/data/erigon
     command: >

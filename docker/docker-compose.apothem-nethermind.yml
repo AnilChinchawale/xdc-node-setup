@@ -11,8 +11,8 @@ services:
     restart: unless-stopped
     ports:
       - "8558:8558"      # HTTP RPC
-      - "30308:30308"    # P2P TCP
-      - "30308:30308/udp"  # P2P UDP
+      - "0.0.0.0:30308:30308"    # P2P TCP
+      - "0.0.0.0:30308:30308/udp"  # P2P UDP
     volumes:
       - xdc-nethermind-apothem-data:/nethermind/data
       - ./nethermind/xdc-apothem-chainspec.json:/nethermind/chainspec/xdc-apothem.json:ro

@@ -56,8 +56,8 @@ services:
     ports:
       - "8557:8557"      # HTTP RPC
       - "8560:8560"      # WebSocket
-      - "30307:30307"    # P2P TCP
-      - "30307:30307/udp"  # P2P UDP
+      - "0.0.0.0:30307:30307"    # P2P TCP
+      - "0.0.0.0:30307:30307/udp"  # P2P UDP
     volumes:
       - xdc-gx-apothem-data:/data/xdc
     entrypoint: ["/usr/local/bin/XDC"]
@@ -98,8 +98,8 @@ services:
     restart: unless-stopped
     ports:
       - "8556:8556"      # HTTP RPC
-      - "30306:30306"    # P2P TCP
-      - "30306:30306/udp"  # P2P UDP
+      - "0.0.0.0:30306:30306"    # P2P TCP
+      - "0.0.0.0:30306:30306/udp"  # P2P UDP
       - "9090:9090"      # Private API
       - "6060:6060"      # Metrics
     volumes:
@@ -142,8 +142,8 @@ services:
     ports:
       - "8558:8558"      # HTTP RPC
       - "8559:8559"      # WebSocket
-      - "30308:30308"    # P2P TCP
-      - "30308:30308/udp"  # P2P UDP
+      - "0.0.0.0:30308:30308"    # P2P TCP
+      - "0.0.0.0:30308:30308/udp"  # P2P UDP
     volumes:
       - xdc-nethermind-apothem-data:/nethermind/data
     command: >
