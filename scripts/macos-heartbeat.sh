@@ -3,25 +3,59 @@
 # Source common utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh" 2>/dev/null || { echo "ERROR: Cannot source common.sh"; exit 1; }
-# XDC SkyNet Heartbeat — macOS Installer
+
 # XDC SkyNet Heartbeat — macOS Installer
 # Run: bash <(curl -s https://raw.githubusercontent.com/AnilChinchawale/xdc-node-setup/main/scripts/macos-heartbeat.sh)
 
-NODE_ID="755f82db-a541-4224-9447-a385d11321b8"
-API_URL="https://net.xdc.network/api/v1/nodes"
-API_KEY="xdc-netown-key-2026-prod"
+# Security: Use environment variables for sensitive credentials
+# These should be set before running the script
+NODE_ID="${SKYNET_NODE_ID:-}"
+API_KEY="${SKYNET_API_KEY:-}"
+API_URL="${SKYNET_API_URL:-https://net.xdc.network/api/v1/nodes}"
 RPC_URL="${XDC_RPC_URL:-http://127.0.0.1:8545}"
+
+# Validate required environment variables
+if [[ -z "$NODE_ID" ]]; then
+    echo "ERROR: SKYNET_NODE_ID environment variable must be set"
+    echo "Example: export SKYNET_NODE_ID='your-node-id-here'"
+    exit 1
+fi
+
+if [[ -z "$API_KEY" ]]; then
+    echo "ERROR: SKYNET_API_KEY environment variable must be set"
+    echo "Example: export SKYNET_API_KEY='your-api-key-here'"
+    exit 1
+fi
+
+# Validate UUID format for NODE_ID
+if ! [[ "$NODE_ID" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
+    echo "WARNING: SKYNET_NODE_ID does not appear to be a valid UUID format"
+fi
 
 SCRIPT_DIR="$HOME/.xdc-node"
 mkdir -p "$SCRIPT_DIR"
 
 cat > "$SCRIPT_DIR/heartbeat.sh" << 'HEARTBEAT'
 #!/bin/bash
-NODE_ID="755f82db-a541-4224-9447-a385d11321b8"
-API_URL="https://net.xdc.network/api/v1/nodes"
-API_KEY="xdc-netown-key-2026-prod"
+set -euo pipefail
+
+# Load environment variables from file if it exists
+if [[ -f "$HOME/.xdc-node/.env" ]]; then
+    source "$HOME/.xdc-node/.env"
+fi
+
+# Use environment variables (no hardcoded values)
+NODE_ID="${SKYNET_NODE_ID:-}"
+API_KEY="${SKYNET_API_KEY:-}"
+API_URL="${SKYNET_API_URL:-https://net.xdc.network/api/v1/nodes}"
 RPC_URL="${XDC_RPC_URL:-http://127.0.0.1:8545}"
 MAINNET_HEAD_RPC="https://rpc.xdc.org"
+
+# Validate credentials
+if [[ -z "$NODE_ID" || -z "$API_KEY" ]]; then
+    echo "ERROR: SKYNET_NODE_ID and SKYNET_API_KEY must be set in environment or ~/.xdc-node/.env"
+    exit 1
+fi
 
 # Block height
 BLOCK_HEX=$(curl -s -m 5 -X POST "$RPC_URL" -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' | python3 -c "import sys,json; print(json.load(sys.stdin).get('result','0x0'))" 2>/dev/null)
@@ -38,7 +72,7 @@ HEAD_HEX=$(curl -s -m 5 -X POST "$MAINNET_HEAD_RPC" -H "Content-Type: applicatio
 HEAD_HEX=${HEAD_HEX:-0x0}
 HEAD=$((16#${HEAD_HEX#0x}))
 if [ "$HEAD" -gt 0 ] && [ "$BLOCK" -gt 0 ]; then
-  SYNC_PCT=$(python3 -c "print(f'{($BLOCK / $HEAD) * 100:.2f}')")
+  SYNC_PCT=$(python3 -c "print(f'{(\$BLOCK / $HEAD) * 100:.2f}')")
   IS_SYNCING=$([ "$BLOCK" -lt "$((HEAD - 100))" ] && echo "true" || echo "false")
 else
   SYNC_PCT=0
@@ -127,6 +161,27 @@ HEARTBEAT
 
 chmod +x "$SCRIPT_DIR/heartbeat.sh"
 
+# Create environment file template
+cat > "$SCRIPT_DIR/.env.example" << 'EOF'
+# SkyNet Agent Configuration
+# Copy this file to .env and fill in your credentials
+SKYNET_NODE_ID="your-node-id-here"
+SKYNET_API_KEY="your-api-key-here"
+SKYNET_API_URL="https://net.xdc.network/api/v1/nodes"
+XDC_RPC_URL="http://127.0.0.1:8545"
+EOF
+
+# Create the actual .env file with provided credentials
+cat > "$SCRIPT_DIR/.env" << EOF
+# SkyNet Agent Configuration
+SKYNET_NODE_ID="$NODE_ID"
+SKYNET_API_KEY="$API_KEY"
+SKYNET_API_URL="$API_URL"
+XDC_RPC_URL="$RPC_URL"
+EOF
+
+chmod 600 "$SCRIPT_DIR/.env"
+
 # Install launchd plist (macOS cron equivalent)
 PLIST="$HOME/Library/LaunchAgents/com.xdc.skynet.heartbeat.plist"
 mkdir -p "$HOME/Library/LaunchAgents"
@@ -155,14 +210,18 @@ cat > "$PLIST" << EOF
 EOF
 
 # Load the agent
-launchctl unload "$PLIST" 2>/dev/null
+launchctl unload "$PLIST" 2>/dev/null || true
 launchctl load "$PLIST"
 
 echo ""
 echo "✅ XDC SkyNet Heartbeat installed!"
 echo "   Script: $SCRIPT_DIR/heartbeat.sh"
+echo "   Config: $SCRIPT_DIR/.env"
 echo "   Log:    $SCRIPT_DIR/heartbeat.log"
-echo "   Node:   xdc-macos-mumbai"
+echo "   Node:   $NODE_ID"
+echo ""
+echo "⚠️  IMPORTANT: Credentials stored securely in $SCRIPT_DIR/.env"
+echo "   Review the configuration and ensure .env file has restricted permissions (chmod 600)"
 echo ""
 echo "Test manually: bash $SCRIPT_DIR/heartbeat.sh"
 echo "Stop:  launchctl unload $PLIST"
