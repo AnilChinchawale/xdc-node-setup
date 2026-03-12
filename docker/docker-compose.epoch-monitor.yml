@@ -1,0 +1,44 @@
+# XDC Epoch Boundary Monitor Service
+# Monitors XDPoS 2.0 epoch transitions and sends alerts
+#
+# Environment Variables:
+#   EPOCH_ALERT_WEBHOOK  - Webhook URL for alerts
+#   EPOCH_ALERT_BLOCKS   - Alert thresholds (default: 100,50,10)
+#   XDC_EPOCH_LENGTH     - Blocks per epoch (default: 900)
+#
+# Usage:
+#   docker compose -f docker-compose.epoch-monitor.yml up -d
+
+services:
+  epoch-monitor:
+    image: alpine:latest
+    container_name: xdc-epoch-monitor
+    restart: unless-stopped
+    environment:
+      - XDC_RPC_URL=${XDC_RPC_URL:-http://xdc-node:8545}
+      - EPOCH_ALERT_WEBHOOK=${EPOCH_ALERT_WEBHOOK:-}
+      - EPOCH_ALERT_BLOCKS=${EPOCH_ALERT_BLOCKS:-100,50,10}
+      - XDC_EPOCH_LENGTH=${XDC_EPOCH_LENGTH:-900}
+      - EPOCH_CHECK_INTERVAL=${EPOCH_CHECK_INTERVAL:-60}
+      - INSTANCE_NAME=${INSTANCE_NAME:-xdc-node}
+    volumes:
+      - ./scripts/epoch-monitor.sh:/usr/local/bin/epoch-monitor.sh:ro
+      - /var/log:/var/log
+    command: >
+      sh -c "
+        apk add --no-cache curl python3 bash 2>/dev/null
+        chmod +x /usr/local/bin/epoch-monitor.sh
+        exec /usr/local/bin/epoch-monitor.sh monitor
+      "
+    networks:
+      - xdc-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  xdc-network:
+    external: true
+    name: xdc-node-setup_xdc-network
