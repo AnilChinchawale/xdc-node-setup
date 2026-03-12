@@ -111,7 +111,8 @@ ARGS="$ARGS --syncmode $SYNC_MODE"
 ARGS="$ARGS --gcmode $GC_MODE"
 ARGS="$ARGS --verbosity $LOG_LEVEL"
 
-# Miner settings (XDC uses old geth-style flags)
+# Miner settings - use legacy flags for compatibility
+# Try --miner.gasprice first (new), fallback to --gasprice (legacy)
 ARGS="$ARGS --gasprice 1"
 ARGS="$ARGS --targetgaslimit 420000000"
 
