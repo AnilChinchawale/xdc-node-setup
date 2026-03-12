@@ -60,8 +60,8 @@ services:
     user: root
     ports:
       - "8556:8556"
-      - "30306:30306"
-      - "30306:30306/udp"
+      - "0.0.0.0:30306:30306"
+      - "0.0.0.0:30306:30306/udp"
     volumes:
       - xdc-apo-erigon-data:/data/erigon
     environment:
@@ -100,8 +100,8 @@ services:
     ports:
       - "8558:8558"
       - "8559:8559"
-      - "30308:30308"
-      - "30308:30308/udp"
+      - "0.0.0.0:30308:30308"
+      - "0.0.0.0:30308:30308/udp"
     volumes:
       - xdc-apo-nm-data:/nethermind/data
     entrypoint: ["/nethermind/nethermind"]
@@ -139,8 +139,8 @@ services:
     ports:
       - "8548:7073"
       - "8551:8551"
-      - "40303:40303"
-      - "40303:40303/udp"
+      - "0.0.0.0:40303:40303"
+      - "0.0.0.0:40303:40303/udp"
     volumes:
       - xdc-apo-reth-data:/work/xdcchain
       - /root/workspace/xdc-node-setup/data/reth/jwt.hex:/work/jwt.hex:ro
