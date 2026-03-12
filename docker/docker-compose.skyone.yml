@@ -65,8 +65,8 @@ services:
     ports:
       - "8545:8545"     # XDC RPC
       - "8546:8546"     # XDC WebSocket
-      - "30303:30303"   # XDC P2P TCP
-      - "30303:30303/udp" # XDC P2P UDP
+      - "0.0.0.0:30303:30303"   # XDC P2P TCP
+      - "0.0.0.0:30303:30303/udp" # XDC P2P UDP
       - "7070:7070"     # Dashboard
       - "6060:6060"     # Prometheus Metrics
     environment:
@@ -129,8 +129,8 @@ services:
     restart: unless-stopped
     ports:
       - "8545:8545"     # XDC RPC (localhost only recommended)
-      - "30303:30303"   # XDC P2P
-      - "30303:30303/udp"
+      - "0.0.0.0:30303:30303"   # XDC P2P
+      - "0.0.0.0:30303:30303/udp"
       - "7070:7070"     # Dashboard
     environment:
       - NODE_TYPE=masternode

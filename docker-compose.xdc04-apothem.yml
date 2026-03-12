@@ -22,8 +22,8 @@ services:
     ports:
       - "8545:8545"
       - "8546:8546"
-      - "30303:30303"
-      - "30303:30303/udp"
+      - "0.0.0.0:30303:30303"
+      - "0.0.0.0:30303:30303/udp"
     volumes:
       - xdc-apo-stable-data:/work/xdcchain
     entrypoint: ["/bin/sh", "-c"]

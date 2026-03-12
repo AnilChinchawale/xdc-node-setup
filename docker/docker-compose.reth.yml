@@ -68,12 +68,14 @@ services:
     container_name: xdc-agent-reth
     restart: unless-stopped
     ports:
-      - "0.0.0.0:${RETH_DASHBOARD_PORT:-7073}:3000"
+      - "127.0.0.1:${RETH_DASHBOARD_PORT:-7073}:3000"
     volumes:
       - ./skynet-agent.sh:/agent.sh:ro
       - ../${NETWORK:-mainnet}/.xdc-node/skynet-reth.conf:/etc/xdc-node/skynet.conf
       - /proc:/host/proc:ro
-      - /var/run/docker.sock:/var/run/docker.sock
+      # Security (#499): docker.sock required for xdc-agent container monitoring — see docs/SECURITY.md
+      # Use :ro (read-only) where possible; full access required for container operations
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ../${NETWORK:-mainnet}/.xdc-node/logs:/var/log/xdc
     environment:
       - RPC_URL=http://xdc-node:7073

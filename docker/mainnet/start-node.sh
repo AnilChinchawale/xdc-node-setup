@@ -1,6 +1,9 @@
 #!/bin/bash
+# Security Fix (#492 #493 #508): Secure RPC defaults + error handling
+set -euo pipefail
+trap 'echo "ERROR at line $LINENO"' ERR
+
 export PATH="/run/xdc:/tmp:/var/tmp:$PATH"
-set -e
 
 # Source common utilities
 # shellcheck source=/dev/null
@@ -34,19 +37,21 @@ export GC_MODE="${GC_MODE:-full}"
 export LOG_LEVEL="${LEVEL:-2}"
 export INSTANCE_NAME="${INSTANCE_NAME:-XDC_Node}"
 export ENABLE_RPC="${ENABLED:-true}"
-# Security: Default to localhost for RPC/WS (Issue #413)
-export RPC_ADDR="${ADDR:-127.0.0.1}"
+# Security Fix (#492 #493): Secure RPC defaults — localhost only, no wildcards
+# Use RPC_ADDR=0.0.0.0 explicitly for production deployments
+export RPC_ADDR="${RPC_ADDR:-${ADDR:-127.0.0.1}}"
 export RPC_PORT="${HTTP_PORT:-${RPC_PORT:-8545}}"
 export RPC_API="${API:-admin,eth,net,web3,XDPoS}"
-# Security: Default to localhost only for CORS (Issue #412)
-export RPC_CORS_DOMAIN="${CORS_DOMAIN:-${RPC_CORS:-localhost}}"
-# Security: Default to localhost for vhosts (Issue #412)
-export RPC_VHOSTS="${VHOSTS:-localhost}"
-# Security: Default to localhost for WebSocket (Issue #413)
+# Security Fix (#492): Default CORS to localhost only (not * wildcard)
+export RPC_ALLOW_ORIGINS="${RPC_ALLOW_ORIGINS:-${CORS_DOMAIN:-${RPC_CORS:-localhost}}}"
+export RPC_CORS_DOMAIN="$RPC_ALLOW_ORIGINS"
+# Security Fix (#492): Default vhosts to localhost only (not * wildcard)
+export RPC_VHOSTS="${RPC_VHOSTS:-${VHOSTS:-localhost}}"
+# Security: Default to localhost for WebSocket
 export WS_ADDR="${WS_ADDR:-127.0.0.1}"
 export WS_PORT="${WS_PORT:-8546}"
 export WS_API="${WS_API:-eth,net,web3,XDPoS}"
-# Security: Default to localhost for WS origins (Issue #412)
+# Security: Default to localhost for WS origins
 export WS_ORIGINS="${WS_ORIGINS:-localhost}"
 
 echo "Config: sync=$SYNC_MODE gc=$GC_MODE log=$LOG_LEVEL rpc=$ENABLE_RPC"

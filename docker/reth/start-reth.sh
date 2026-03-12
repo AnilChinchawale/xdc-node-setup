@@ -1,15 +1,21 @@
 #!/bin/bash
-set -e
+# Security Fix (#492 #493 #508): Secure RPC defaults + error handling
+set -euo pipefail
+trap 'echo "ERROR at line $LINENO"' ERR
 
 #==============================================================================
 # XDC Reth Start Script - Production Hardened
 # Handles initialization and startup of Reth XDC client
+# Security: RPC binds to 127.0.0.1 by default — set RPC_ADDR=0.0.0.0 for external access
 # Issue #235: P2P stability, state validation, metrics
 #==============================================================================
 
+# Security Fix (#492 #493): Secure defaults — localhost only
 : "${NETWORK:=mainnet}"
 : "${SYNC_MODE:=full}"
 : "${RPC_PORT:=7073}"
+: "${RPC_ADDR:=127.0.0.1}"  # Security: localhost only by default
+: "${RPC_ALLOW_ORIGINS:=localhost}"  # Security: no CORS wildcard
 : "${P2P_PORT:=40303}"
 : "${DISCOVERY_PORT:=40304}"
 : "${AUTHRPC_PORT:=8551}"
@@ -44,7 +50,7 @@ esac
 
 echo "=== XDC Reth Node (Production Hardened) ==="
 echo "Network: $NETWORK_NAME (Chain ID: $CHAIN_ID)"
-echo "RPC Port: $RPC_PORT"
+echo "RPC Port: $RPC_PORT (bind: $RPC_ADDR)"
 echo "P2P Port: $P2P_PORT"
 echo "Discovery Port: $DISCOVERY_PORT"
 echo "Instance: $INSTANCE_NAME"
@@ -82,8 +88,9 @@ RETH_ARGS=(
     --datadir "$DATADIR"
     --http
     --http.port "${RPC_PORT}"
-    --http.addr "0.0.0.0"
+    --http.addr "${RPC_ADDR}"
     --http.api "eth,net,web3,admin,debug,trace"
+    --http.corsdomain "${RPC_ALLOW_ORIGINS}"
     --port "${P2P_PORT}"
     --discovery.port "${DISCOVERY_PORT}"
     --authrpc.port "${AUTHRPC_PORT}"
