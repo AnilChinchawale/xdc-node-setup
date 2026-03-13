@@ -441,51 +441,122 @@ const chainsComparisonData: ChainComparisonData[] = [
   },
 ];
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const sortBy = searchParams.get('sortBy') || 'byRevenue';
-  const limit = parseInt(searchParams.get('limit') || '10');
-  const chainIds = searchParams.get('chains')?.split(',') || [];
-
-  let filteredData = [...chainsComparisonData];
-
-  // Filter by chain IDs if specified
-  if (chainIds.length > 0 && chainIds[0] !== '') {
-    filteredData = filteredData.filter(chain => chainIds.includes(chain.id));
-  }
-
-  // Sort by the specified ranking
-  const sortedData = filteredData.sort((a, b) => {
-    return a.rankings[sortBy as keyof typeof a.rankings] - b.rankings[sortBy as keyof typeof b.rankings];
-  });
-
-  // Limit results
-  const limitedData = sortedData.slice(0, limit);
-
-  // Generate rankings for each category
-  const rankings = {
-    byRevenue: chainsComparisonData
-      .sort((a, b) => b.metrics.revenue24h - a.metrics.revenue24h)
-      .map((c, i) => ({ ...c, rank: i + 1 })),
-    bySpeed: chainsComparisonData
-      .sort((a, b) => a.metrics.avgConfirmationTime - b.metrics.avgConfirmationTime)
-      .map((c, i) => ({ ...c, rank: i + 1 })),
-    byUsers: chainsComparisonData
-      .sort((a, b) => b.metrics.activeUsers24h - a.metrics.activeUsers24h)
-      .map((c, i) => ({ ...c, rank: i + 1 })),
-    byPsRatio: chainsComparisonData
-      .filter(c => c.metrics.psRatio > 0)
-      .sort((a, b) => a.metrics.psRatio - b.metrics.psRatio)
-      .map((c, i) => ({ ...c, rank: i + 1 })),
-    byTvl: chainsComparisonData
-      .sort((a, b) => b.metrics.tvl - a.metrics.tvl)
-      .map((c, i) => ({ ...c, rank: i + 1 })),
+// Transform nested data to flat structure for frontend
+function flattenChainData(chain: ChainComparisonData) {
+  return {
+    id: chain.id,
+    name: chain.name,
+    symbol: chain.symbol,
+    logoUrl: chain.logoUrl,
+    // Flatten metrics
+    tvl: chain.metrics.tvl,
+    tvlChange24h: chain.metrics.tvlChange24h,
+    revenue24h: chain.metrics.revenue24h,
+    revenue7d: chain.metrics.revenue7d,
+    revenue30d: chain.metrics.revenue30d,
+    revenueChange24h: chain.metrics.revenueChange24h,
+    volume24h: chain.metrics.volume24h,
+    volumeChange24h: chain.metrics.volumeChange24h,
+    transactions24h: chain.metrics.transactions24h,
+    avgConfirmationTime: chain.metrics.avgConfirmationTime,
+    activeUsers24h: chain.metrics.activeUsers24h,
+    activeUsersChange24h: chain.metrics.activeUsersChange24h,
+    marketCap: chain.metrics.marketCap,
+    psRatio: chain.metrics.psRatio,
+    fdv: chain.metrics.fdv,
+    price: chain.metrics.price,
+    priceChange24h: chain.metrics.priceChange24h,
+    // Keep nested structures
+    metrics: {
+      gasFeeAverage: chain.metrics.gasFeeAverage,
+      throughput: chain.metrics.throughput,
+      decentralizationScore: chain.metrics.decentralizationScore,
+    },
+    rankings: chain.rankings,
+    timeSeries: chain.timeSeries,
   };
+}
 
-  return NextResponse.json({
-    chains: limitedData,
-    rankings,
-    sortBy,
-    timestamp: new Date().toISOString(),
-  });
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const sortBy = searchParams.get('sortBy') || 'byRevenue';
+    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const chainIds = searchParams.get('chains')?.split(',').filter(Boolean) || [];
+
+    // Validate sortBy parameter
+    const validSortFields = ['byRevenue', 'byTvl', 'byVolume', 'byUsers', 'bySpeed', 'byPsRatio', 'byActivity'];
+    if (!validSortFields.includes(sortBy)) {
+      return NextResponse.json(
+        { error: 'Invalid sortBy parameter', validValues: validSortFields },
+        { status: 400 }
+      );
+    }
+
+    // Validate limit parameter
+    if (isNaN(limit) || limit < 1 || limit > 100) {
+      return NextResponse.json(
+        { error: 'Invalid limit parameter. Must be between 1 and 100' },
+        { status: 400 }
+      );
+    }
+
+    let filteredData = [...chainsComparisonData];
+
+    // Filter by chain IDs if specified
+    if (chainIds.length > 0) {
+      filteredData = filteredData.filter(chain => chainIds.includes(chain.id));
+      if (filteredData.length === 0) {
+        return NextResponse.json(
+          { error: 'No chains found matching the provided IDs', validChains: chainsComparisonData.map(c => c.id) },
+          { status: 404 }
+        );
+      }
+    }
+
+    // Sort by the specified ranking
+    const sortedData = filteredData.sort((a, b) => {
+      return a.rankings[sortBy as keyof typeof a.rankings] - b.rankings[sortBy as keyof typeof b.rankings];
+    });
+
+    // Limit results
+    const limitedData = sortedData.slice(0, limit);
+
+    // Flatten the data for frontend compatibility
+    const flattenedChains = limitedData.map(flattenChainData);
+
+    // Generate rankings for each category (flattened)
+    const rankings = {
+      byRevenue: chainsComparisonData
+        .sort((a, b) => b.metrics.revenue24h - a.metrics.revenue24h)
+        .map((c, i) => ({ ...flattenChainData(c), rank: i + 1 })),
+      bySpeed: chainsComparisonData
+        .sort((a, b) => a.metrics.avgConfirmationTime - b.metrics.avgConfirmationTime)
+        .map((c, i) => ({ ...flattenChainData(c), rank: i + 1 })),
+      byUsers: chainsComparisonData
+        .sort((a, b) => b.metrics.activeUsers24h - a.metrics.activeUsers24h)
+        .map((c, i) => ({ ...flattenChainData(c), rank: i + 1 })),
+      byPsRatio: chainsComparisonData
+        .filter(c => c.metrics.psRatio > 0)
+        .sort((a, b) => a.metrics.psRatio - b.metrics.psRatio)
+        .map((c, i) => ({ ...flattenChainData(c), rank: i + 1 })),
+      byTvl: chainsComparisonData
+        .sort((a, b) => b.metrics.tvl - a.metrics.tvl)
+        .map((c, i) => ({ ...flattenChainData(c), rank: i + 1 })),
+    };
+
+    return NextResponse.json({
+      chains: flattenedChains,
+      rankings,
+      sortBy,
+      count: flattenedChains.length,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error in /api/chains/comparison:', error);
+    return NextResponse.json(
+      { error: 'Internal server error', message: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
+  }
 }
